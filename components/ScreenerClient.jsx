@@ -442,7 +442,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
           {/* Table */}
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="min-w-[700px] w-full text-left border-collapse">
                 <thead className="bg-surface-container-low border-b border-outline-variant">
                   <tr>
                     <th className="px-4 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-left w-[35%]">

@@ -506,7 +506,8 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
             ) : (
               /* List view */
               <div className="border border-outline-variant rounded-xl overflow-hidden bg-surface-container-lowest">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                <table className="min-w-[600px] w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-surface-container-low border-b border-outline-variant">
                       <th className="px-6 py-4 font-inter text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
@@ -533,6 +534,7 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>
