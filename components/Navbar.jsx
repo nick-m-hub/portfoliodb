@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import NavSearch from '@/components/NavSearch';
 
+/** @param {{ portfolios: Array<{name: string, slug: string}> }} props */
 export default function Navbar({ portfolios = [] }) {
   return (
     <nav className="bg-white/90 backdrop-blur-md sticky top-0 w-full z-50 border-b border-outline-variant shadow-sm">
