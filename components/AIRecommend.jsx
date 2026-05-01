@@ -82,7 +82,7 @@ export default function AIRecommend() {
         )}
 
         {!error && !recommendations && (
-          <p className="mt-3 text-[12px] text-on-surface-variant/70 font-inter italic">
+          <p className="mt-3 text-[12px] text-on-surface-variant font-inter italic">
             Our AI analyzes 50+ years of historical data to find your perfect match.
           </p>
         )}

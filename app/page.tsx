@@ -54,7 +54,7 @@ export default async function Home() {
             {/* Headline */}
             <h1 className="font-manrope text-[48px] md:text-[56px] leading-[1.1] text-on-surface font-bold mb-6 max-w-4xl tracking-tight">
               The Modern Engine for<br />
-              <span className="text-[#71a38b]">Growth-Focused</span> Portfolios
+              <span className="text-[#27624a]">Growth-Focused</span> Portfolios
             </h1>
 
             {/* Subheading */}
@@ -72,13 +72,13 @@ export default async function Home() {
             {/* Popular links */}
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm mt-8 font-inter">
               <span className="text-on-surface-variant">Popular:</span>
-              <Link href="/database" className="text-[#71a38b] hover:text-primary transition-colors font-medium">
+              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
                 Ray Dalio All-Weather
               </Link>
-              <Link href="/database" className="text-[#71a38b] hover:text-primary transition-colors font-medium">
+              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
                 Vanguard Target Date 2050
               </Link>
-              <Link href="/database" className="text-[#71a38b] hover:text-primary transition-colors font-medium">
+              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
                 Permanent Portfolio
               </Link>
             </div>

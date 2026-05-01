@@ -26,11 +26,12 @@ export default function FilterBar() {
 
       {/* ── Category dropdown ── */}
       <div className="flex-1 flex flex-col items-start px-4 py-3 border-b md:border-b-0 md:border-r border-outline-variant/50">
-        <label className="font-inter text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+        <label htmlFor="filter-category" className="font-inter text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
           Category
         </label>
         <div className="relative w-full">
           <select
+            id="filter-category"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="w-full appearance-none font-inter text-sm bg-transparent focus:outline-none pr-6 cursor-pointer text-on-surface"
