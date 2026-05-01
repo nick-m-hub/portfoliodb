@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* ─── Primary (dark forest green) ─── */
+  --color-primary:                   #074a34;
+  --color-on-primary:                #ffffff;
+  --color-primary-container:         #27624a;
+  --color-on-primary-container:      #9edbbd;
+  --color-primary-fixed:             #b2f0d1;
+  --color-primary-fixed-dim:         #97d3b5;
+  --color-on-primary-fixed:          #002114;
+  --color-on-primary-fixed-variant:  #12503a;
+  --color-inverse-primary:           #97d3b5;
+
+  /* ─── Surface ─── */
+  --color-background:                #fbf9f6;
+  --color-surface:                   #fbf9f6;
+  --color-surface-dim:               #dbdad7;
+  --color-surface-bright:            #fbf9f6;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #f5f3f0;
+  --color-surface-container:         #efeeeb;
+  --color-surface-container-high:    #eae8e5;
+  --color-surface-container-highest: #e4e2df;
+  --color-surface-variant:           #e4e2df;
+  --color-surface-tint:              #2e6950;
+
+  /* ─── On-surface ─── */
+  --color-on-surface:                #1b1c1a;
+  --color-on-surface-variant:        #404943;
+  --color-on-background:             #1b1c1a;
+  --color-inverse-surface:           #30312f;
+  --color-inverse-on-surface:        #f2f0ed;
+
+  /* ─── Borders ─── */
+  --color-outline:                   #707973;
+  --color-outline-variant:           #bfc9c2;
+
+  /* ─── Secondary ─── */
+  --color-secondary:                 #506259;
+  --color-on-secondary:              #ffffff;
+  --color-secondary-container:       #d1e4d8;
+  --color-on-secondary-container:    #55675d;
+  --color-secondary-fixed:           #d3e7db;
+  --color-secondary-fixed-dim:       #b8cbbf;
+  --color-on-secondary-fixed:        #0e1f17;
+  --color-on-secondary-fixed-variant: #394b41;
+
+  /* ─── Tertiary ─── */
+  --color-tertiary:                  #573b15;
+  --color-on-tertiary:               #ffffff;
+  --color-tertiary-container:        #715229;
+  --color-on-tertiary-container:     #f2c795;
+  --color-tertiary-fixed:            #ffddb7;
+  --color-tertiary-fixed-dim:        #eabf8d;
+  --color-on-tertiary-fixed:         #2a1700;
+  --color-on-tertiary-fixed-variant: #5e411a;
+
+  /* ─── Error ─── */
+  --color-error:                     #ba1a1a;
+  --color-on-error:                  #ffffff;
+  --color-error-container:           #ffdad6;
+  --color-on-error-container:        #93000a;
+
+  /* ─── Typography ─── */
+  --font-manrope: var(--font-manrope-loaded);
+  --font-inter:   var(--font-inter-loaded);
+  --font-sans:    var(--font-inter-loaded);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
 }
