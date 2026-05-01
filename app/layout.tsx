@@ -30,7 +30,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const portfolios = await getPortfolioNames();
+  const portfolios = (await getPortfolioNames()) ?? [];
 
   return (
     <html
