@@ -217,6 +217,7 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
     return md ? parseFloat(md) : null;
   });
   const [sortBy, setSortBy] = useState('sharpe_ratio'); // default sort
+  const [showFilters, setShowFilters] = useState(false);
 
   function toggleRisk(label) {
     setRiskFilters((prev) =>
@@ -340,9 +341,9 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
           </div>
         </header>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col lg:flex-row gap-8">
           {/* ── Sidebar Filters ── */}
-          <aside className="w-56 flex-shrink-0 hidden lg:block">
+          <aside className={`w-full lg:w-56 flex-shrink-0 ${showFilters ? 'block' : 'hidden'} lg:block`}>
             <div className="sticky top-24 space-y-8">
 
               {/* Clear filters */}
@@ -451,6 +452,16 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
 
           {/* ── Main Content ── */}
           <div className="flex-grow min-w-0">
+
+            {/* Mobile filter toggle */}
+            <button
+              onClick={() => setShowFilters((s) => !s)}
+              className="lg:hidden flex items-center gap-2 mb-4 font-inter text-[13px] font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-[#D1E4D8] transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">tune</span>
+              {showFilters ? 'Hide Filters' : 'Filters'}
+              {hasFilters && <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">ON</span>}
+            </button>
 
             {/* Result count + sort */}
             <div className="flex items-center justify-between mb-5">

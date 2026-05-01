@@ -109,6 +109,9 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   const [assetClassFilters, setAssetClassFilters] = useState([]);
   const [assetClassesOpen, setAssetClassesOpen] = useState(false);
 
+  // Mobile filter panel
+  const [showFilters, setShowFilters] = useState(false);
+
   // Pagination
   const [page, setPage] = useState(1);
 
@@ -218,10 +221,10 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
 
   return (
     <div className="flex flex-col flex-grow w-full min-h-screen">
-      <div className="flex flex-grow max-w-[1440px] mx-auto w-full px-8">
+      <div className="flex flex-col lg:flex-row flex-grow max-w-[1440px] mx-auto w-full px-8">
 
         {/* ── Sticky Sidebar ── */}
-        <aside className="w-72 flex-shrink-0 sticky top-14 h-[calc(100vh-56px)] flex flex-col py-6 overflow-y-auto border-r border-outline-variant pr-6 hidden lg:flex">
+        <aside className={`w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] flex-col py-6 overflow-y-auto border-b lg:border-b-0 lg:border-r border-outline-variant lg:pr-6 ${showFilters ? 'flex' : 'hidden'} lg:flex`}>
 
           {/* Header */}
           <div className="mb-5">
@@ -406,7 +409,17 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
         </aside>
 
         {/* ── Main Content ── */}
-        <section className="flex-1 min-w-0 py-6 pl-8">
+        <section className="flex-1 min-w-0 py-6 lg:pl-8">
+
+          {/* Mobile filter toggle */}
+          <button
+            onClick={() => setShowFilters((s) => !s)}
+            className="lg:hidden flex items-center gap-2 mb-4 font-inter text-[13px] font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-[#D1E4D8] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">tune</span>
+            {showFilters ? 'Hide Filters' : 'Filters'}
+            {hasFilters && <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">ON</span>}
+          </button>
 
           {/* Section header */}
           <div className="flex justify-between items-end mb-5">
