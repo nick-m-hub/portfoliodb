@@ -64,7 +64,6 @@ export default async function Home() {
             </p>
 
             {/* ── Filter bar ── */}
-            {/* @ts-expect-error – FilterBar is a JS component */}
             <FilterBar />
 
             {/* ── AI Recommend bar ── */}
