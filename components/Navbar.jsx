@@ -16,7 +16,7 @@ export default function Navbar({ portfolios = [] }) {
               href="/"
               className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 font-manrope"
             >
-              <span className="material-symbols-outlined">analytics</span>
+              <img src="/portfoliodb-icon.svg" alt="PortfolioDB" width={24} height={24} />
               PortfolioDB
             </Link>
             <div className="hidden md:flex items-center gap-6">
