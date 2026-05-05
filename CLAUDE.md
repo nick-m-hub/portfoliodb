@@ -21,7 +21,7 @@ English alongside any technical output.
 | Frontend    | Next.js 16 (App Router, mostly JS with one .tsx)  |
 | Styling     | Tailwind CSS v4 with custom `@theme` design tokens |
 | Fonts       | Manrope (headings) + Inter (body), via next/font   |
-| Icons       | Material Symbols Outlined (Google CDN)             |
+| Icons       | Material Symbols Outlined (Google CDN, axes fixed: opsz=24,wght=400,FILL=0,GRAD=0) |
 | Charts      | Recharts (client) + custom SVG donut (server)      |
 | Database    | Supabase (PostgreSQL)                              |
 | AI          | Anthropic API — claude-haiku-4-5 for screener      |
@@ -53,7 +53,8 @@ Stores manual metadata only. No calculated stats.
 | min_timeline_years | integer     |                                                 |
 | risk_level         | integer     | 1–5 only (check constraint enforced)            |
 | description        | text        | May contain markdown + literal `\n` — see below |
-| m1_link            | text        |                                                 |
+| m1_link            | text        | Nullable — cleared May 2026, reserved for future use |
+| kofi_link          | text        | Ko-fi membership URL — drives trade signals CTA on portfolio detail pages |
 | created_at         | timestamptz | Auto-generated                                  |
 
 ### Table: allocations
@@ -104,7 +105,7 @@ This is what the Next.js site queries — never query monthly_returns directly
 for display purposes.
 
 Columns returned: slug, name, category, trade_frequency, min_timeline_years,
-risk_level, description, m1_link, cagr, current_value, max_drawdown,
+risk_level, description, m1_link, kofi_link, cagr, current_value, max_drawdown,
 sharpe_ratio, sortino_ratio, best_year, worst_year, total_months, last_updated,
 cagr_10yr, ulcer_index, ulcer_performance_index, cagr_gfc, cagr_dotcom,
 rolling_1yr_low, rolling_1yr_avg, rolling_1yr_high,
@@ -163,7 +164,7 @@ Key formula approach:
 portfoliodb/
   app/
     page.tsx                         # Homepage (server component)
-    layout.tsx                       # Root layout — fonts, GA4, Navbar
+    layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar
     globals.css                      # Tailwind v4 @theme design tokens
     database/
       page.js                        # Database page (server, wraps DatabaseClient in Suspense)
@@ -179,13 +180,19 @@ portfoliodb/
         route.js                     # POST — AI portfolio recommendations (Haiku 4.5)
       test-db/
         route.js                     # GET — quick DB connectivity check
-    sitemap.js                       # Dynamic sitemap (all portfolio slugs)
+    sitemap.js                       # Dynamic sitemap (all portfolio slugs + /methodology)
     robots.js                        # robots.txt
+    opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
+    portfolios/
+      [slug]/
+        opengraph-image.js           # Dynamic per-portfolio OG image — fetches live data, renders name/CAGR/Sharpe/MaxDD
   components/
-    Navbar.jsx                       # Top navigation bar (server) — accepts portfolios prop, renders NavSearch
+    Navbar.jsx                       # Top navigation bar (server) — accepts portfolios prop, renders NavSearch; uses portfoliodb-icon.svg logo
+    portfoliodb-icon.svg             # Site logo SVG (also copied to public/ for Next.js Image)
     NavSearch.jsx                    # Navbar search box (client) — live portfolio search with dropdown
     FilterBar.jsx                    # Home page filter bar (client) — navigates to /database
     AIRecommend.jsx                  # AI "find portfolios" search bar (client)
+    TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
     DatabaseClient.jsx               # Database page UI with filters/sort/grid/list (client)
     ScreenerClient.jsx               # Screener page UI with sliders/table/export (client)
     AllocationDonut.jsx              # SVG donut chart — server-renderable, no JS
@@ -198,10 +205,14 @@ portfoliodb/
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
+  public/
+    fonts/
+      Manrope-Bold.ttf               # Manrope 700 — used by OG image routes (next/og requires TTF)
+      Manrope-ExtraBold.ttf          # Manrope 800 — used by OG image routes
   CLAUDE.md                          # This file
   TASKS.md                           # Migration task checklist
   .env.local                         # Secrets — not in git (see Environment Variables)
-  next.config.js                     # Redirects config
+  next.config.ts                     # Next.js config
 ```
 
 ---
@@ -219,6 +230,7 @@ portfoliodb/
 | `getAllPortfolioStrategies()` | All rows from portfolio_strategies (portfolio_slug + strategy_slug) |
 | `getAllSlugs()`         | Slug column only from portfolios table (for generateStaticParams)  |
 | `getPortfolioNames()`  | name + slug from portfolios table, alphabetical (for Navbar search) |
+| `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
 
 All functions include error handling and return `null` or `[]` on failure.
 
@@ -256,6 +268,12 @@ All must also be set in Vercel project settings for production.
 
 ## Key Component Notes
 
+### Navbar.jsx
+- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener links on mobile only
+- Stays a server component — all interactivity is in NavSearch.jsx (client)
+- JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx
+- Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
+
 ### FilterBar.jsx (home page)
 - No longer uses assetClasses prop — categories are hardcoded (Buy and Hold, Robo-Advisor, Tactical)
 - Category: native `<select>` dropdown (single select)
@@ -276,6 +294,8 @@ All must also be set in Vercel project settings for production.
 - Receives `strategyOptions` prop (sorted unique strategy_slugs) from database/page.js
 - database/page.js also fetches getAllPortfolioStrategies() and attaches
   `strategies: string[]` to each portfolio object
+- Mobile: `showFilters` state (default false) controls sidebar visibility; "Filters" toggle button (`lg:hidden`) shown above the results area
+- List view table has an `overflow-x-auto` wrapper div; table has `min-w-[600px]` so it overflows on mobile and users can scroll horizontally
 
 ### AllocationDonut.jsx
 - Pure SVG, server-renderable — no client JS needed
@@ -330,6 +350,8 @@ All must also be set in Vercel project settings for production.
 - `assetBadges()` and `BADGE_STYLES` map allocations → colored EQ/FI/CMD/RE/ALT badges
   shown in the Asset Mix column of the results table
 - Receives `assetClasses` prop from portfolio-screener/page.js
+- Mobile: same `showFilters` toggle pattern as DatabaseClient.jsx
+- Table has `min-w-[700px]` inside `overflow-x-auto` wrapper for horizontal scroll on mobile
 
 ### app/api/screener/route.js (AI Screener)
 - POST endpoint, accepts `{ goal }` in request body
@@ -342,18 +364,40 @@ All must also be set in Vercel project settings for production.
 - Must handle literal `\n` (two chars) in addition to real newlines
 - Pattern order matters: handle `\\n` first, then `/\n\n+/`, then `/\n/`
 
+### TopStrategies.jsx
+- Client component — owns `metric` state (default: `'sharpe'`)
+- Receives `sections` prop: `{ sharpe, cagr, drawdown }` — each an array of 3 portfolios with allocations pre-attached
+- Data is pre-computed server-side in `page.tsx` using `getAllAllocations()` + array sort; no client-side fetching
+- Dropdown is a styled native `<select>` with `appearance-none` + Material Symbols `expand_more` arrow overlay
+- Primary stat, icon, and secondary stats all update based on selected metric
+
+### OG Images (app/opengraph-image.js + app/portfolios/[slug]/opengraph-image.js)
+- Built with `next/og` (`ImageResponse`) — no extra package needed
+- Both routes use `fs.readFileSync` to load `public/fonts/Manrope-Bold.ttf` and `Manrope-ExtraBold.ttf` at build time
+- Portfolio OG image fetches live data via `getPortfolio(slug)` and renders name, category badge, risk level, CAGR/Sharpe/Max Drawdown stat boxes
+- All 70 portfolio OG images are pre-generated at build time (SSG) alongside the pages
+- Twitter card is `summary_large_image` on homepage and portfolio detail pages — Next.js auto-wires the image URL
+
+### Related Portfolios section (portfolios/[slug]/page.js)
+- Rendered at the bottom of every portfolio detail page, below the charts section
+- Data from `getRelatedPortfolios(slug)` — runs in parallel with other page fetches in `Promise.all`
+- Shows 3 cards: portfolio name (linked), category badge, CAGR/Sharpe/Max Drawdown stats
+
 ---
 
 ## SEO Requirements
 
 - All page routes must match current WordPress URL slugs exactly
+- WordPress used `/portfolios/[slug]/` (trailing slash) — Next.js handles the redirect automatically, no config needed
 - Every page must have `generateMetadata()` with title, description,
   canonical URL, Open Graph tags, and Twitter card tags
 - Portfolio pages use `generateStaticParams()` for pre-rendering (SSG)
-- Sitemap at /sitemap.xml includes all portfolio pages dynamically
+- Sitemap at /sitemap.xml includes all portfolio pages + static pages including /methodology
 - robots.txt allows all crawlers, disallows /api/
 - GA4 fires on production only (not localhost or Vercel preview URLs)
 - JSON-LD structured data on all portfolio detail pages
+- OG images auto-generated per portfolio via `app/portfolios/[slug]/opengraph-image.js`
+- Set up Google Search Console on launch day — verify domain, submit /sitemap.xml
 
 ---
 
@@ -367,10 +411,69 @@ No redeploy needed — data appears on the site immediately after insert.
 
 ---
 
+## Ko-fi Trade Signals CTA
+
+Portfolio detail pages show a membership CTA when `portfolio.kofi_link` is not null. Two placements:
+- **Hero section** (right column, below Back to Database button) — compact card with headline, pitch, and button
+- **Sidebar** (right column of body, below At a Glance) — fuller card with 3 bullet points
+
+To enable the CTA on a portfolio: add the Ko-fi membership URL to the `kofi_link` column in the `portfolios` table. Leave it null to hide the CTA. No redeploy needed — but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear.
+
+---
+
+## Performance Notes
+
+- `monthly_returns` has an index `idx_monthly_returns_slug_date` on `(portfolio_slug, date)` — speeds up `REFRESH MATERIALIZED VIEW portfolio_stats`.
+- PageSpeed mobile score: ~75 (as of May 2026). Remaining ceiling is ~80-85 due to Recharts bundle.
+- Material Symbols font URL uses fixed axis values (`opsz=24,wght=400,FILL=0,GRAD=0`) — do NOT widen these ranges; it caused the font to balloon from ~50 KB to ~3,800 KB and FCP to spike to 21 s.
+- `layout.tsx` includes `<link rel="preconnect">` for fonts.googleapis.com and fonts.gstatic.com.
+- `package.json` has a `browserslist` config targeting modern browsers (Chrome 92+, Firefox 90+, Safari 15+, Edge 92+) to eliminate legacy polyfills.
+- WCAG AA contrast: use `text-[#27624a]` (not `text-[#71a38b]`) for any green text on white backgrounds.
+
+## Portfolio Description Drafts
+
+All 49 portfolio descriptions have been drafted and are stored in `description-drafts/` at the project root. Each file contains:
+1. Human-readable markdown for review
+2. A "Copy-ready for Supabase" code block at the bottom with `\n`-formatted text ready to paste into the `description` column
+
+### Description format spec
+
+Every description follows this structure:
+
+- **Opening paragraph** (2-3 sentences, no heading) — who created it, where it came from, core idea. Bold the portfolio name on first mention.
+- `## Investment Philosophy` — what problem it solves, what market conditions it was designed for
+- `## Who It's For` — risk tolerance, time horizon, investor temperament
+- `## Pros` — bullet list of specific advantages
+- `## Cons` — bullet list of specific limitations
+- `## Technical Notes` — optional; only if there is something meaningful about implementation or how the strategy works mechanically
+
+**Rules:**
+- 200-400 words total
+- No specific performance numbers (CAGR, Sharpe, max drawdown, etc.) -- those are pulled live from the DB
+- No specific ETF or fund names
+- No em dashes (use -- instead)
+- Do not mention how execution timing can affect results
+- Link to the creator's site/paper where relevant: `[anchor text](url)`
+- Link to related portfolios on the site using relative URLs: `[Portfolio Name](/portfolios/slug)`
+- Use `##` headings only (no `#`)
+
+**Line break format for DB storage:**
+Descriptions are stored as a single text value. Use the two-character sequence `\n` (backslash + n) between paragraphs and after list items -- NOT real line breaks. Example: `"End of paragraph.\n\nStart of next.\n\n## Heading\nBody text.\n\n## Pros\n- Item one\n- Item two"`
+
+### Workflow for adding new descriptions to Supabase
+1. Review the draft file in `description-drafts/[slug].md`
+2. Copy the content from the "Copy-ready for Supabase" code block
+3. Run this SQL in the Supabase SQL Editor:
+   ```sql
+   UPDATE portfolios SET description = '[paste here]' WHERE slug = '[slug]';
+   ```
+4. No redeploy needed -- but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear on the live site
+
 ## Reference Files
 
 - TASKS.md — complete step-by-step build checklist with Claude prompts
 - Playbook .docx — full migration playbook (stored outside project)
+- description-drafts/ — 49 portfolio description drafts, DB-ready
 
 ---
 
