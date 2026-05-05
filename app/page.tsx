@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { getPortfolios, getAllocations } from '@/lib/db';
+import { getPortfolios, getAllAllocations } from '@/lib/db';
 import AIRecommend from '@/components/AIRecommend';
 import FilterBar from '@/components/FilterBar';
+import TopStrategies from '@/components/TopStrategies';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -20,7 +21,7 @@ export const metadata = {
     type: 'website',
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'PortfolioDB - Portfolio Performance Database',
     description: 'Compare lazy and tactical portfolio strategies by CAGR, Sharpe ratio, max drawdown, and more. Free database of 70+ portfolios with historical performance data.',
   },
@@ -28,19 +29,28 @@ export const metadata = {
 
 export default async function Home() {
   // getPortfolios() already returns rows ordered by sharpe_ratio desc
-  const allPortfolios = await getPortfolios();
-  const top3 = allPortfolios.slice(0, 3);
+  const [allPortfolios, allAllocations] = await Promise.all([
+    getPortfolios(),
+    getAllAllocations(),
+  ]);
 
-  const benchmarks = await Promise.all(
-    top3.map(async (p: any) => ({
-      ...p,
-      allocations: await getAllocations(p.slug),
-    }))
-  );
+  // Group allocations by portfolio slug
+  const allocsBySlug: Record<string, any[]> = {};
+  for (const alloc of allAllocations) {
+    if (!allocsBySlug[alloc.portfolio_slug]) allocsBySlug[alloc.portfolio_slug] = [];
+    allocsBySlug[alloc.portfolio_slug].push(alloc);
+  }
+  const withAllocs = (portfolios: any[]) =>
+    portfolios.map((p: any) => ({ ...p, allocations: allocsBySlug[p.slug] ?? [] }));
+
+  const topSections = {
+    sharpe:   withAllocs(allPortfolios.slice(0, 3)),
+    cagr:     withAllocs([...allPortfolios].sort((a: any, b: any) => (b.cagr ?? 0) - (a.cagr ?? 0)).slice(0, 3)),
+    drawdown: withAllocs([...allPortfolios].sort((a: any, b: any) => (b.max_drawdown ?? -100) - (a.max_drawdown ?? -100)).slice(0, 3)),
+  };
 
   return (
-    <>
-      <main className="flex-grow flex justify-center w-full">
+    <main className="flex-grow flex justify-center w-full">
         <div className="w-full max-w-[1280px] grid grid-cols-12 gap-8 px-8 py-12 md:py-16">
 
           {/* ── Hero ── */}
@@ -72,102 +82,20 @@ export default async function Home() {
             {/* Popular links */}
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm mt-8 font-inter">
               <span className="text-on-surface-variant">Popular:</span>
-              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
+              <Link href="/portfolios/ray-dalios-all-weather-portfolio" className="text-[#27624a] hover:text-primary transition-colors font-medium">
                 Ray Dalio All-Weather
               </Link>
-              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
-                Vanguard Target Date 2050
-              </Link>
-              <Link href="/database" className="text-[#27624a] hover:text-primary transition-colors font-medium">
+              <Link href="/portfolios/permanent-portfolio" className="text-[#27624a] hover:text-primary transition-colors font-medium">
                 Permanent Portfolio
               </Link>
+              <Link href="/portfolios/bogleheads-three-fund-portfolio" className="text-[#27624a] hover:text-primary transition-colors font-medium">
+                Bogleheads Three-Fund
+              </Link>
             </div>
           </section>
 
-          {/* ── Benchmark Strategies ── */}
-          <section className="col-span-12 mb-12">
-            <div className="flex justify-between items-end mb-8 border-b border-surface-variant pb-3">
-              <h2 className="font-manrope text-[28px] font-semibold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined">monitoring</span>
-                Benchmark Strategies
-              </h2>
-              <span className="font-inter text-sm text-on-surface-variant bg-surface-container-low px-3 py-1 rounded-full">
-                Data since Jan 1970
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {benchmarks.map((portfolio: any) => (
-                <Link
-                  key={portfolio.slug}
-                  href={`/portfolios/${portfolio.slug}`}
-                  className="bg-surface-container-lowest border border-surface-variant rounded-xl p-8 flex flex-col hover:border-outline-variant hover:shadow-md transition-all"
-                >
-                  {/* Portfolio name + arrow */}
-                  <div className="flex justify-between items-start mb-6">
-                    <span className="font-inter text-[12px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                      {portfolio.name}
-                    </span>
-                    <span className="material-symbols-outlined text-outline-variant text-base">
-                      arrow_forward
-                    </span>
-                  </div>
-
-                  {/* CAGR */}
-                  <div className="mb-8">
-                    <div className="flex items-baseline gap-4">
-                      <span className="font-manrope text-[48px] leading-none text-primary font-bold">
-                        {(portfolio.cagr ?? 0).toFixed(1)}%
-                      </span>
-                      <span className="font-inter text-sm flex items-center font-medium bg-[#e6f4ea] text-[#27624a] px-2 py-1 rounded-md">
-                        <span className="material-symbols-outlined text-[18px] mr-1">trending_up</span>
-                        Real CAGR
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Max Drawdown + Sharpe */}
-                  <div className="grid grid-cols-2 gap-6 mb-8 py-6 border-y border-surface-variant">
-                    <div>
-                      <span className="block font-inter text-sm text-on-surface-variant mb-1">Max Drawdown</span>
-                      <span className="font-inter text-[14px] text-on-surface font-semibold">
-                        {(portfolio.max_drawdown ?? 0).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block font-inter text-sm text-on-surface-variant mb-1">Sharpe Ratio</span>
-                      <span className="font-inter text-[14px] text-on-surface font-semibold">
-                        {(portfolio.sharpe_ratio ?? 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Allocation bar */}
-                  {portfolio.allocations.length > 0 && (
-                    <div className="mt-auto">
-                      <span className="block font-inter text-sm text-on-surface-variant mb-2">
-                        {portfolio.category === 'Tactical' ? 'Average Allocation' : 'Target Allocation'}
-                      </span>
-                      <div className="flex w-full h-3 rounded-full overflow-hidden">
-                        {[...portfolio.allocations]
-                          .sort((a: any, b: any) => b.percentage - a.percentage)
-                          .map((alloc: any, i: number) => (
-                            <div
-                              key={alloc.id || i}
-                              title={`${alloc.asset_class}: ${alloc.percentage}%`}
-                              style={{
-                                width: `${alloc.percentage}%`,
-                                backgroundColor: alloc.color || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
-                              }}
-                            />
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </section>
+          {/* ── Top Strategies ── */}
+          <TopStrategies sections={topSections} />
 
           {/* ── Premium ── */}
           <section className="col-span-12 mb-12">
@@ -219,30 +147,6 @@ export default async function Home() {
           </section>
 
         </div>
-      </main>
-
-      {/* ── Footer ── */}
-      <footer className="bg-surface-container-low border-t border-outline-variant w-full py-12 mt-auto">
-        <div className="max-w-[1280px] mx-auto px-8 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <span className="font-manrope text-lg font-bold text-on-surface">PortfolioDB</span>
-            <p className="font-inter text-sm text-on-surface-variant">
-              © 2024 PortfolioDB Analytics. Institutional-grade research.
-            </p>
-          </div>
-          <nav className="flex flex-wrap justify-center gap-x-8 gap-y-2">
-            {['Terms of Service', 'Privacy Policy', 'Methodology', 'Support'].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="font-inter text-sm text-on-surface-variant hover:text-primary hover:underline transition-all"
-              >
-                {item}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </footer>
-    </>
+    </main>
   );
 }

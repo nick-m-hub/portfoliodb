@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getPortfolio, getAllocations, getMonthlyReturns, getAllSlugs } from '@/lib/db';
+import ReactMarkdown from 'react-markdown';
+import { getPortfolio, getAllocations, getMonthlyReturns, getAllSlugs, getRelatedPortfolios } from '@/lib/db';
 import StructuredData from '@/components/StructuredData';
 import AllocationDonut from '@/components/AllocationDonut';
 import ChartsSection from '@/components/ChartsSection';
@@ -36,23 +37,10 @@ export async function generateMetadata({ params }) {
     description,
     alternates: { canonical: url },
     openGraph: { title, description, url, siteName: 'PortfolioDB', type: 'article' },
-    twitter: { card: 'summary', title, description },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
-// Strip basic markdown syntax for plain-text display
-function stripMarkdown(text) {
-  if (!text) return '';
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')        // **bold** → bold
-    .replace(/\*(.*?)\*/g, '$1')             // *italic* → italic
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
-    .replace(/\\n/g, ' ')                    // literal \n strings (DB-stored) → space
-    .replace(/\n\n+/g, ' ')                  // real paragraph breaks → space
-    .replace(/\n/g, ' ')                     // real line breaks → space
-    .replace(/  +/g, ' ')                    // collapse multiple spaces
-    .trim();
-}
 
 const BENCHMARK_SLUG = 'united-states-60-40-portfolio';
 
@@ -118,11 +106,12 @@ function StatRow({ icon, label, value, valueClass = 'text-primary' }) {
 export default async function PortfolioDetailPage({ params }) {
   const { slug } = await params;
 
-  const [portfolio, allocations, monthlyReturns, rawBenchmarkReturns] = await Promise.all([
+  const [portfolio, allocations, monthlyReturns, rawBenchmarkReturns, relatedPortfolios] = await Promise.all([
     getPortfolio(slug),
     getAllocations(slug),
     getMonthlyReturns(slug),
     slug !== BENCHMARK_SLUG ? getMonthlyReturns(BENCHMARK_SLUG) : Promise.resolve([]),
+    getRelatedPortfolios(slug),
   ]);
 
   if (!portfolio) notFound();
@@ -186,9 +175,23 @@ export default async function PortfolioDetailPage({ params }) {
 
             {/* Description */}
             {portfolio.description && (
-              <p className="font-inter text-[16px] text-on-surface-variant leading-relaxed max-w-2xl">
-                {stripMarkdown(portfolio.description)}
-              </p>
+              <div className="font-inter text-[16px] text-on-surface-variant leading-relaxed max-w-2xl">
+                <ReactMarkdown
+                  components={{
+                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
+                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
+                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
+                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
+                    em: ({children}) => <em className="italic">{children}</em>,
+                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
+                    li: ({children}) => <li>{children}</li>,
+                  }}
+                >
+                  {portfolio.description.replace(/\\n/g, '\n')}
+                </ReactMarkdown>
+              </div>
             )}
 
             {/* Hero stat tiles */}
@@ -528,6 +531,52 @@ export default async function PortfolioDetailPage({ params }) {
 
           </aside>
         </div>
+
+        {/* ── Related Portfolios ── */}
+        {relatedPortfolios.length > 0 && (
+          <section className="mt-12 pt-10 border-t border-outline-variant">
+            <h2 className="font-manrope text-[20px] font-bold text-primary mb-6">Related Portfolios</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {relatedPortfolios.map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/portfolios/${p.slug}`}
+                  className="group bg-surface-container-lowest rounded-xl border border-outline-variant p-6 hover:border-primary/40 hover:shadow-sm transition-all flex flex-col gap-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-manrope text-[17px] font-bold text-on-surface group-hover:text-primary transition-colors leading-snug">
+                      {p.name}
+                    </h3>
+                    <span className="flex-shrink-0 bg-[#D1E4D8] text-primary px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                      {p.category}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-auto">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CAGR</span>
+                      <span className="font-manrope text-[20px] font-bold text-primary leading-tight">
+                        {p.cagr != null ? `${p.cagr.toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Sharpe</span>
+                      <span className="font-manrope text-[20px] font-bold text-on-surface leading-tight">
+                        {p.sharpe_ratio != null ? p.sharpe_ratio.toFixed(2) : '—'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Max DD</span>
+                      <span className="font-manrope text-[20px] font-bold text-error leading-tight">
+                        {p.max_drawdown != null ? `${p.max_drawdown.toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
       </div>
     </main>
   );
