@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- PortfolioDB icon — P4 heatmap grid -->
+  <!-- Background: rounded square, primary-container #074a34 -->
+  <rect width="512" height="512" rx="114" fill="#074a34"/>
+
+  <!-- 3×3 heatmap grid -->
+  <!-- Cell size: 118px | Gap: 19px | Start x/y: 70 -->
+  <!-- Diagonal color fade: top-left=mint (#b2f0d1) → bottom-right=dark sage (#394b42) -->
+
+  <!-- Row 1 -->
+  <rect x="70"  y="70"  width="118" height="118" rx="20" fill="#b2f0d1"/>
+  <rect x="207" y="70"  width="118" height="118" rx="20" fill="#97d3b6"/>
+  <rect x="344" y="70"  width="118" height="118" rx="20" fill="#2e6951"/>
+
+  <!-- Row 2 -->
+  <rect x="70"  y="207" width="118" height="118" rx="20" fill="#97d3b6"/>
+  <rect x="207" y="207" width="118" height="118" rx="20" fill="#2e6951"/>
+  <rect x="344" y="207" width="118" height="118" rx="20" fill="#506259"/>
+
+  <!-- Row 3 -->
+  <rect x="70"  y="344" width="118" height="118" rx="20" fill="#2e6951"/>
+  <rect x="207" y="344" width="118" height="118" rx="20" fill="#506259"/>
+  <rect x="344" y="344" width="118" height="118" rx="20" fill="#394b42"/>
+</svg>

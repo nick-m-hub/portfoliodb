@@ -7,6 +7,7 @@ const staticPages = [
   '/database',
   '/portfolio-screener',
   '/glossary-of-terms',
+  '/methodology',
 ];
 
 export default async function sitemap() {
