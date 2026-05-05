@@ -3,6 +3,7 @@ import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { getPortfolioNames } from "@/lib/db";
 
 const manrope = Manrope({
@@ -49,6 +50,7 @@ export default async function RootLayout({
         <GoogleAnalytics />
         <Navbar portfolios={portfolios} />
         {children}
+        <Footer />
       </body>
     </html>
   );
