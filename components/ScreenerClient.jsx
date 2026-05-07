@@ -1,11 +1,42 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 
 const PAGE_SIZE = 25;
 
-// Map asset class names → broad badge buckets
+// ── Column definitions ──────────────────────────────────────────────────────
+const ALL_COLUMNS = [
+  // Performance Benchmarks
+  { key: 'cagr',                    label: 'CAGR',         group: 'performance', defaultOn: true,  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'max_drawdown',            label: 'Max DD',        group: 'performance', defaultOn: true,  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-error font-semibold' },
+  { key: 'sharpe_ratio',            label: 'Sharpe',        group: 'performance', defaultOn: true,  format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'sortino_ratio',           label: 'Sortino',       group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'worst_year',              label: 'Worst Year',    group: 'performance', defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error font-semibold' },
+  { key: 'best_year',               label: 'Best Year',     group: 'performance', defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a] font-semibold' },
+  { key: 'cagr_10yr',               label: '10yr CAGR',     group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'ulcer_index',             label: 'Ulcer Index',   group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(1) : '—',                              className: 'text-on-surface' },
+  { key: 'ulcer_performance_index', label: 'UPI',           group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'cagr_gfc',                label: 'GFC CAGR',      group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'cagr_dotcom',             label: 'Dotcom CAGR',   group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  // Rolling Returns
+  { key: 'rolling_1yr_low',         label: '1yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_1yr_avg',         label: '1yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_1yr_high',        label: '1yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_3yr_low',         label: '3yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_3yr_avg',         label: '3yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_3yr_high',        label: '3yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_5yr_low',         label: '5yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_5yr_avg',         label: '5yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_5yr_high',        label: '5yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_10yr_low',        label: '10yr Low',      group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_10yr_avg',        label: '10yr Avg',      group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_10yr_high',       label: '10yr High',     group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+];
+
+const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key));
+
+// ── Asset exposure helpers ──────────────────────────────────────────────────
 function assetBadges(allocations) {
   const badges = new Set();
   for (const a of allocations) {
@@ -20,11 +51,11 @@ function assetBadges(allocations) {
 }
 
 const BADGE_STYLES = {
-  EQ:  { bg: 'bg-blue-100',   text: 'text-blue-700',    label: 'EQ',  title: 'Equities' },
-  FI:  { bg: 'bg-emerald-100',text: 'text-emerald-700', label: 'FI',  title: 'Fixed Income' },
-  CMD: { bg: 'bg-amber-100',  text: 'text-amber-700',   label: 'CMD', title: 'Commodities' },
-  RE:  { bg: 'bg-slate-100',  text: 'text-slate-600',   label: 'RE',  title: 'Real Estate' },
-  ALT: { bg: 'bg-purple-100', text: 'text-purple-700',  label: 'ALT', title: 'Alternatives / Cash' },
+  EQ:  { bg: 'bg-blue-100',    text: 'text-blue-700',    label: 'EQ',  title: 'Equities' },
+  FI:  { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'FI',  title: 'Fixed Income' },
+  CMD: { bg: 'bg-amber-100',   text: 'text-amber-700',   label: 'CMD', title: 'Commodities' },
+  RE:  { bg: 'bg-slate-100',   text: 'text-slate-600',   label: 'RE',  title: 'Real Estate' },
+  ALT: { bg: 'bg-purple-100',  text: 'text-purple-700',  label: 'ALT', title: 'Alternatives / Cash' },
 };
 
 const ASSET_BUCKETS = ['EQ', 'FI', 'CMD', 'RE', 'ALT'];
@@ -44,19 +75,18 @@ function riskColor(level) {
   return 'text-error';
 }
 
-// Export filtered portfolios as CSV
-function exportCsv(portfolios) {
-  const headers = ['Name', 'Category', 'Risk Level', 'CAGR (%)', 'Max Drawdown (%)', 'Sharpe Ratio', 'Trade Frequency'];
-  const rows = portfolios.map((p) => [
+// ── CSV export ──────────────────────────────────────────────────────────────
+function exportCsv(portfolios, visibleCols) {
+  const cols = ALL_COLUMNS.filter(c => visibleCols.has(c.key));
+  const headers = ['Name', 'Category', 'Risk Level', ...cols.map(c => c.label), 'Trade Frequency'];
+  const rows = portfolios.map(p => [
     `"${(p.name || '').replace(/"/g, '""')}"`,
     `"${p.category || ''}"`,
     riskLabel(p.risk_level),
-    p.cagr != null ? p.cagr.toFixed(2) : '',
-    p.max_drawdown != null ? p.max_drawdown.toFixed(2) : '',
-    p.sharpe_ratio != null ? p.sharpe_ratio.toFixed(3) : '',
+    ...cols.map(c => p[c.key] != null ? p[c.key] : ''),
     `"${p.trade_frequency || ''}"`,
   ]);
-  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -66,7 +96,7 @@ function exportCsv(portfolios) {
   URL.revokeObjectURL(url);
 }
 
-// ── Slider with live value display ─────────────────────────────────────────
+// ── Slider ──────────────────────────────────────────────────────────────────
 function FilterSlider({ label, value, min, max, step, onChange, format }) {
   return (
     <div className="space-y-1.5">
@@ -76,20 +106,121 @@ function FilterSlider({ label, value, min, max, step, onChange, format }) {
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))}
         className="w-full h-1 bg-surface-container-high rounded-full appearance-none cursor-pointer accent-primary"
       />
     </div>
   );
 }
 
+// ── Column picker dropdown ───────────────────────────────────────────────────
+function ColumnPicker({ visibleCols, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  function toggle(key) {
+    const next = new Set(visibleCols);
+    next.has(key) ? next.delete(key) : next.add(key);
+    onChange(next);
+  }
+
+  const extraCount = [...visibleCols].filter(k => !DEFAULT_VISIBLE.has(k)).length;
+  const perfCols = ALL_COLUMNS.filter(c => c.group === 'performance');
+  const rollingCols = ALL_COLUMNS.filter(c => c.group === 'rolling');
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-[12px] font-semibold hover:bg-surface-container transition-colors"
+      >
+        <span className="material-symbols-outlined text-[16px]">view_column</span>
+        Columns
+        {extraCount > 0 && (
+          <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+            +{extraCount}
+          </span>
+        )}
+        <span className="material-symbols-outlined text-[14px] text-on-surface-variant">
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 z-20 w-64 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg overflow-hidden">
+          {/* Performance */}
+          <div className="px-4 pt-3 pb-2">
+            <p className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+              Performance Benchmarks
+            </p>
+            <div className="space-y-1.5">
+              {perfCols.map(col => (
+                <label key={col.key} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={visibleCols.has(col.key)}
+                    onChange={() => toggle(col.key)}
+                    className="w-3.5 h-3.5 rounded border-outline-variant text-primary focus:ring-primary flex-shrink-0"
+                  />
+                  <span className="font-inter text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors">
+                    {col.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-outline-variant px-4 pt-3 pb-3">
+            <p className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+              Rolling Returns
+            </p>
+            <div className="space-y-1.5">
+              {rollingCols.map(col => (
+                <label key={col.key} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={visibleCols.has(col.key)}
+                    onChange={() => toggle(col.key)}
+                    className="w-3.5 h-3.5 rounded border-outline-variant text-primary focus:ring-primary flex-shrink-0"
+                  />
+                  <span className="font-inter text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors">
+                    {col.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Reset link */}
+          {[...visibleCols].some(k => !DEFAULT_VISIBLE.has(k)) || [...DEFAULT_VISIBLE].some(k => !visibleCols.has(k)) ? (
+            <div className="border-t border-outline-variant px-4 py-2">
+              <button
+                onClick={() => onChange(new Set(DEFAULT_VISIBLE))}
+                className="font-inter text-[11px] text-primary hover:underline"
+              >
+                Reset to defaults
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function ScreenerClient({ portfolios, assetClasses }) {
-  // Sliders — start at the permissive end so everything shows by default
+  // Sliders
   const [minCagr, setMinCagr] = useState(0);
   const [minSharpe, setMinSharpe] = useState(-0.5);
   const [maxDrawdown, setMaxDrawdown] = useState(80);
@@ -102,36 +233,31 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   const [minRolling5yr, setMinRolling5yr] = useState(-25);
   const [minRolling10yr, setMinRolling10yr] = useState(-15);
 
-  // Asset bucket filter
+  // Filters
   const [bucketFilters, setBucketFilters] = useState([]);
-
-  // Asset class filter
   const [assetClassFilters, setAssetClassFilters] = useState([]);
   const [assetClassesOpen, setAssetClassesOpen] = useState(false);
 
-  // Mobile filter panel
+  // UI state
   const [showFilters, setShowFilters] = useState(false);
-
-  // Pagination
   const [page, setPage] = useState(1);
-
-  // Sort
   const [sortCol, setSortCol] = useState('sharpe_ratio');
   const [sortDir, setSortDir] = useState('desc');
+  const [visibleCols, setVisibleCols] = useState(new Set(DEFAULT_VISIBLE));
 
   function toggleAssetClass(name) {
     setPage(1);
-    setAssetClassFilters((prev) => prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]);
+    setAssetClassFilters(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
   }
 
   function toggleBucket(b) {
     setPage(1);
-    setBucketFilters((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
+    setBucketFilters(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
   }
 
   function handleSort(col) {
     if (sortCol === col) {
-      setSortDir((d) => d === 'desc' ? 'asc' : 'desc');
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     } else {
       setSortCol(col);
       setSortDir('desc');
@@ -140,20 +266,10 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   }
 
   function clearFilters() {
-    setMinCagr(0);
-    setMinSharpe(-0.5);
-    setMaxDrawdown(80);
-    setMinWorstYear(-70);
-    setMinCagr10yr(-5);
-    setMinSortino(-0.5);
-    setMaxUlcer(14);
-    setMinRolling1yr(-50);
-    setMinRolling3yr(-30);
-    setMinRolling5yr(-25);
-    setMinRolling10yr(-15);
-    setBucketFilters([]);
-    setAssetClassFilters([]);
-    setPage(1);
+    setMinCagr(0); setMinSharpe(-0.5); setMaxDrawdown(80); setMinWorstYear(-70);
+    setMinCagr10yr(-5); setMinSortino(-0.5); setMaxUlcer(14);
+    setMinRolling1yr(-50); setMinRolling3yr(-30); setMinRolling5yr(-25); setMinRolling10yr(-15);
+    setBucketFilters([]); setAssetClassFilters([]); setPage(1);
   }
 
   const hasFilters = minCagr > 0 || minSharpe > -0.5 || maxDrawdown < 80
@@ -162,7 +278,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
     || bucketFilters.length > 0 || assetClassFilters.length > 0;
 
   const filtered = useMemo(() => {
-    let result = portfolios.filter((p) => {
+    let result = portfolios.filter(p => {
       if (p.cagr != null && p.cagr < minCagr) return false;
       if (p.sharpe_ratio != null && p.sharpe_ratio < minSharpe) return false;
       if (p.max_drawdown != null && Math.abs(p.max_drawdown) > maxDrawdown) return false;
@@ -176,10 +292,10 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
       if (p.rolling_10yr_low != null && p.rolling_10yr_low < minRolling10yr) return false;
       if (bucketFilters.length > 0) {
         const badges = assetBadges(p.allocations);
-        if (!bucketFilters.some((b) => badges.includes(b))) return false;
+        if (!bucketFilters.some(b => badges.includes(b))) return false;
       }
       if (assetClassFilters.length > 0) {
-        if (!p.allocations.some((a) => assetClassFilters.includes(a.asset_class))) return false;
+        if (!p.allocations.some(a => assetClassFilters.includes(a.asset_class))) return false;
       }
       return true;
     });
@@ -191,10 +307,16 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
     });
 
     return result;
-  }, [portfolios, minCagr, minSharpe, maxDrawdown, minWorstYear, minCagr10yr, minSortino, maxUlcer, minRolling1yr, minRolling3yr, minRolling5yr, minRolling10yr, bucketFilters, assetClassFilters, sortCol, sortDir]);
+  }, [portfolios, minCagr, minSharpe, maxDrawdown, minWorstYear, minCagr10yr, minSortino, maxUlcer,
+      minRolling1yr, minRolling3yr, minRolling5yr, minRolling10yr, bucketFilters, assetClassFilters,
+      sortCol, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const activeCols = ALL_COLUMNS.filter(c => visibleCols.has(c.key));
+  // fixed cols: Strategy, Asset Mix, Risk (120px each approx) + Rebalance + dynamic cols
+  const minTableWidth = Math.max(700, 420 + activeCols.length * 90);
 
   function SortIcon({ col }) {
     if (sortCol !== col) return <span className="material-symbols-outlined text-[14px] text-outline opacity-40">unfold_more</span>;
@@ -226,7 +348,6 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
         {/* ── Sticky Sidebar ── */}
         <aside className={`w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] flex-col py-6 overflow-y-auto border-b lg:border-b-0 lg:border-r border-outline-variant lg:pr-6 ${showFilters ? 'flex' : 'hidden'} lg:flex`}>
 
-          {/* Header */}
           <div className="mb-5">
             <h3 className="font-manrope text-[18px] font-bold text-primary mb-1">Advanced Filters</h3>
             <p className="font-inter text-[12px] text-on-surface-variant">
@@ -239,7 +360,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
             {/* Asset Classes */}
             <div className="space-y-2">
               <button
-                onClick={() => setAssetClassesOpen((o) => !o)}
+                onClick={() => setAssetClassesOpen(o => !o)}
                 className="w-full flex items-center justify-between group"
               >
                 <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
@@ -254,11 +375,8 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               </button>
               {assetClassesOpen && (
                 <div className="space-y-1.5 pt-1">
-                  {assetClasses.map((ac) => (
-                    <label
-                      key={ac.asset_class}
-                      className="flex items-center gap-2.5 cursor-pointer group"
-                    >
+                  {assetClasses.map(ac => (
+                    <label key={ac.asset_class} className="flex items-center gap-2.5 cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={assetClassFilters.includes(ac.asset_class)}
@@ -266,10 +384,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                         className="w-3.5 h-3.5 rounded border-outline-variant text-primary focus:ring-primary flex-shrink-0"
                       />
                       {ac.default_color && (
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: ac.default_color }}
-                        />
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ac.default_color }} />
                       )}
                       <span className="font-inter text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors leading-snug">
                         {ac.asset_class}
@@ -285,55 +400,20 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Performance Benchmarks
               </span>
-              <FilterSlider
-                label="CAGR (Min)"
-                value={minCagr}
-                min={0} max={20} step={0.5}
-                onChange={(v) => { setMinCagr(v); setPage(1); }}
-                format={(v) => `${v.toFixed(1)}%`}
-              />
-              <FilterSlider
-                label="Sharpe Ratio (Min)"
-                value={minSharpe}
-                min={-0.5} max={2} step={0.05}
-                onChange={(v) => { setMinSharpe(v); setPage(1); }}
-                format={(v) => v.toFixed(2)}
-              />
-              <FilterSlider
-                label="Max Drawdown (Limit)"
-                value={maxDrawdown}
-                min={5} max={80} step={1}
-                onChange={(v) => { setMaxDrawdown(v); setPage(1); }}
-                format={(v) => `-${v}%`}
-              />
-              <FilterSlider
-                label="Worst Year (Min)"
-                value={minWorstYear}
-                min={-70} max={0} step={1}
-                onChange={(v) => { setMinWorstYear(v); setPage(1); }}
-                format={(v) => `${v >= 0 ? '+' : ''}${v}%`}
-              />
-              <FilterSlider
-                label="10yr CAGR (Min)"
-                value={minCagr10yr}
-                min={-5} max={20} step={0.5}
-                onChange={(v) => { setMinCagr10yr(v); setPage(1); }}
-                format={(v) => `${v.toFixed(1)}%`}
-              />
-              <FilterSlider
-                label="Sortino Ratio (Min)"
-                value={minSortino}
-                min={-0.5} max={3} step={0.05}
-                onChange={(v) => { setMinSortino(v); setPage(1); }}
-                format={(v) => v.toFixed(2)}
-              />
-              <FilterSlider
-                label="Ulcer Index (Max)"
-                value={maxUlcer}
-                min={0} max={14} step={0.5}
-                onChange={(v) => { setMaxUlcer(v); setPage(1); }}
-                format={(v) => v.toFixed(1)}
-              />
+              <FilterSlider label="CAGR (Min)" value={minCagr} min={0} max={20} step={0.5}
+                onChange={v => { setMinCagr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
+              <FilterSlider label="Sharpe Ratio (Min)" value={minSharpe} min={-0.5} max={2} step={0.05}
+                onChange={v => { setMinSharpe(v); setPage(1); }} format={v => v.toFixed(2)} />
+              <FilterSlider label="Max Drawdown (Limit)" value={maxDrawdown} min={5} max={80} step={1}
+                onChange={v => { setMaxDrawdown(v); setPage(1); }} format={v => `-${v}%`} />
+              <FilterSlider label="Worst Year (Min)" value={minWorstYear} min={-70} max={0} step={1}
+                onChange={v => { setMinWorstYear(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v}%`} />
+              <FilterSlider label="10yr CAGR (Min)" value={minCagr10yr} min={-5} max={20} step={0.5}
+                onChange={v => { setMinCagr10yr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
+              <FilterSlider label="Sortino Ratio (Min)" value={minSortino} min={-0.5} max={3} step={0.05}
+                onChange={v => { setMinSortino(v); setPage(1); }} format={v => v.toFixed(2)} />
+              <FilterSlider label="Ulcer Index (Max)" value={maxUlcer} min={0} max={14} step={0.5}
+                onChange={v => { setMaxUlcer(v); setPage(1); }} format={v => v.toFixed(1)} />
             </div>
 
             {/* Rolling Returns */}
@@ -341,34 +421,14 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Rolling Returns (Min)
               </span>
-              <FilterSlider
-                label="1yr Rolling (Min)"
-                value={minRolling1yr}
-                min={-50} max={20} step={1}
-                onChange={(v) => { setMinRolling1yr(v); setPage(1); }}
-                format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`}
-              />
-              <FilterSlider
-                label="3yr Rolling (Min)"
-                value={minRolling3yr}
-                min={-30} max={15} step={1}
-                onChange={(v) => { setMinRolling3yr(v); setPage(1); }}
-                format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`}
-              />
-              <FilterSlider
-                label="5yr Rolling (Min)"
-                value={minRolling5yr}
-                min={-25} max={15} step={1}
-                onChange={(v) => { setMinRolling5yr(v); setPage(1); }}
-                format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`}
-              />
-              <FilterSlider
-                label="10yr Rolling (Min)"
-                value={minRolling10yr}
-                min={-15} max={15} step={1}
-                onChange={(v) => { setMinRolling10yr(v); setPage(1); }}
-                format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`}
-              />
+              <FilterSlider label="1yr Rolling (Min)" value={minRolling1yr} min={-50} max={20} step={1}
+                onChange={v => { setMinRolling1yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
+              <FilterSlider label="3yr Rolling (Min)" value={minRolling3yr} min={-30} max={15} step={1}
+                onChange={v => { setMinRolling3yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
+              <FilterSlider label="5yr Rolling (Min)" value={minRolling5yr} min={-25} max={15} step={1}
+                onChange={v => { setMinRolling5yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
+              <FilterSlider label="10yr Rolling (Min)" value={minRolling10yr} min={-15} max={15} step={1}
+                onChange={v => { setMinRolling10yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
             </div>
 
             {/* Asset Exposure */}
@@ -377,7 +437,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                 Asset Exposure
               </span>
               <div className="grid grid-cols-2 gap-2">
-                {ASSET_BUCKETS.map((b) => (
+                {ASSET_BUCKETS.map(b => (
                   <button
                     key={b}
                     onClick={() => toggleBucket(b)}
@@ -394,7 +454,6 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
             </div>
           </div>
 
-          {/* Clear filters */}
           {hasFilters && (
             <div className="pt-4 border-t border-outline-variant mt-4">
               <button
@@ -413,7 +472,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
 
           {/* Mobile filter toggle */}
           <button
-            onClick={() => setShowFilters((s) => !s)}
+            onClick={() => setShowFilters(s => !s)}
             className="lg:hidden flex items-center gap-2 mb-4 font-inter text-[13px] font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-[#D1E4D8] transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -430,22 +489,25 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                 {hasFilters ? ' match your filters' : ' — quantitative analysis across all portfolios'}
               </p>
             </div>
-            <button
-              onClick={() => exportCsv(filtered)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-[12px] font-semibold hover:bg-surface-container transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">download</span>
-              Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <ColumnPicker visibleCols={visibleCols} onChange={setVisibleCols} />
+              <button
+                onClick={() => exportCsv(filtered, visibleCols)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-[12px] font-semibold hover:bg-surface-container transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">download</span>
+                Export CSV
+              </button>
+            </div>
           </div>
 
           {/* Table */}
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-[700px] w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse" style={{ minWidth: `${minTableWidth}px` }}>
                 <thead className="bg-surface-container-low border-b border-outline-variant">
                   <tr>
-                    <th className="px-4 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-left w-[35%]">
+                    <th className="px-4 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-left w-[220px]">
                       Strategy
                     </th>
                     <th className="px-3 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
@@ -454,9 +516,9 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                     <th className="px-3 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-right">
                       Risk
                     </th>
-                    <SortTh col="cagr" label="CAGR" />
-                    <SortTh col="max_drawdown" label="Max DD" />
-                    <SortTh col="sharpe_ratio" label="Sharpe" />
+                    {activeCols.map(col => (
+                      <SortTh key={col.key} col={col.key} label={col.label} />
+                    ))}
                     <th className="px-3 py-2.5 font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
                       Rebalance
                     </th>
@@ -465,7 +527,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                 <tbody className="divide-y divide-outline-variant">
                   {paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-16 text-center">
+                      <td colSpan={4 + activeCols.length} className="px-6 py-16 text-center">
                         <span className="material-symbols-outlined text-[40px] text-on-surface-variant/40 block mb-3">search_off</span>
                         <p className="font-inter text-[14px] text-on-surface-variant">No strategies match your filters.</p>
                         <button onClick={clearFilters} className="mt-3 font-inter text-[13px] text-primary hover:underline">
@@ -474,11 +536,10 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((p) => {
+                    paginated.map(p => {
                       const badges = assetBadges(p.allocations);
                       return (
                         <tr key={p.slug} className="hover:bg-primary/5 transition-colors group">
-                          {/* Strategy name */}
                           <td className="px-4 py-2.5">
                             <Link href={`/portfolios/${p.slug}`} className="flex flex-col">
                               <span className="font-inter font-semibold text-on-surface text-[13px] leading-snug group-hover:text-primary transition-colors">
@@ -489,46 +550,27 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                               </span>
                             </Link>
                           </td>
-
-                          {/* Asset mix badges */}
                           <td className="px-3 py-2.5">
                             <div className="flex gap-1 flex-wrap">
-                              {badges.map((b) => {
+                              {badges.map(b => {
                                 const s = BADGE_STYLES[b];
                                 return (
-                                  <span
-                                    key={b}
-                                    title={s.title}
-                                    className={`px-1.5 py-0.5 ${s.bg} ${s.text} text-[9px] font-bold rounded uppercase`}
-                                  >
+                                  <span key={b} title={s.title}
+                                    className={`px-1.5 py-0.5 ${s.bg} ${s.text} text-[9px] font-bold rounded uppercase`}>
                                     {s.label}
                                   </span>
                                 );
                               })}
                             </div>
                           </td>
-
-                          {/* Risk */}
                           <td className={`px-3 py-2.5 text-right font-inter text-[12px] font-semibold ${riskColor(p.risk_level)}`}>
                             {riskLabel(p.risk_level)}
                           </td>
-
-                          {/* CAGR */}
-                          <td className="px-3 py-2.5 text-right font-inter text-[13px] text-primary font-bold">
-                            {p.cagr != null ? `${p.cagr.toFixed(1)}%` : '—'}
-                          </td>
-
-                          {/* Max DD */}
-                          <td className="px-3 py-2.5 text-right font-inter text-[13px] text-error font-semibold">
-                            {p.max_drawdown != null ? `${p.max_drawdown.toFixed(1)}%` : '—'}
-                          </td>
-
-                          {/* Sharpe */}
-                          <td className="px-3 py-2.5 text-right font-inter text-[13px] text-on-surface">
-                            {p.sharpe_ratio != null ? p.sharpe_ratio.toFixed(2) : '—'}
-                          </td>
-
-                          {/* Rebalance */}
+                          {activeCols.map(col => (
+                            <td key={col.key} className={`px-3 py-2.5 text-right font-inter text-[13px] ${col.className}`}>
+                              {col.format(p[col.key])}
+                            </td>
+                          ))}
                           <td className="px-3 py-2.5">
                             {p.trade_frequency ? (
                               <span className="font-inter text-[10px] font-semibold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -551,15 +593,12 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                   Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed">
                     <span className="material-symbols-outlined text-[18px] text-on-surface-variant">chevron_left</span>
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                    .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
                     .reduce((acc, n, i, arr) => {
                       if (i > 0 && n - arr[i - 1] > 1) acc.push('…');
                       acc.push(n);
@@ -569,24 +608,16 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                       n === '…' ? (
                         <span key={`ellipsis-${i}`} className="px-1 font-inter text-[12px] text-on-surface-variant">…</span>
                       ) : (
-                        <button
-                          key={n}
-                          onClick={() => setPage(n)}
+                        <button key={n} onClick={() => setPage(n)}
                           className={`w-7 h-7 rounded font-inter text-[12px] transition-colors ${
-                            page === n
-                              ? 'bg-primary text-on-primary font-bold'
-                              : 'text-on-surface-variant hover:bg-surface-container'
-                          }`}
-                        >
+                            page === n ? 'bg-primary text-on-primary font-bold' : 'text-on-surface-variant hover:bg-surface-container'
+                          }`}>
                           {n}
                         </button>
                       )
                     )}
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed">
                     <span className="material-symbols-outlined text-[18px] text-on-surface-variant">chevron_right</span>
                   </button>
                 </div>
