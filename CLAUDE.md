@@ -194,7 +194,7 @@ portfoliodb/
     AIRecommend.jsx                  # AI "find portfolios" search bar (client)
     TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
     DatabaseClient.jsx               # Database page UI with filters/sort/grid/list (client)
-    ScreenerClient.jsx               # Screener page UI with sliders/table/export (client)
+    ScreenerClient.jsx               # Screener page UI with sliders/table/export/column-picker (client)
     AllocationDonut.jsx              # SVG donut chart — server-renderable, no JS
     GrowthChart.jsx                  # Recharts area chart for Growth of $10K (client)
     DrawdownChart.jsx                # Recharts area chart for Historical Drawdown (client)
@@ -209,6 +209,8 @@ portfoliodb/
     fonts/
       Manrope-Bold.ttf               # Manrope 700 — used by OG image routes (next/og requires TTF)
       Manrope-ExtraBold.ttf          # Manrope 800 — used by OG image routes
+  scripts/
+    update-descriptions.js           # Node.js script — reads all description-drafts/*.md and pushes to Supabase via service role key. Run with: node scripts/update-descriptions.js
   CLAUDE.md                          # This file
   TASKS.md                           # Migration task checklist
   .env.local                         # Secrets — not in git (see Environment Variables)
@@ -245,10 +247,11 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 |-------------------------------|------------------------------|
 | NEXT_PUBLIC_SUPABASE_URL      | lib/supabase.js              |
 | NEXT_PUBLIC_SUPABASE_ANON_KEY | lib/supabase.js              |
+| SUPABASE_SERVICE_ROLE_KEY     | scripts/update-descriptions.js — bypasses RLS for writes; never expose client-side |
 | ANTHROPIC_API_KEY             | app/api/screener/route.js    |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
 
-All must also be set in Vercel project settings for production.
+All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY — scripts only, not needed in Vercel).
 
 ---
 
@@ -351,7 +354,14 @@ All must also be set in Vercel project settings for production.
   shown in the Asset Mix column of the results table
 - Receives `assetClasses` prop from portfolio-screener/page.js
 - Mobile: same `showFilters` toggle pattern as DatabaseClient.jsx
-- Table has `min-w-[700px]` inside `overflow-x-auto` wrapper for horizontal scroll on mobile
+- Table min-width grows dynamically based on number of visible columns (base 420px + 90px per column)
+- **Column picker:** "Columns" button next to Export CSV opens a dropdown with 23 toggleable
+  columns — Performance Benchmarks (CAGR, Max DD, Sharpe on by default; Sortino, Worst Year,
+  Best Year, 10yr CAGR, Ulcer Index, UPI, GFC CAGR, Dotcom CAGR off by default) and Rolling
+  Returns (1yr/3yr/5yr/10yr Low/Avg/High, all off by default). +N badge shows extra active
+  columns. "Reset to defaults" link appears when defaults are changed. All visible columns are
+  sortable. CSV export reflects currently visible columns. `ALL_COLUMNS` array in the component
+  is the single source of truth for available columns.
 
 ### app/api/screener/route.js (AI Screener)
 - POST endpoint, accepts `{ goal }` in request body
@@ -460,17 +470,23 @@ Descriptions are stored as a single text value. Use the two-character sequence `
 
 ### Valid internal portfolio links
 When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
-`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`
 
-Do NOT link to: `gem-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
+Do NOT link to: `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
 
 ### Workflow for adding new descriptions to Supabase
-1. Copy the full contents of `description-drafts/[slug].md`
-2. Run this SQL in the Supabase SQL Editor:
-   ```sql
-   UPDATE portfolios SET description = '[paste here]' WHERE slug = '[slug]';
-   ```
-3. No redeploy needed -- but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear on the live site
+**Bulk (preferred):** Edit or add files in `description-drafts/`, then run:
+```bash
+node scripts/update-descriptions.js
+```
+This pushes all 70 draft files to Supabase in one command using the service role key. Then trigger a Vercel redeploy (SSG pages must rebuild to show changes).
+
+**Single update (manual fallback):** Run this SQL in the Supabase SQL Editor:
+```sql
+UPDATE portfolios SET description = '[paste contents of slug.md]' WHERE slug = '[slug]';
+REFRESH MATERIALIZED VIEW portfolio_stats;
+```
+Then redeploy on Vercel.
 
 ## Reference Files
 

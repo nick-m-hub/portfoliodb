@@ -59,3 +59,7 @@ _(nothing currently in progress)_
 - [x] Portfolio descriptions — markdown rendering fixed (react-markdown replaces stripMarkdown); all 49 description drafts written to description-drafts/ folder following DB format spec (see CLAUDE.md for rules); ready to paste into Supabase
 - [x] Description draft quality review — all 45 original agent-written drafts audited; 9 rewritten with web research to fix vague content, wrong creator attributions, and invalid internal links; Paired Switching corrected to Lewis A. Glenn (SSRN 2437049) after initial agent misattributed it
 - [x] WebSearch + WebFetch permissions — added to ~/.claude/settings.json globally so background agents can research portfolios
+- [x] 19 new description drafts — coffeehouse, permanent, all-weather, 60/40, golden butterfly, GEM, GEM emerging markets, composite dual momentum, accelerating dual momentum, AAA, PAA, DAA, gone fishin, andrew tobias, quint switching filtered, stoken ACA, three-way model, GTAA AGG 3, GTAA AGG 6
+- [x] scripts/update-descriptions.js — bulk-pushes all description-drafts/*.md to Supabase using service role key; run with `node scripts/update-descriptions.js`
+- [x] Description moved below stat tiles on portfolio detail pages (portfolios/[slug]/page.js)
+- [x] Screener column picker — Columns dropdown with 23 toggleable columns (Performance Benchmarks + Rolling Returns Low/Avg/High); CAGR/Max DD/Sharpe on by default; +N badge; Reset to defaults; CSV export reflects visible columns
