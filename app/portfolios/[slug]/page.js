@@ -173,27 +173,6 @@ export default async function PortfolioDetailPage({ params }) {
               {portfolio.name}
             </h1>
 
-            {/* Description */}
-            {portfolio.description && (
-              <div className="font-inter text-[16px] text-on-surface-variant leading-relaxed max-w-2xl">
-                <ReactMarkdown
-                  components={{
-                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
-                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
-                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
-                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
-                    em: ({children}) => <em className="italic">{children}</em>,
-                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
-                    li: ({children}) => <li>{children}</li>,
-                  }}
-                >
-                  {portfolio.description.replace(/\\n/g, '\n')}
-                </ReactMarkdown>
-              </div>
-            )}
-
             {/* Hero stat tiles */}
             <div className="flex flex-wrap gap-4 pt-2">
               <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
@@ -215,6 +194,27 @@ export default async function PortfolioDetailPage({ params }) {
                 </span>
               </div>
             </div>
+
+            {/* Description */}
+            {portfolio.description && (
+              <div className="font-inter text-[16px] text-on-surface-variant leading-relaxed max-w-2xl">
+                <ReactMarkdown
+                  components={{
+                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
+                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
+                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
+                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
+                    em: ({children}) => <em className="italic">{children}</em>,
+                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
+                    li: ({children}) => <li>{children}</li>,
+                  }}
+                >
+                  {portfolio.description.replace(/\\n/g, '\n')}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
 
           {/* Back + M1 buttons */}

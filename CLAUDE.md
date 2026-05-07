@@ -432,9 +432,7 @@ To enable the CTA on a portfolio: add the Ko-fi membership URL to the `kofi_link
 
 ## Portfolio Description Drafts
 
-All 49 portfolio descriptions have been drafted and are stored in `description-drafts/` at the project root. Each file contains:
-1. Human-readable markdown for review
-2. A "Copy-ready for Supabase" code block at the bottom with `\n`-formatted text ready to paste into the `description` column
+All 49 portfolio descriptions have been drafted, reviewed, and stored in `description-drafts/` at the project root. Each file is saved directly in `\n` format (the DB-ready format) — no separate code block, no human-readable section. The file content is what gets pasted into Supabase.
 
 ### Description format spec
 
@@ -460,14 +458,19 @@ Every description follows this structure:
 **Line break format for DB storage:**
 Descriptions are stored as a single text value. Use the two-character sequence `\n` (backslash + n) between paragraphs and after list items -- NOT real line breaks. Example: `"End of paragraph.\n\nStart of next.\n\n## Heading\nBody text.\n\n## Pros\n- Item one\n- Item two"`
 
+### Valid internal portfolio links
+When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`
+
+Do NOT link to: `gem-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
+
 ### Workflow for adding new descriptions to Supabase
-1. Review the draft file in `description-drafts/[slug].md`
-2. Copy the content from the "Copy-ready for Supabase" code block
-3. Run this SQL in the Supabase SQL Editor:
+1. Copy the full contents of `description-drafts/[slug].md`
+2. Run this SQL in the Supabase SQL Editor:
    ```sql
    UPDATE portfolios SET description = '[paste here]' WHERE slug = '[slug]';
    ```
-4. No redeploy needed -- but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear on the live site
+3. No redeploy needed -- but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear on the live site
 
 ## Reference Files
 

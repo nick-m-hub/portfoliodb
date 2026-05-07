@@ -57,4 +57,5 @@ _(nothing currently in progress)_
 - [x] Popular links — hardcoded to All-Weather, Permanent Portfolio, Bogleheads Three-Fund with correct /portfolios/[slug] hrefs
 - [x] Top Strategies section — renamed from "Benchmark Strategies"; TopStrategies.jsx client component with Sharpe/CAGR/Min Drawdown dropdown; data pre-computed server-side from getAllAllocations()
 - [x] Portfolio descriptions — markdown rendering fixed (react-markdown replaces stripMarkdown); all 49 description drafts written to description-drafts/ folder following DB format spec (see CLAUDE.md for rules); ready to paste into Supabase
+- [x] Description draft quality review — all 45 original agent-written drafts audited; 9 rewritten with web research to fix vague content, wrong creator attributions, and invalid internal links; Paired Switching corrected to Lewis A. Glenn (SSRN 2437049) after initial agent misattributed it
 - [x] WebSearch + WebFetch permissions — added to ~/.claude/settings.json globally so background agents can research portfolios
