@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getPortfolios, getAllAllocations } from '@/lib/db';
+import { getPortfolios, getAllAllocations, getSignalPortfolioCount } from '@/lib/db';
 import AIRecommend from '@/components/AIRecommend';
 import FilterBar from '@/components/FilterBar';
 import TopStrategies from '@/components/TopStrategies';
@@ -29,9 +29,10 @@ export const metadata = {
 
 export default async function Home() {
   // getPortfolios() already returns rows ordered by sharpe_ratio desc
-  const [allPortfolios, allAllocations] = await Promise.all([
+  const [allPortfolios, allAllocations, signalCount] = await Promise.all([
     getPortfolios(),
     getAllAllocations(),
+    getSignalPortfolioCount(),
   ]);
 
   // Group allocations by portfolio slug
@@ -94,6 +95,22 @@ export default async function Home() {
             </div>
           </section>
 
+          {/* ── Membership callout ── */}
+          <section className="col-span-12">
+            <div className="bg-surface-container-low border border-outline-variant rounded-xl px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="font-manrope text-[16px] font-semibold text-on-surface mb-1">Monthly signals for {signalCount} portfolios.</p>
+                <p className="font-inter text-[13px] text-on-surface-variant">Members receive monthly rebalancing guidance for a curated selection of portfolios in the database.</p>
+              </div>
+              <Link
+                href="/membership"
+                className="flex-shrink-0 bg-primary text-on-primary font-inter text-[13px] font-semibold px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                See membership options
+              </Link>
+            </div>
+          </section>
+
           {/* ── Top Strategies ── */}
           <TopStrategies sections={topSections} />
 
@@ -110,7 +127,7 @@ export default async function Home() {
                   </span>
                 </div>
                 <h2 className="font-manrope text-[28px] font-semibold text-on-surface mb-6 tracking-tight">
-                  Monthly Tactical Trade Signals
+                  Monthly Rebalancing Guidance
                 </h2>
                 <p className="font-inter text-[18px] text-on-surface-variant mb-8 leading-relaxed">
                   Take the guesswork out of rebalancing. Get actionable updates for selected
@@ -130,18 +147,14 @@ export default async function Home() {
                 </ul>
               </div>
 
-              {/* Pricing card */}
-              <div className="w-full md:w-auto flex-shrink-0 bg-surface-container-lowest p-8 rounded-xl border border-surface-variant text-center shadow-sm">
-                <div className="font-manrope text-[40px] text-primary font-bold mb-2">
-                  $49
-                  <span className="font-inter text-[18px] text-on-surface-variant font-normal">/mo</span>
-                </div>
-                <p className="font-inter text-[15px] text-on-surface-variant mb-8">
-                  Cancel anytime. No hidden fees.
-                </p>
-                <button className="w-full bg-primary text-on-primary font-inter text-[18px] font-medium py-3 px-8 rounded-full hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap">
-                  Join Premium
-                </button>
+              <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                <Link
+                  href="/membership"
+                  className="bg-primary text-on-primary font-inter text-[16px] font-semibold py-3 px-8 rounded-full hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap"
+                >
+                  See Membership Options
+                </Link>
+                <p className="font-inter text-[13px] text-on-surface-variant">Cancel anytime. No hidden fees.</p>
               </div>
             </div>
           </section>

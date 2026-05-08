@@ -237,27 +237,29 @@ export default async function PortfolioDetailPage({ params }) {
                 Invest on M1 Finance
               </a>
             )}
-            {(portfolio.kofi_link) && (
-              <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-4 flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-primary">mark_email_unread</span>
-                  <span className="font-manrope text-[15px] font-bold text-primary">Monthly Trade Signals</span>
-                </div>
-                <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
-                  Know exactly when to rebalance. Signals for this portfolio delivered to your inbox every month — no guesswork.
-                </p>
-                <a
-                  href={portfolio.kofi_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-on-primary rounded-lg font-inter text-[13px] font-semibold hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
-                  Get Signals — Join on Ko-fi
-                </a>
-                <p className="font-inter text-[11px] text-on-surface-variant text-center">Cancel anytime. No lock-in.</p>
+            <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary">mark_email_unread</span>
+                <span className="font-manrope text-[15px] font-bold text-primary">
+                  {portfolio.kofi_link
+                    ? 'Monthly signals available for this portfolio'
+                    : 'Monthly signals for select portfolios'}
+                </span>
               </div>
-            )}
+              <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
+                {portfolio.kofi_link
+                  ? 'One email, once a month. No research required.'
+                  : 'We cover a curated selection of portfolios in this database.'}
+              </p>
+              <Link
+                href="/membership"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-on-primary rounded-lg font-inter text-[13px] font-semibold hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
+                {portfolio.kofi_link ? 'See membership options' : "See what's covered"}
+              </Link>
+              <p className="font-inter text-[11px] text-on-surface-variant text-center">Cancel anytime. No lock-in.</p>
+            </div>
           </div>
         </section>
 
@@ -490,44 +492,46 @@ export default async function PortfolioDetailPage({ params }) {
               </div>
             </div>
 
-            {/* Ko-fi trade signals CTA */}
-            {(portfolio.kofi_link) && (
-              <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-6 flex flex-col gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="material-symbols-outlined text-[22px] text-primary">mark_email_unread</span>
-                    <span className="font-manrope text-[17px] font-bold text-primary">Get Monthly Trade Signals</span>
-                  </div>
-                  <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
-                    Stop guessing when to rebalance. Members receive exact trade signals for this portfolio delivered to their inbox every month.
-                  </p>
+            {/* Membership CTA */}
+            <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-6 flex flex-col gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-[22px] text-primary">mark_email_unread</span>
+                  <span className="font-manrope text-[17px] font-bold text-primary">
+                    {portfolio.kofi_link
+                      ? 'Monthly Portfolio Signals'
+                      : 'Monthly Portfolio Signals — select portfolios'}
+                  </span>
                 </div>
-                <ul className="space-y-2">
-                  {[
-                    'Exact buy/sell signals each month',
-                    'Email delivery — no app required',
-                    'Cancel anytime, no lock-in',
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <span className="material-symbols-outlined text-[16px] text-primary mt-0.5">check_circle</span>
-                      <span className="font-inter text-[13px] text-on-surface">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={portfolio.kofi_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-inter text-[14px] font-semibold hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
-                  Join on Ko-fi — Get Signals
-                </a>
-                <p className="font-inter text-[11px] text-on-surface-variant text-center -mt-1">
-                  Membership billed monthly through Ko-fi
+                <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
+                  Members receive monthly rebalancing guidance for a curated selection of portfolios tracked on this site. One email, once a month — no market timing, no guesswork.
                 </p>
               </div>
-            )}
+              <ul className="space-y-2">
+                {[
+                  portfolio.kofi_link
+                    ? 'Signals for a curated set of portfolios'
+                    : 'This portfolio is not currently in the signal set',
+                  'Delivered on the last trading day of every month',
+                  'Cancel anytime — no long-term commitment',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-primary mt-0.5">check_circle</span>
+                    <span className="font-inter text-[13px] text-on-surface">{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/membership"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-inter text-[14px] font-semibold hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                See membership options
+              </Link>
+              <p className="font-inter text-[11px] text-on-surface-variant text-center -mt-1">
+                Membership billed monthly through Ko-fi
+              </p>
+            </div>
 
           </aside>
         </div>

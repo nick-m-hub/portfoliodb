@@ -32,6 +32,12 @@ export default function Navbar({ portfolios = [] }) {
               >
                 Screener
               </Link>
+              <Link
+                href="/membership"
+                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+              >
+                Membership
+              </Link>
             </div>
           </div>
 
@@ -53,6 +59,12 @@ export default function Navbar({ portfolios = [] }) {
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
           >
             Screener
+          </Link>
+          <Link
+            href="/membership"
+            className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+          >
+            Membership
           </Link>
         </div>
 

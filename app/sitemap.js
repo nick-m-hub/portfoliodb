@@ -8,6 +8,7 @@ const staticPages = [
   '/portfolio-screener',
   '/glossary-of-terms',
   '/methodology',
+  '/membership',
 ];
 
 export default async function sitemap() {
