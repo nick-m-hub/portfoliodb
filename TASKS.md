@@ -11,6 +11,22 @@ _(nothing currently in progress)_
 
 ## Backlog
 
+- [ ] **Fix #1 — Signal email example on membership page** — Add a "What a signal looks like" section in `app/membership/page.js` between the 'What you get each month' list and the signal portfolio list. Mock email preview card with a 3-row table (Portfolio / Signal / Action), 'Example — April 2025 Signal' label, and one-sentence disclaimer below.
+
+- [ ] **Fix #2 — Fix dead-end CTA on non-covered portfolio pages** — In `app/portfolios/[slug]/page.js`, portfolios where `kofi_link` IS NULL currently show nothing useful. Replace with a smaller alternative CTA card in both the hero and sidebar locations explaining signals cover tactical portfolios only, with a 'See covered portfolios →' link to `/membership`.
+
+- [ ] **Fix #3 — Email capture for non-members** *(requires Kit account first)* — New `components/EmailCapture.jsx` client component (compact horizontal card, email input, 'Subscribe free' button, posts to Kit API via `NEXT_PUBLIC_KIT_FORM_ID`). Place in: membership page (above price callout), homepage (below Top Strategies), portfolio detail pages (below Related Portfolios). Add `NEXT_PUBLIC_KIT_FORM_ID` to `.env.local` and Vercel.
+
+- [ ] **Fix #5 — Make social proof prominent** — Part A: elevate 'Trusted by 50,000+ DIY Investors' in `app/page.tsx` — move it between H1 and subheadline, style as a pill badge (`bg-surface-container-low`, `border-outline-variant`, `rounded-full`, `check_circle` icon). Part B (manual): gather 2–3 testimonial quotes from Ko-fi members/readers, then add a testimonial strip between hero and Top Strategies.
+
+- [ ] **Fix #6 — Lead membership page with top performer stats** — In `app/membership/page.js`, add a three-card stats strip directly below the H1 and intro paragraph. Hardcoded values: Top Sharpe 0.98 (DAA), Top CAGR 16.1% (Vigilant G4), Best Worst Year -8.4% (DAA). Cards use `bg-surface-container-lowest border border-outline-variant rounded-xl p-5`; add a backtested disclaimer caption below.
+
+- [ ] **Fix #7 — Surface Methodology link in content flow** — Part A: in `app/portfolios/[slug]/page.js`, add a one-line methodology link below the 'Performance Snapshot' heading. Part B: in `components/ScreenerClient.jsx`, add the same link below the main screener heading.
+
+- [ ] **Fix #9 — Mobile screener UX: filters before results** — In `components/ScreenerClient.jsx`, change `showFilters` default from `false` to `true`. Add a sticky 'Show Results (N)' pill button fixed to the bottom of the screen on mobile only (`fixed bottom-4 left-4 right-4 lg:hidden z-50`) that appears when filters are open; clicking it collapses filters and shows results.
+
+- [ ] **Fix #10 — Stat tooltips throughout the site** — New `components/StatTooltip.jsx` client component (label + `info` icon + hover tooltip card). Wire up to Performance Snapshot stat labels in `app/portfolios/[slug]/page.js` and column headers in `components/ScreenerClient.jsx`. Definitions for: CAGR, Sharpe, Max Drawdown, Sortino, Ulcer Index, UPI, 10yr CAGR, GFC CAGR, Dot-com CAGR, Rolling Returns.
+
 ---
 
 ## Completed
@@ -63,3 +79,15 @@ _(nothing currently in progress)_
 - [x] scripts/update-descriptions.js — bulk-pushes all description-drafts/*.md to Supabase using service role key; run with `node scripts/update-descriptions.js`
 - [x] Description moved below stat tiles on portfolio detail pages (portfolios/[slug]/page.js)
 - [x] Screener column picker — Columns dropdown with 23 toggleable columns (Performance Benchmarks + Rolling Returns Low/Avg/High); CAGR/Max DD/Sharpe on by default; +N badge; Reset to defaults; CSV export reflects visible columns
+- [x] Membership CTA copy updated — hero + sidebar cards on portfolio detail pages refreshed with new copy; all buttons route to /membership (not Ko-fi directly)
+- [x] Homepage membership callout banner — compact single-row banner between hero and Top Strategies; shows live signal portfolio count from DB
+- [x] Homepage Premium section — headline updated to "Monthly Rebalancing Guidance"; pricing card replaced with pill link to /membership; cancel copy retained
+- [x] /membership page — app/membership/page.js with price ($19/mo), what's included, what you get each month, signal portfolio list, disclaimer; generateMetadata(); /membership added to sitemap
+- [x] getSignalPortfolios() + getSignalPortfolioCount() — added to lib/db.js; query portfolios where kofi_link IS NOT NULL; used by homepage banner and membership page
+- [x] Portfolio detail CTA cards always rendered — kofi_link used as copy switcher (covered vs. not-covered variants) rather than on/off conditional; both hero + sidebar cards appear on every portfolio page
+- [x] Membership link — added to Navbar (desktop + mobile row) and Footer
+- [x] WordPress redirect rules — `/portfolios` and `/timeline-risk/:path*` both redirect to `/database` via `next.config.ts`; all portfolio slugs confirmed present in Next.js DB (no per-portfolio redirects needed)
+- [x] QA pass (May 2026) — all pages load with real Supabase data, no console errors, no broken images, sitemap has 76 URLs (6 static + 70 portfolios), robots.txt correct, /api/test-db returns 200
+- [x] Glossary of Terms page — 30 terms across 14 letter sections (A–V); alphabet anchor nav; links to Methodology page and related portfolios; `generateMetadata()` with canonical/OG/Twitter tags.
+- [x] Fix #4 — Hero H1 rewritten to '70+ Portfolio Strategies, Backtested Since 1970'; subheadline updated; 'Backtested Since 1970' styled green in existing span; `<br />` restored.
+- [x] Fix #8 — Top Strategies default metric changed from Sharpe to CAGR (`useState('cagr')` in `components/TopStrategies.jsx`).

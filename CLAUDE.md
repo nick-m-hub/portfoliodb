@@ -163,7 +163,7 @@ Key formula approach:
 ```
 portfoliodb/
   app/
-    page.tsx                         # Homepage (server component)
+    page.tsx                         # Homepage (server component) — H1: "70+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span)
     layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar
     globals.css                      # Tailwind v4 @theme design tokens
     database/
@@ -174,13 +174,15 @@ portfoliodb/
     portfolio-screener/
       page.js                        # Screener page (server, wraps ScreenerClient)
     glossary-of-terms/
-      page.js                        # Static glossary page
+      page.js                        # Glossary page (server) — 30 terms, A–V, alphabet anchor nav, links to Methodology + related portfolios
+    membership/
+      page.js                        # Membership page (server) — price, what's included, signal portfolio list
     api/
       screener/
         route.js                     # POST — AI portfolio recommendations (Haiku 4.5)
       test-db/
         route.js                     # GET — quick DB connectivity check
-    sitemap.js                       # Dynamic sitemap (all portfolio slugs + /methodology)
+    sitemap.js                       # Dynamic sitemap (all portfolio slugs + static pages incl. /membership)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
     portfolios/
@@ -202,6 +204,7 @@ portfoliodb/
     ChartsSection.jsx                # Client wrapper owning benchmark, timeline, and log/linear scale toggle state
     StructuredData.jsx               # JSON-LD structured data for portfolio pages
     GoogleAnalytics.jsx              # GA4 script tag (production only)
+    Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
@@ -214,7 +217,7 @@ portfoliodb/
   CLAUDE.md                          # This file
   TASKS.md                           # Migration task checklist
   .env.local                         # Secrets — not in git (see Environment Variables)
-  next.config.ts                     # Next.js config
+  next.config.ts                     # Next.js config — contains permanent redirects (see Redirects section)
 ```
 
 ---
@@ -233,6 +236,8 @@ portfoliodb/
 | `getAllSlugs()`         | Slug column only from portfolios table (for generateStaticParams)  |
 | `getPortfolioNames()`  | name + slug from portfolios table, alphabetical (for Navbar search) |
 | `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
+| `getSignalPortfolios()` | name + slug for all portfolios where kofi_link IS NOT NULL, alphabetical — used by membership page |
+| `getSignalPortfolioCount()` | Count of portfolios where kofi_link IS NOT NULL — used by homepage banner and membership page H1 |
 
 All functions include error handling and return `null` or `[]` on failure.
 
@@ -264,6 +269,9 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Portfolio Detail       | `/portfolios/[slug]`     | Complete |
 | Portfolio Screener     | `/portfolio-screener`    | Complete |
 | Glossary               | `/glossary-of-terms`     | Complete |
+| Methodology            | `/methodology`           | Complete |
+| Membership             | `/membership`            | Complete |
+| Terms of Service       | `/terms-of-service`      | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -375,7 +383,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Pattern order matters: handle `\\n` first, then `/\n\n+/`, then `/\n/`
 
 ### TopStrategies.jsx
-- Client component — owns `metric` state (default: `'sharpe'`)
+- Client component — owns `metric` state (default: `'cagr'`)
 - Receives `sections` prop: `{ sharpe, cagr, drawdown }` — each an array of 3 portfolios with allocations pre-attached
 - Data is pre-computed server-side in `page.tsx` using `getAllAllocations()` + array sort; no client-side fetching
 - Dropdown is a styled native `<select>` with `appearance-none` + Material Symbols `expand_more` arrow overlay
@@ -392,6 +400,21 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Rendered at the bottom of every portfolio detail page, below the charts section
 - Data from `getRelatedPortfolios(slug)` — runs in parallel with other page fetches in `Promise.all`
 - Shows 3 cards: portfolio name (linked), category badge, CAGR/Sharpe/Max Drawdown stats
+
+---
+
+## Redirects
+
+Permanent redirects are configured in `next.config.ts`. These cover indexed WordPress URLs that don't map to any Next.js route.
+
+| From | To | Reason |
+|------|----|--------|
+| `/portfolios` | `/database` | WordPress portfolio archive page |
+| `/timeline-risk/:path*` | `/database` | WordPress taxonomy/category pages |
+
+Trailing-slash redirects (e.g. `/portfolios/golden-butterfly-portfolio/` → without slash) are handled automatically by Next.js — no config needed.
+
+All portfolio slugs from the old WordPress site exist in the Next.js DB, so no portfolio detail redirects are required.
 
 ---
 
@@ -421,13 +444,29 @@ No redeploy needed — data appears on the site immediately after insert.
 
 ---
 
-## Ko-fi Trade Signals CTA
+## Membership CTA
 
-Portfolio detail pages show a membership CTA when `portfolio.kofi_link` is not null. Two placements:
-- **Hero section** (right column, below Back to Database button) — compact card with headline, pitch, and button
+Portfolio detail pages show a membership CTA on **every** portfolio page — two placements:
+- **Hero section** (right column, below Back to Database button) — compact card
 - **Sidebar** (right column of body, below At a Glance) — fuller card with 3 bullet points
 
-To enable the CTA on a portfolio: add the Ko-fi membership URL to the `kofi_link` column in the `portfolios` table. Leave it null to hide the CTA. No redeploy needed — but portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear.
+`kofi_link` acts as a **copy switcher**, not an on/off toggle:
+- **kofi_link IS NOT NULL** → "covered" variant: "Monthly signals available for this portfolio" / "One email, once a month. No research required." / "See membership options"
+- **kofi_link IS NULL** → "not covered" variant: "Monthly signals for select portfolios" / "We cover a curated selection of portfolios in this database." / "See what's covered"
+
+Sidebar bullet 1 also switches: "Signals for a curated set of portfolios" (covered) vs. "This portfolio is not currently in the signal set" (not covered).
+
+All CTA buttons link to `/membership` (not directly to Ko-fi). The `/membership` page has the Ko-fi join button.
+
+To add a portfolio to the signal set: set any non-null value in the `kofi_link` column. Portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear.
+
+## Membership Page (`/membership`)
+
+- Price: `$19/mo` — stored as `MEMBERSHIP_PRICE` constant at top of `app/membership/page.js`; update there when price changes
+- Ko-fi URL: `KOFI_MEMBERSHIP_URL` constant at top of the same file — currently `https://ko-fi.com/portfoliodb`
+- Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and callout banner on homepage both show live count
+- "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
+- Homepage has two membership touchpoints: a compact callout banner (between hero and Top Strategies) and the Premium section (below Top Strategies)
 
 ---
 
