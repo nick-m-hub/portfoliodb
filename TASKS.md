@@ -91,3 +91,6 @@ _(nothing currently in progress)_
 - [x] Glossary of Terms page — 30 terms across 14 letter sections (A–V); alphabet anchor nav; links to Methodology page and related portfolios; `generateMetadata()` with canonical/OG/Twitter tags.
 - [x] Fix #4 — Hero H1 rewritten to '70+ Portfolio Strategies, Backtested Since 1970'; subheadline updated; 'Backtested Since 1970' styled green in existing span; `<br />` restored.
 - [x] Fix #8 — Top Strategies default metric changed from Sharpe to CAGR (`useState('cagr')` in `components/TopStrategies.jsx`).
+- [x] Footer Glossary link — added 'Glossary' link to `components/Footer.jsx` nav list.
+- [x] GA4 fix — `GoogleAnalytics.jsx` was gating on `NEXT_PUBLIC_VERCEL_ENV === 'production'` (Vercel never sets this); replaced with `window.location.hostname === 'portfoliodb.co'` check inside the inline gtag script. `NEXT_PUBLIC_GA_MEASUREMENT_ID` also added to Vercel environment variables (Production) and redeployed.
+- [x] QA pass #2 (May 2026) — all 11 checks passed: homepage real data, 3 portfolio detail pages (CAGR/Sharpe/MaxDD confirmed), /database 70 portfolios, /portfolio-screener 11 sliders, /glossary-of-terms, /methodology, /sitemap.xml 76 URLs, /robots.txt Disallow:/api/ only, both WP redirects (/portfolios + /timeline-risk/:path*) land on /database, /api/test-db 200, no broken images or console errors.

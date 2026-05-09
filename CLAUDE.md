@@ -203,7 +203,7 @@ portfoliodb/
     RollingReturnChart.jsx           # Recharts line chart for Rolling Returns 1Y/3Y/5Y/10Y (client)
     ChartsSection.jsx                # Client wrapper owning benchmark, timeline, and log/linear scale toggle state
     StructuredData.jsx               # JSON-LD structured data for portfolio pages
-    GoogleAnalytics.jsx              # GA4 script tag (production only)
+    GoogleAnalytics.jsx              # GA4 script tag — fires only on portfoliodb.co (hostname check in inline script)
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
   lib/
     supabase.js                      # Supabase client init
@@ -255,8 +255,11 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 | SUPABASE_SERVICE_ROLE_KEY     | scripts/update-descriptions.js — bypasses RLS for writes; never expose client-side |
 | ANTHROPIC_API_KEY             | app/api/screener/route.js    |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
+| NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
 
 All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY — scripts only, not needed in Vercel).
+
+**Important:** `NEXT_PUBLIC_` variables are baked into the bundle at build time — a Vercel redeploy is required after adding or changing them. Do NOT use `NEXT_PUBLIC_VERCEL_ENV` — Vercel does not auto-set this variable; use hostname-based detection in client-side code instead.
 
 ---
 
