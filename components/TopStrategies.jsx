@@ -38,7 +38,7 @@ const METRICS = {
 };
 
 export default function TopStrategies({ sections }) {
-  const [metric, setMetric] = useState('sharpe');
+  const [metric, setMetric] = useState('cagr');
   const portfolios = sections[metric];
   const config = METRICS[metric];
 

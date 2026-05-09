@@ -5,6 +5,7 @@ const links = [
   { label: 'Terms of Service', href: '/terms-of-service' },
   { label: 'Privacy Policy', href: '/privacy-policy' },
   { label: 'Methodology', href: '/methodology' },
+  { label: 'Glossary', href: '/glossary-of-terms' },
   { label: 'Support', href: '/contact' },
 ];
 

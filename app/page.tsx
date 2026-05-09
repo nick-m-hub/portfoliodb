@@ -64,14 +64,13 @@ export default async function Home() {
 
             {/* Headline */}
             <h1 className="font-manrope text-[48px] md:text-[56px] leading-[1.1] text-on-surface font-bold mb-6 max-w-4xl tracking-tight">
-              The Modern Engine for<br />
-              <span className="text-[#27624a]">Growth-Focused</span> Portfolios
+              70+ Portfolio Strategies,<br />
+              <span className="text-[#27624a]">Backtested Since 1970</span>
             </h1>
 
             {/* Subheading */}
             <p className="font-inter text-[18px] text-on-surface-variant mb-12 max-w-2xl leading-relaxed">
-              Access institutional-grade asset allocation data and sophisticated screener
-              tools designed for the modern individual investor.
+              Compare lazy and tactical portfolios by CAGR, Sharpe ratio, max drawdown, and rolling returns. Filter by risk level, find your strategy, and get monthly rebalancing signals delivered to your inbox.
             </p>
 
             {/* ── Filter bar ── */}
