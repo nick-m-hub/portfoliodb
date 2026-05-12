@@ -11,11 +11,11 @@ _(nothing currently in progress)_
 
 ## Backlog
 
-- [ ] **Fix #1 — Signal email example on membership page** — Add a "What a signal looks like" section in `app/membership/page.js` between the 'What you get each month' list and the signal portfolio list. Mock email preview card with a 3-row table (Portfolio / Signal / Action), 'Example — April 2025 Signal' label, and one-sentence disclaimer below.
+- [x] **Fix #1 — Signal email example on membership page** — "What a signal looks like" section added to `app/membership/page.js`. Mock email card shows portfolio name headers with ticker/allocation pill badges (real data: ADM, Composite DM, GEM DM). Format reflects actual signal email style rather than a generic table.
 
-- [ ] **Fix #2 — Fix dead-end CTA on non-covered portfolio pages** — In `app/portfolios/[slug]/page.js`, portfolios where `kofi_link` IS NULL currently show nothing useful. Replace with a smaller alternative CTA card in both the hero and sidebar locations explaining signals cover tactical portfolios only, with a 'See covered portfolios →' link to `/membership`.
+- [x] **Fix #2 — Fix dead-end CTA on non-covered portfolio pages** — Non-covered portfolios now show a compact neutral card (no green background) in both hero and sidebar locations, explaining signals cover tactical portfolios only, with 'See covered portfolios →' link to `/membership`. Covered portfolios keep the full green card.
 
-- [ ] **Fix #3 — Email capture for non-members** *(requires Kit account first)* — New `components/EmailCapture.jsx` client component (compact horizontal card, email input, 'Subscribe free' button, posts to Kit API via `NEXT_PUBLIC_KIT_FORM_ID`). Place in: membership page (above price callout), homepage (below Top Strategies), portfolio detail pages (below Related Portfolios). Add `NEXT_PUBLIC_KIT_FORM_ID` to `.env.local` and Vercel.
+- [x] **Fix #3 — Email capture for non-members** — `components/EmailCapture.jsx` (client) + `app/api/subscribe/route.js` (Kit V3 API, server-side). Placed on homepage (below Top Strategies), membership page (above price callout), and portfolio detail pages (below Related Portfolios). Uses Kit V3 API Secret + numeric form ID 9435321 (Clare form). All env vars set in Vercel.
 
 - [ ] **Fix #5 — Make social proof prominent** — Part A: elevate 'Trusted by 50,000+ DIY Investors' in `app/page.tsx` — move it between H1 and subheadline, style as a pill badge (`bg-surface-container-low`, `border-outline-variant`, `rounded-full`, `check_circle` icon). Part B (manual): gather 2–3 testimonial quotes from Ko-fi members/readers, then add a testimonial strip between hero and Top Strategies.
 
@@ -96,3 +96,9 @@ _(nothing currently in progress)_
 - [x] Footer Glossary link — added 'Glossary' link to `components/Footer.jsx` nav list.
 - [x] GA4 fix — `GoogleAnalytics.jsx` was gating on `NEXT_PUBLIC_VERCEL_ENV === 'production'` (Vercel never sets this); replaced with `window.location.hostname === 'portfoliodb.co'` check inside the inline gtag script. `NEXT_PUBLIC_GA_MEASUREMENT_ID` also added to Vercel environment variables (Production) and redeployed.
 - [x] QA pass #2 (May 2026) — all 11 checks passed: homepage real data, 3 portfolio detail pages (CAGR/Sharpe/MaxDD confirmed), /database 70 portfolios, /portfolio-screener 11 sliders, /glossary-of-terms, /methodology, /sitemap.xml 76 URLs, /robots.txt Disallow:/api/ only, both WP redirects (/portfolios + /timeline-risk/:path*) land on /database, /api/test-db 200, no broken images or console errors.
+- [x] Vercel Analytics — `@vercel/analytics` installed; `<Analytics />` added to `app/layout.tsx`
+- [x] Strategies pages — `app/strategies/page.js` (index grid, portfolio counts) + `app/strategies/[slug]/page.js` (SSG detail pages, 2-para intro, ranked comparison table). 12 strategy types, all pre-generated at build. Sitemap updated (89 URLs total). Navbar "Strategies" link added (desktop + mobile).
+- [x] lib/db.js — `getPortfoliosByStrategy(slug)`, `getAllStrategiesWithCounts()` added
+- [x] Fix #1 — Signal email example on membership page (see Backlog above)
+- [x] Fix #2 — Dead-end CTA on non-covered portfolio pages (see Backlog above)
+- [x] Fix #3 — Email capture (see Backlog above)

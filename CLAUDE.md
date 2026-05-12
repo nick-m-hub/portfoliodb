@@ -164,7 +164,7 @@ Key formula approach:
 portfoliodb/
   app/
     page.tsx                         # Homepage (server component) — H1: "70+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span)
-    layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar
+    layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar, Vercel Analytics
     globals.css                      # Tailwind v4 @theme design tokens
     database/
       page.js                        # Database page (server, wraps DatabaseClient in Suspense)
@@ -182,7 +182,13 @@ portfoliodb/
         route.js                     # POST — AI portfolio recommendations (Haiku 4.5)
       test-db/
         route.js                     # GET — quick DB connectivity check
-    sitemap.js                       # Dynamic sitemap (all portfolio slugs + static pages incl. /membership)
+      subscribe/
+        route.js                     # POST — Kit V3 email capture (server-side, uses KIT_API_KEY + NEXT_PUBLIC_KIT_FORM_ID)
+    strategies/
+      page.js                        # Strategy index page (server, SSG) — grid of all 12 strategy types with portfolio counts
+      [slug]/
+        page.js                      # Strategy detail page (server, SSG) — 2-para intro + ranked comparison table (CAGR/MaxDD/Sharpe/WorstYear/Risk)
+    sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages = 89 URLs total)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
     portfolios/
@@ -204,6 +210,7 @@ portfoliodb/
     ChartsSection.jsx                # Client wrapper owning benchmark, timeline, and log/linear scale toggle state
     StructuredData.jsx               # JSON-LD structured data for portfolio pages
     GoogleAnalytics.jsx              # GA4 script tag — fires only on portfoliodb.co (hostname check in inline script)
+    EmailCapture.jsx                 # Email capture card (client) — compact horizontal layout, posts to /api/subscribe, success/error states
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
   lib/
     supabase.js                      # Supabase client init
@@ -238,6 +245,8 @@ portfoliodb/
 | `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
 | `getSignalPortfolios()` | name + slug for all portfolios where kofi_link IS NOT NULL, alphabetical — used by membership page |
 | `getSignalPortfolioCount()` | Count of portfolios where kofi_link IS NOT NULL — used by homepage banner and membership page H1 |
+| `getPortfoliosByStrategy(slug)` | All portfolio_stats rows tagged with a given strategy_slug, ordered by sharpe_ratio desc |
+| `getAllStrategiesWithCounts()` | All unique strategy_slugs with portfolio counts, sorted alphabetically |
 
 All functions include error handling and return `null` or `[]` on failure.
 
@@ -256,6 +265,8 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 | ANTHROPIC_API_KEY             | app/api/screener/route.js    |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
 | NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
+| KIT_API_KEY                   | app/api/subscribe/route.js — Kit V3 API Secret (server-side only, never expose client-side) |
+| NEXT_PUBLIC_KIT_FORM_ID       | app/api/subscribe/route.js — Kit numeric form ID (9435321 = Clare form) |
 
 All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY — scripts only, not needed in Vercel).
 
@@ -275,6 +286,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Methodology            | `/methodology`           | Complete |
 | Membership             | `/membership`            | Complete |
 | Terms of Service       | `/terms-of-service`      | Complete |
+| Strategy Index         | `/strategies`            | Complete |
+| Strategy Detail        | `/strategies/[slug]`     | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -282,8 +295,27 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 ## Key Component Notes
 
+### EmailCapture.jsx
+- Client component — compact horizontal card with email input + "Subscribe free" button
+- Posts to `/api/subscribe` (Next.js API route) which calls Kit V3 API server-side
+- Three states: idle, loading (spinner), success (confirmation message), error (inline message)
+- Placed on: homepage (below Top Strategies), membership page (above price callout), portfolio detail pages (below Related Portfolios)
+
+### app/api/subscribe/route.js
+- POST handler — reads `KIT_API_KEY` (V3 API Secret) and `NEXT_PUBLIC_KIT_FORM_ID` (9435321) from env
+- Calls `https://api.convertkit.com/v3/forms/{formId}/subscribe` with `{ api_secret, email }`
+- Kit V3 (not V4) — V4 API keys have scope limitations; V3 secret has full access
+- Returns `{ success: true }` or `{ error: "..." }`
+
+### app/strategies/[slug]/page.js + app/strategies/page.js
+- 12 strategy types: all-weather, bond-heavy, factor-tilt, global, income, momentum, risk-parity, robo-advisor, rules-based, simple, tactical, target-date
+- STRATEGY_INFO object in the detail page holds label, 2-paragraph intro, and brief description for each slug
+- Detail page: `generateStaticParams()` from `getAllStrategiesWithCounts()`, table sorted by Sharpe ratio desc, `notFound()` for unknown slugs
+- Index page: grid of cards with Material Symbols icon, portfolio count badge, brief description
+- Navbar "Strategies" link added to both desktop (`hidden md:flex`) and mobile row
+
 ### Navbar.jsx
-- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener links on mobile only
+- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener/Strategies links on mobile only
 - Stays a server component — all interactivity is in NavSearch.jsx (client)
 - JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx
 - Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
@@ -446,6 +478,11 @@ That is all. The portfolio_stats view recalculates everything automatically.
 No redeploy needed — data appears on the site immediately after insert.
 
 ---
+
+## Membership Page Notes (May 2026)
+- "Brief market context" removed from 'What you get each month' list pending signal email automation (Fix #11)
+- Mock email card in "What a signal looks like" section shows ticker/allocation pill badge format (not a generic table) — reflects actual signal email structure
+- Monthly signal email format: portfolio name as heading, tickers as `TICKER — XX%` lines. Formatted via Claude prompt (see Fix #11 in TASKS.md)
 
 ## Membership CTA
 
