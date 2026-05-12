@@ -5,6 +5,7 @@ import { getPortfolio, getAllocations, getMonthlyReturns, getAllSlugs, getRelate
 import StructuredData from '@/components/StructuredData';
 import AllocationDonut from '@/components/AllocationDonut';
 import ChartsSection from '@/components/ChartsSection';
+import EmailCapture from '@/components/EmailCapture';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -237,29 +238,39 @@ export default async function PortfolioDetailPage({ params }) {
                 Invest on M1 Finance
               </a>
             )}
-            <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-4 flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-primary">mark_email_unread</span>
-                <span className="font-manrope text-[15px] font-bold text-primary">
-                  {portfolio.kofi_link
-                    ? 'Monthly signals available for this portfolio'
-                    : 'Monthly signals for select portfolios'}
-                </span>
+            {portfolio.kofi_link ? (
+              <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-primary">mark_email_unread</span>
+                  <span className="font-manrope text-[15px] font-bold text-primary">Monthly signals available for this portfolio</span>
+                </div>
+                <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
+                  One email, once a month. No research required.
+                </p>
+                <Link
+                  href="/membership"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-on-primary rounded-lg font-inter text-[13px] font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
+                  See membership options
+                </Link>
+                <p className="font-inter text-[11px] text-on-surface-variant text-center">Cancel anytime. No lock-in.</p>
               </div>
-              <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
-                {portfolio.kofi_link
-                  ? 'One email, once a month. No research required.'
-                  : 'We cover a curated selection of portfolios in this database.'}
-              </p>
-              <Link
-                href="/membership"
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-on-primary rounded-lg font-inter text-[13px] font-semibold hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
-                {portfolio.kofi_link ? 'See membership options' : "See what's covered"}
-              </Link>
-              <p className="font-inter text-[11px] text-on-surface-variant text-center">Cancel anytime. No lock-in.</p>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant">info</span>
+                  <span className="font-inter text-[13px] font-semibold text-on-surface">Monthly trading signals</span>
+                </div>
+                <p className="font-inter text-[12px] text-on-surface-variant leading-relaxed">
+                  Signals are available for a curated set of tactical portfolios. This portfolio is not currently covered.
+                </p>
+                <Link href="/membership" className="font-inter text-[12px] font-semibold text-primary hover:underline flex items-center gap-1">
+                  See covered portfolios
+                  <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </Link>
+              </div>
+            )}
           </div>
         </section>
 
@@ -493,15 +504,12 @@ export default async function PortfolioDetailPage({ params }) {
             </div>
 
             {/* Membership CTA */}
+            {portfolio.kofi_link ? (
             <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-6 flex flex-col gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="material-symbols-outlined text-[22px] text-primary">mark_email_unread</span>
-                  <span className="font-manrope text-[17px] font-bold text-primary">
-                    {portfolio.kofi_link
-                      ? 'Monthly Portfolio Signals'
-                      : 'Monthly Portfolio Signals — select portfolios'}
-                  </span>
+                  <span className="font-manrope text-[17px] font-bold text-primary">Monthly Portfolio Signals</span>
                 </div>
                 <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
                   Members receive monthly rebalancing guidance for a curated selection of portfolios tracked on this site. One email, once a month — no market timing, no guesswork.
@@ -509,9 +517,7 @@ export default async function PortfolioDetailPage({ params }) {
               </div>
               <ul className="space-y-2">
                 {[
-                  portfolio.kofi_link
-                    ? 'Signals for a curated set of portfolios'
-                    : 'This portfolio is not currently in the signal set',
+                  'Signals for a curated set of portfolios',
                   'Delivered on the last trading day of every month',
                   'Cancel anytime — no long-term commitment',
                 ].map((item) => (
@@ -532,6 +538,24 @@ export default async function PortfolioDetailPage({ params }) {
                 Membership billed monthly through Ko-fi
               </p>
             </div>
+            ) : (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-low p-5 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-on-surface-variant">info</span>
+                <span className="font-inter text-[14px] font-semibold text-on-surface">Monthly trading signals</span>
+              </div>
+              <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
+                Signals cover a curated set of tactical portfolios only. This portfolio is not currently in the signal set.
+              </p>
+              <Link
+                href="/membership"
+                className="font-inter text-[13px] font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                See covered portfolios
+                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </Link>
+            </div>
+            )}
 
           </aside>
         </div>
@@ -580,6 +604,11 @@ export default async function PortfolioDetailPage({ params }) {
             </div>
           </section>
         )}
+
+        {/* ── Email Capture ── */}
+        <div className="mt-10">
+          <EmailCapture />
+        </div>
 
       </div>
     </main>

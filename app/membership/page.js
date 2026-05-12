@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSignalPortfolios, getSignalPortfolioCount } from '@/lib/db';
+import EmailCapture from '@/components/EmailCapture';
 
 const KOFI_MEMBERSHIP_URL = 'https://ko-fi.com/portfoliodb';
 const MEMBERSHIP_PRICE = '$19';
@@ -85,6 +86,11 @@ export default async function MembershipPage() {
         </div>
       </section>
 
+      {/* ── Email Capture ── */}
+      <section className="mb-12">
+        <EmailCapture />
+      </section>
+
       {/* ── Price + CTA ── */}
       <section className="mb-12">
         <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -122,12 +128,7 @@ export default async function MembershipPage() {
               heading: 'Clear hold / rebalance guidance',
               body: 'A plain verdict for each portfolio — hold as-is, or rebalance — so you know immediately whether any action is needed.',
             },
-            {
-              icon: 'summarize',
-              heading: 'Brief market context',
-              body: 'A short note explaining what drove any changes that month. No noise, no prediction — just the reasoning behind the signal.',
-            },
-            {
+{
               icon: 'history',
               heading: 'Signal archive',
               body: 'Access to all past signals so you can review the history and see how guidance has evolved over time.',
@@ -142,6 +143,52 @@ export default async function MembershipPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* ── What a signal looks like ── */}
+      <section className="mb-12">
+        <h2 className="font-manrope text-[20px] font-semibold text-on-surface mb-4">What a signal looks like</h2>
+
+        {/* Mock email card */}
+        <div className="border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+
+          {/* Email header bar */}
+          <div className="bg-surface-container-low border-b border-outline-variant px-5 py-3 flex items-center gap-3">
+            <span className="material-symbols-outlined text-[18px] text-primary">mark_email_unread</span>
+            <div>
+              <p className="font-inter text-[13px] font-semibold text-on-surface leading-tight">April 2025 Trading Signals</p>
+            </div>
+            <span className="ml-auto font-inter text-[11px] text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-full">Example</span>
+          </div>
+
+          {/* Email body */}
+          <div className="bg-surface-container-lowest divide-y divide-surface-variant">
+            {[
+              { name: 'Accelerating Dual Momentum', holdings: [{ ticker: 'SCZ', pct: '100%' }] },
+              { name: 'Composite Dual Momentum', holdings: [{ ticker: 'GLD', pct: '25%' }, { ticker: 'HYG', pct: '25%' }, { ticker: 'REM', pct: '25%' }, { ticker: 'SPY', pct: '25%' }] },
+              { name: 'GEM Dual Momentum', holdings: [{ ticker: 'SPY', pct: '100%' }] },
+            ].map(({ name, holdings }) => (
+              <div key={name} className="px-5 py-4">
+                <p className="font-inter text-[13px] font-semibold text-on-surface mb-2">{name}</p>
+                <div className="flex flex-wrap gap-2">
+                  {holdings.map(({ ticker, pct }) => (
+                    <span key={ticker} className="inline-flex items-center gap-1.5 bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 text-[12px]">
+                      <span className="font-semibold text-primary font-mono">{ticker}</span>
+                      <span className="text-on-surface-variant">{pct}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="px-5 py-3 font-inter text-[12px] text-on-surface-variant italic">
+              + 14 more portfolios in the full signal email
+            </p>
+          </div>
+        </div>
+
+        <p className="font-inter text-[12px] text-on-surface-variant mt-3">
+          Illustrative example only — actual signals vary each month based on portfolio rules.
+        </p>
       </section>
 
       {/* ── Signal portfolio list ── */}

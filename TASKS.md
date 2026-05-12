@@ -27,6 +27,8 @@ _(nothing currently in progress)_
 
 - [ ] **Fix #10 — Stat tooltips throughout the site** — New `components/StatTooltip.jsx` client component (label + `info` icon + hover tooltip card). Wire up to Performance Snapshot stat labels in `app/portfolios/[slug]/page.js` and column headers in `components/ScreenerClient.jsx`. Definitions for: CAGR, Sharpe, Max Drawdown, Sortino, Ulcer Index, UPI, 10yr CAGR, GFC CAGR, Dot-com CAGR, Rolling Returns.
 
+- [ ] **Fix #11 — Signal email automation + Brief market context** — Build a Claude-powered workflow to auto-generate the monthly signal email with a brief market context paragraph (what drove changes that month). Once the automation is in place, add "Brief market context" back to the 'What you get each month' list in `app/membership/page.js` (it was removed May 2026 pending automation). Prompt template already designed — see session history.
+
 ---
 
 ## Completed

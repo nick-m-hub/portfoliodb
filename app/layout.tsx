@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -51,6 +52,7 @@ export default async function RootLayout({
         <Navbar portfolios={portfolios} />
         {children}
         <Footer />
+        <Analytics />
       </body>
     </html>
   );

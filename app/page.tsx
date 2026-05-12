@@ -3,6 +3,7 @@ import { getPortfolios, getAllAllocations, getSignalPortfolioCount } from '@/lib
 import AIRecommend from '@/components/AIRecommend';
 import FilterBar from '@/components/FilterBar';
 import TopStrategies from '@/components/TopStrategies';
+import EmailCapture from '@/components/EmailCapture';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -112,6 +113,11 @@ export default async function Home() {
 
           {/* ── Top Strategies ── */}
           <TopStrategies sections={topSections} />
+
+          {/* ── Email Capture ── */}
+          <section className="col-span-12">
+            <EmailCapture />
+          </section>
 
           {/* ── Premium ── */}
           <section className="col-span-12 mb-12">
