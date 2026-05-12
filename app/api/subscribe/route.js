@@ -13,14 +13,10 @@ export async function POST(request) {
     return Response.json({ error: 'Server configuration error.' }, { status: 500 });
   }
 
-  const res = await fetch(`https://api.kit.com/v4/forms/${formId}/subscribers`, {
+  const res = await fetch(`https://api.convertkit.com/v3/forms/${formId}/subscribe`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ email_address: email }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_secret: apiKey, email }),
   });
 
   if (!res.ok) {
