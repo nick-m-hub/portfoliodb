@@ -6,6 +6,8 @@ import StructuredData from '@/components/StructuredData';
 import AllocationDonut from '@/components/AllocationDonut';
 import ChartsSection from '@/components/ChartsSection';
 import EmailCapture from '@/components/EmailCapture';
+import StatTooltip from '@/components/StatTooltip';
+import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -92,12 +94,15 @@ function buildGrowthData(monthlyReturns) {
   return Object.values(byYear);
 }
 
-function StatRow({ icon, label, value, valueClass = 'text-primary' }) {
+function StatRow({ icon, label, value, valueClass = 'text-primary', definition }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-outline-variant last:border-b-0">
       <div className="flex items-center gap-3">
         <span className="material-symbols-outlined text-primary text-[20px]">{icon}</span>
-        <span className="font-inter text-[14px] text-on-surface-variant">{label}</span>
+        {definition
+          ? <StatTooltip label={label} definition={definition} labelClass="font-inter text-[14px] text-on-surface-variant" />
+          : <span className="font-inter text-[14px] text-on-surface-variant">{label}</span>
+        }
       </div>
       <span className={`font-inter font-semibold text-[15px] ${valueClass}`}>{value}</span>
     </div>
@@ -330,28 +335,31 @@ export default async function PortfolioDetailPage({ params }) {
 
             {/* Performance Snapshot */}
             <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
-              <h2 className="font-manrope text-[22px] font-bold text-primary mb-6">Performance Snapshot</h2>
+              <h2 className="font-manrope text-[22px] font-bold text-primary mb-1">Performance Snapshot</h2>
+              <p className="font-inter text-[13px] mb-5">
+                <Link href="/methodology" className="text-primary underline hover:opacity-75 transition-opacity">How are these calculated? →</Link>
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-                <StatRow icon="trending_up" label="Real CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} />
-                <StatRow icon="balance" label="Sharpe Ratio" value={portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(3) : '—'} />
-                <StatRow icon="trending_down" label="Max Drawdown" value={portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(2)}%` : '—'} valueClass="text-error" />
-                <StatRow icon="show_chart" label="Sortino Ratio" value={portfolio.sortino_ratio != null ? portfolio.sortino_ratio.toFixed(3) : '—'} />
-                <StatRow icon="arrow_upward" label="Best Year" value={portfolio.best_year != null ? `+${portfolio.best_year.toFixed(1)}%` : '—'} />
-                <StatRow icon="arrow_downward" label="Worst Year" value={portfolio.worst_year != null ? `${portfolio.worst_year.toFixed(1)}%` : '—'} valueClass="text-error" />
+                <StatRow icon="trending_up" label="Real CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} definition={STAT_DEFINITIONS['Real CAGR']} />
+                <StatRow icon="balance" label="Sharpe Ratio" value={portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(3) : '—'} definition={STAT_DEFINITIONS['Sharpe Ratio']} />
+                <StatRow icon="trending_down" label="Max Drawdown" value={portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(2)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Max Drawdown']} />
+                <StatRow icon="show_chart" label="Sortino Ratio" value={portfolio.sortino_ratio != null ? portfolio.sortino_ratio.toFixed(3) : '—'} definition={STAT_DEFINITIONS['Sortino Ratio']} />
+                <StatRow icon="arrow_upward" label="Best Year" value={portfolio.best_year != null ? `+${portfolio.best_year.toFixed(1)}%` : '—'} definition={STAT_DEFINITIONS['Best Year']} />
+                <StatRow icon="arrow_downward" label="Worst Year" value={portfolio.worst_year != null ? `${portfolio.worst_year.toFixed(1)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Worst Year']} />
                 {portfolio.cagr_10yr != null && (
-                  <StatRow icon="update" label="10-Year CAGR" value={`${portfolio.cagr_10yr.toFixed(2)}%`} valueClass={portfolio.cagr_10yr >= 0 ? 'text-primary' : 'text-error'} />
+                  <StatRow icon="update" label="10-Year CAGR" value={`${portfolio.cagr_10yr.toFixed(2)}%`} valueClass={portfolio.cagr_10yr >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['10-Year CAGR']} />
                 )}
                 {portfolio.ulcer_index != null && (
-                  <StatRow icon="warning" label="Ulcer Index" value={portfolio.ulcer_index.toFixed(2)} valueClass="text-on-surface" />
+                  <StatRow icon="warning" label="Ulcer Index" value={portfolio.ulcer_index.toFixed(2)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Index']} />
                 )}
                 {portfolio.ulcer_performance_index != null && (
-                  <StatRow icon="analytics" label="Ulcer Perf. Index" value={portfolio.ulcer_performance_index.toFixed(3)} valueClass="text-on-surface" />
+                  <StatRow icon="analytics" label="Ulcer Perf. Index" value={portfolio.ulcer_performance_index.toFixed(3)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Perf. Index']} />
                 )}
                 {portfolio.cagr_gfc != null && (
-                  <StatRow icon="account_balance" label="GFC CAGR" value={`${portfolio.cagr_gfc >= 0 ? '+' : ''}${portfolio.cagr_gfc.toFixed(1)}%`} valueClass={portfolio.cagr_gfc >= 0 ? 'text-primary' : 'text-error'} />
+                  <StatRow icon="account_balance" label="GFC CAGR" value={`${portfolio.cagr_gfc >= 0 ? '+' : ''}${portfolio.cagr_gfc.toFixed(1)}%`} valueClass={portfolio.cagr_gfc >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['GFC CAGR']} />
                 )}
                 {portfolio.cagr_dotcom != null && (
-                  <StatRow icon="computer" label="Dot-com CAGR" value={`${portfolio.cagr_dotcom >= 0 ? '+' : ''}${portfolio.cagr_dotcom.toFixed(1)}%`} valueClass={portfolio.cagr_dotcom >= 0 ? 'text-primary' : 'text-error'} />
+                  <StatRow icon="computer" label="Dot-com CAGR" value={`${portfolio.cagr_dotcom >= 0 ? '+' : ''}${portfolio.cagr_dotcom.toFixed(1)}%`} valueClass={portfolio.cagr_dotcom >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['Dot-com CAGR']} />
                 )}
                 <StatRow icon="sync" label="Trade Frequency" value={portfolio.trade_frequency || 'Buy & Hold'} />
                 <StatRow icon="shield" label="Risk Level" value={

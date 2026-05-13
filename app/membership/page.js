@@ -54,6 +54,26 @@ export default async function MembershipPage() {
         </p>
       </section>
 
+      {/* ── Top Performer Stats ── */}
+      <section className="mb-12">
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Top Sharpe Ratio', value: '0.98', portfolio: 'Defensive Asset Allocation' },
+            { label: 'Top CAGR',         value: '16.1%', portfolio: 'Vigilant Asset Allocation G4' },
+            { label: 'Best Worst Year',  value: '-8.4%', portfolio: 'Defensive Asset Allocation' },
+          ].map(({ label, value, portfolio }) => (
+            <div key={label} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 sm:p-5">
+              <p className="font-inter text-[10px] sm:text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">{label}</p>
+              <p className="font-manrope text-[22px] sm:text-[30px] font-bold text-primary leading-none mb-1">{value}</p>
+              <p className="font-inter text-[10px] sm:text-[12px] text-on-surface-variant leading-snug">{portfolio}</p>
+            </div>
+          ))}
+        </div>
+        <p className="font-inter text-[12px] text-on-surface-variant mt-3">
+          Backtested from inception. Past performance does not guarantee future results.
+        </p>
+      </section>
+
       {/* ── What's included ── */}
       <section className="mb-12">
         <h2 className="font-manrope text-[20px] font-semibold text-on-surface mb-4">What's included</h2>

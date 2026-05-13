@@ -2,36 +2,38 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import StatTooltip from '@/components/StatTooltip';
+import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 
 const PAGE_SIZE = 25;
 
 // ── Column definitions ──────────────────────────────────────────────────────
 const ALL_COLUMNS = [
   // Performance Benchmarks
-  { key: 'cagr',                    label: 'CAGR',         group: 'performance', defaultOn: true,  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
-  { key: 'max_drawdown',            label: 'Max DD',        group: 'performance', defaultOn: true,  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-error font-semibold' },
-  { key: 'sharpe_ratio',            label: 'Sharpe',        group: 'performance', defaultOn: true,  format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
-  { key: 'sortino_ratio',           label: 'Sortino',       group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
-  { key: 'worst_year',              label: 'Worst Year',    group: 'performance', defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error font-semibold' },
-  { key: 'best_year',               label: 'Best Year',     group: 'performance', defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a] font-semibold' },
-  { key: 'cagr_10yr',               label: '10yr CAGR',     group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
-  { key: 'ulcer_index',             label: 'Ulcer Index',   group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(1) : '—',                              className: 'text-on-surface' },
-  { key: 'ulcer_performance_index', label: 'UPI',           group: 'performance', defaultOn: false, format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
-  { key: 'cagr_gfc',                label: 'GFC CAGR',      group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
-  { key: 'cagr_dotcom',             label: 'Dotcom CAGR',   group: 'performance', defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'cagr',                    label: 'CAGR',         group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['CAGR'],            format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'max_drawdown',            label: 'Max DD',        group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['Max DD'],           format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-error font-semibold' },
+  { key: 'sharpe_ratio',            label: 'Sharpe',        group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['Sharpe'],           format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'sortino_ratio',           label: 'Sortino',       group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Sortino'],          format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'worst_year',              label: 'Worst Year',    group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Worst Year'],       format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error font-semibold' },
+  { key: 'best_year',               label: 'Best Year',     group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Best Year'],        format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a] font-semibold' },
+  { key: 'cagr_10yr',               label: '10yr CAGR',     group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['10yr CAGR'],        format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'ulcer_index',             label: 'Ulcer Index',   group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Ulcer Index'],      format: v => v != null ? v.toFixed(1) : '—',                              className: 'text-on-surface' },
+  { key: 'ulcer_performance_index', label: 'UPI',           group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['UPI'],              format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
+  { key: 'cagr_gfc',                label: 'GFC CAGR',      group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['GFC CAGR'],         format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'cagr_dotcom',             label: 'Dotcom CAGR',   group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Dotcom CAGR'],      format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
   // Rolling Returns
-  { key: 'rolling_1yr_low',         label: '1yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
-  { key: 'rolling_1yr_avg',         label: '1yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
-  { key: 'rolling_1yr_high',        label: '1yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
-  { key: 'rolling_3yr_low',         label: '3yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
-  { key: 'rolling_3yr_avg',         label: '3yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
-  { key: 'rolling_3yr_high',        label: '3yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
-  { key: 'rolling_5yr_low',         label: '5yr Low',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
-  { key: 'rolling_5yr_avg',         label: '5yr Avg',       group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
-  { key: 'rolling_5yr_high',        label: '5yr High',      group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
-  { key: 'rolling_10yr_low',        label: '10yr Low',      group: 'rolling',     defaultOn: false, format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
-  { key: 'rolling_10yr_avg',        label: '10yr Avg',      group: 'rolling',     defaultOn: false, format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
-  { key: 'rolling_10yr_high',       label: '10yr High',     group: 'rolling',     defaultOn: false, format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_1yr_low',         label: '1yr Low',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_1yr_avg',         label: '1yr Avg',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_1yr_high',        label: '1yr High',      group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_3yr_low',         label: '3yr Low',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_3yr_avg',         label: '3yr Avg',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_3yr_high',        label: '3yr High',      group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_5yr_low',         label: '5yr Low',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_5yr_avg',         label: '5yr Avg',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_5yr_high',        label: '5yr High',      group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
+  { key: 'rolling_10yr_low',        label: '10yr Low',      group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
+  { key: 'rolling_10yr_avg',        label: '10yr Avg',      group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'rolling_10yr_high',       label: '10yr High',     group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a]' },
 ];
 
 const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key));
@@ -97,11 +99,14 @@ function exportCsv(portfolios, visibleCols) {
 }
 
 // ── Slider ──────────────────────────────────────────────────────────────────
-function FilterSlider({ label, value, min, max, step, onChange, format }) {
+function FilterSlider({ label, definition, value, min, max, step, onChange, format }) {
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <label className="font-inter text-[11px] font-semibold text-on-surface">{label}</label>
+        {definition
+          ? <StatTooltip label={label} definition={definition} labelClass="font-inter text-[11px] font-semibold text-on-surface" />
+          : <label className="font-inter text-[11px] font-semibold text-on-surface">{label}</label>
+        }
         <span className="font-inter text-[11px] text-primary font-bold">{format(value)}</span>
       </div>
       <input
@@ -239,7 +244,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   const [assetClassesOpen, setAssetClassesOpen] = useState(false);
 
   // UI state
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState('sharpe_ratio');
   const [sortDir, setSortDir] = useState('desc');
@@ -400,19 +405,19 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Performance Benchmarks
               </span>
-              <FilterSlider label="CAGR (Min)" value={minCagr} min={0} max={20} step={0.5}
+              <FilterSlider label="CAGR (Min)" definition={STAT_DEFINITIONS['CAGR']} value={minCagr} min={0} max={20} step={0.5}
                 onChange={v => { setMinCagr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
-              <FilterSlider label="Sharpe Ratio (Min)" value={minSharpe} min={-0.5} max={2} step={0.05}
+              <FilterSlider label="Sharpe Ratio (Min)" definition={STAT_DEFINITIONS['Sharpe Ratio']} value={minSharpe} min={-0.5} max={2} step={0.05}
                 onChange={v => { setMinSharpe(v); setPage(1); }} format={v => v.toFixed(2)} />
-              <FilterSlider label="Max Drawdown (Limit)" value={maxDrawdown} min={5} max={80} step={1}
+              <FilterSlider label="Max Drawdown (Limit)" definition={STAT_DEFINITIONS['Max Drawdown']} value={maxDrawdown} min={5} max={80} step={1}
                 onChange={v => { setMaxDrawdown(v); setPage(1); }} format={v => `-${v}%`} />
-              <FilterSlider label="Worst Year (Min)" value={minWorstYear} min={-70} max={0} step={1}
+              <FilterSlider label="Worst Year (Min)" definition={STAT_DEFINITIONS['Worst Year']} value={minWorstYear} min={-70} max={0} step={1}
                 onChange={v => { setMinWorstYear(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v}%`} />
-              <FilterSlider label="10yr CAGR (Min)" value={minCagr10yr} min={-5} max={20} step={0.5}
+              <FilterSlider label="10yr CAGR (Min)" definition={STAT_DEFINITIONS['10yr CAGR']} value={minCagr10yr} min={-5} max={20} step={0.5}
                 onChange={v => { setMinCagr10yr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
-              <FilterSlider label="Sortino Ratio (Min)" value={minSortino} min={-0.5} max={3} step={0.05}
+              <FilterSlider label="Sortino Ratio (Min)" definition={STAT_DEFINITIONS['Sortino Ratio']} value={minSortino} min={-0.5} max={3} step={0.05}
                 onChange={v => { setMinSortino(v); setPage(1); }} format={v => v.toFixed(2)} />
-              <FilterSlider label="Ulcer Index (Max)" value={maxUlcer} min={0} max={14} step={0.5}
+              <FilterSlider label="Ulcer Index (Max)" definition={STAT_DEFINITIONS['Ulcer Index']} value={maxUlcer} min={0} max={14} step={0.5}
                 onChange={v => { setMaxUlcer(v); setPage(1); }} format={v => v.toFixed(1)} />
             </div>
 
@@ -421,13 +426,13 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Rolling Returns (Min)
               </span>
-              <FilterSlider label="1yr Rolling (Min)" value={minRolling1yr} min={-50} max={20} step={1}
+              <FilterSlider label="1yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling1yr} min={-50} max={20} step={1}
                 onChange={v => { setMinRolling1yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="3yr Rolling (Min)" value={minRolling3yr} min={-30} max={15} step={1}
+              <FilterSlider label="3yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling3yr} min={-30} max={15} step={1}
                 onChange={v => { setMinRolling3yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="5yr Rolling (Min)" value={minRolling5yr} min={-25} max={15} step={1}
+              <FilterSlider label="5yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling5yr} min={-25} max={15} step={1}
                 onChange={v => { setMinRolling5yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="10yr Rolling (Min)" value={minRolling10yr} min={-15} max={15} step={1}
+              <FilterSlider label="10yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling10yr} min={-15} max={15} step={1}
                 onChange={v => { setMinRolling10yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
             </div>
 
@@ -487,6 +492,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
                 {filtered.length} {filtered.length === 1 ? 'strategy' : 'strategies'}
                 {hasFilters ? ' match your filters' : ' — quantitative analysis across all portfolios'}
+                {' · '}<Link href="/methodology" className="text-primary hover:underline">See methodology →</Link>
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -626,6 +632,19 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
           </div>
         </section>
       </div>
+
+      {/* Sticky "Show Results" button — mobile only, visible when filters are open */}
+      {showFilters && (
+        <div className="fixed bottom-4 left-4 right-4 lg:hidden z-50">
+          <button
+            onClick={() => setShowFilters(false)}
+            className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary font-inter text-[15px] font-semibold py-3.5 rounded-full shadow-lg hover:opacity-90 transition-opacity"
+          >
+            <span className="material-symbols-outlined text-[20px]">bar_chart</span>
+            Show Results ({filtered.length})
+          </button>
+        </div>
+      )}
     </div>
   );
 }

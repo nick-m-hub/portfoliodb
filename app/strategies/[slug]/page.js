@@ -169,8 +169,7 @@ export default async function StrategyPage({ params }) {
       </div>
 
       {/* Table */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-outline-variant bg-surface-container-low">
@@ -212,7 +211,6 @@ export default async function StrategyPage({ params }) {
               ))}
             </tbody>
           </table>
-        </div>
       </div>
 
       <p className="text-xs text-on-surface-variant mt-4">

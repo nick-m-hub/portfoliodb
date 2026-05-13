@@ -58,16 +58,17 @@ export default async function Home() {
           {/* ── Hero ── */}
           <section className="col-span-12 flex flex-col items-center text-center py-16 mb-4">
 
-            {/* Trust badge */}
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#dbe8e0] text-[#4f6d5a] text-sm font-medium mb-8 font-inter">
-              Trusted by 50,000+ DIY Investors
-            </div>
-
             {/* Headline */}
             <h1 className="font-manrope text-[48px] md:text-[56px] leading-[1.1] text-on-surface font-bold mb-6 max-w-4xl tracking-tight">
               70+ Portfolio Strategies,<br />
               <span className="text-[#27624a]">Backtested Since 1970</span>
             </h1>
+
+            {/* Trust badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-container-low border border-outline-variant text-on-surface-variant text-sm font-medium mb-6 font-inter">
+              <span className="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+              Trusted by 20,000+ DIY Investors
+            </div>
 
             {/* Subheading */}
             <p className="font-inter text-[18px] text-on-surface-variant mb-12 max-w-2xl leading-relaxed">
