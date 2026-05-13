@@ -54,7 +54,7 @@ export default function EmailCapture() {
             No spam. Unsubscribe anytime.
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="flex gap-2 flex-shrink-0">
+        <form onSubmit={handleSubmit} className="flex gap-2 w-full sm:w-auto">
           <input
             type="email"
             value={email}
@@ -62,7 +62,7 @@ export default function EmailCapture() {
             placeholder="your@email.com"
             required
             disabled={status === 'loading'}
-            className="font-inter text-[14px] text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 w-56 placeholder:text-outline focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
+            className="font-inter text-[14px] text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 flex-1 min-w-0 sm:w-56 sm:flex-none placeholder:text-outline focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
           />
           <button
             type="submit"

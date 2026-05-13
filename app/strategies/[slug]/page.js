@@ -147,7 +147,7 @@ export default async function StrategyPage({ params }) {
   if (!portfolios.length) notFound();
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-8 py-12 text-on-surface font-inter">
+    <main className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-12 text-on-surface font-inter overflow-x-hidden">
       {/* Breadcrumb */}
       <nav className="text-sm text-on-surface-variant mb-6">
         <Link href="/strategies" className="hover:text-primary transition-colors">Strategy Types</Link>

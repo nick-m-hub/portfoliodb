@@ -93,7 +93,7 @@ export default function ChartsSection({
 
       {/* Growth of $10,000 */}
       {growthData.length > 0 && (
-        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="font-manrope text-[22px] font-bold text-primary">Growth of $10,000</h2>
@@ -195,7 +195,7 @@ export default function ChartsSection({
 
       {/* Historical Drawdown */}
       {drawdownData.length > 0 && (
-        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="mb-6">
             <h2 className="font-manrope text-[22px] font-bold text-primary">Historical Drawdown</h2>
             <p className="font-inter text-[13px] text-on-surface-variant mt-1">
@@ -208,7 +208,7 @@ export default function ChartsSection({
 
       {/* Rolling Returns */}
       {Object.values(rollingDatasets).some((d) => d.length > 0) && (
-        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+        <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="mb-6">
             <h2 className="font-manrope text-[22px] font-bold text-primary">Rolling Returns</h2>
             <p className="font-inter text-[13px] text-on-surface-variant mt-1">

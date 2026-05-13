@@ -34,7 +34,7 @@ export default async function MembershipPage() {
     getSignalPortfolios(),
   ]);
   return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-8 py-12 font-inter text-on-surface">
+    <main className="w-full max-w-3xl mx-auto px-4 sm:px-8 py-12 font-inter text-on-surface overflow-x-hidden">
 
       {/* ── Hero ── */}
       <section className="mb-12">

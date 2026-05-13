@@ -53,7 +53,7 @@ export default async function Home() {
 
   return (
     <main className="flex-grow flex justify-center w-full">
-        <div className="w-full max-w-[1280px] grid grid-cols-12 gap-8 px-8 py-12 md:py-16">
+        <div className="w-full max-w-[1280px] grid grid-cols-12 gap-y-8 md:gap-8 px-8 py-12 md:py-16">
 
           {/* ── Hero ── */}
           <section className="col-span-12 flex flex-col items-center text-center py-16 mb-4">

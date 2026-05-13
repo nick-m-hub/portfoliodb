@@ -486,7 +486,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
           </button>
 
           {/* Section header */}
-          <div className="flex justify-between items-end mb-5">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-5">
             <div>
               <h2 className="font-manrope text-[24px] font-bold text-on-surface">Institutional Screener</h2>
               <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
