@@ -212,9 +212,11 @@ portfoliodb/
     GoogleAnalytics.jsx              # GA4 script tag — fires only on portfoliodb.co (hostname check in inline script)
     EmailCapture.jsx                 # Email capture card (client) — compact horizontal layout, posts to /api/subscribe, success/error states
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
+    StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
+    statDefinitions.js               # Plain JS (no 'use client') — STAT_DEFINITIONS object with definitions for 19 stat keys; importable by both server and client components
   public/
     fonts/
       Manrope-Bold.ttf               # Manrope 700 — used by OG image routes (next/og requires TTF)
@@ -294,6 +296,15 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 ---
 
 ## Key Component Notes
+
+### StatTooltip.jsx + lib/statDefinitions.js
+- `StatTooltip` is a client component: renders `{label}` + a small `info` Material Symbol button + a fixed-position tooltip card
+- Tooltip uses `position: fixed` (calculated from `getBoundingClientRect()`) so it escapes `overflow-hidden` parent containers
+- Icon size is set via inline `style={{ fontSize: '11px' }}` — Tailwind arbitrary classes like `text-[11px]` are overridden by the Material Symbols CSS; inline style wins
+- `e.stopPropagation()` on click prevents sort triggers when the tooltip button is inside a table header
+- `STAT_DEFINITIONS` lives in `lib/statDefinitions.js` (plain JS, no `'use client'`), making it importable by both server and client components. **Do NOT move it into StatTooltip.jsx** — named exports from `'use client'` files are undefined when imported into server components (a Next.js/Turbopack limitation)
+- `StatTooltip.jsx` re-exports `STAT_DEFINITIONS` via `export { STAT_DEFINITIONS } from '@/lib/statDefinitions'` as a convenience for client-only files
+- Currently used on: all 11 `StatRow` entries on portfolio detail pages; all 11 `FilterSlider` entries in the screener Advanced Filters sidebar. NOT used in screener table column headers.
 
 ### EmailCapture.jsx
 - Client component — compact horizontal card with email input + "Subscribe free" button
@@ -396,7 +407,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - `assetBadges()` and `BADGE_STYLES` map allocations → colored EQ/FI/CMD/RE/ALT badges
   shown in the Asset Mix column of the results table
 - Receives `assetClasses` prop from portfolio-screener/page.js
-- Mobile: same `showFilters` toggle pattern as DatabaseClient.jsx
+- Mobile: `showFilters` defaults to `true` (filters open on load). A sticky "Show Results (N)" pill button (`fixed bottom-4 left-4 right-4 lg:hidden z-50`) appears when filters are open — clicking it collapses filters so the user can see results.
 - Table min-width grows dynamically based on number of visible columns (base 420px + 90px per column)
 - **Column picker:** "Columns" button next to Export CSV opens a dropdown with 23 toggleable
   columns — Performance Benchmarks (CAGR, Max DD, Sharpe on by default; Sortino, Worst Year,
