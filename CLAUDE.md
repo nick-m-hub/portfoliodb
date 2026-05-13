@@ -524,10 +524,19 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 ## Performance Notes
 
 - `monthly_returns` has an index `idx_monthly_returns_slug_date` on `(portfolio_slug, date)` — speeds up `REFRESH MATERIALIZED VIEW portfolio_stats`.
-- PageSpeed mobile score: ~75 (as of May 2026). Remaining ceiling is ~80-85 due to Recharts bundle.
+- PageSpeed mobile score: ~63–75 (as of May 2026, varies by run — slow 4G throttling causes high variance). Hard ceiling is ~80–85 due to Recharts bundle size.
 - Material Symbols font URL uses fixed axis values (`opsz=24,wght=400,FILL=0,GRAD=0`) — do NOT widen these ranges; it caused the font to balloon from ~50 KB to ~3,800 KB and FCP to spike to 21 s.
 - `layout.tsx` includes `<link rel="preconnect">` for fonts.googleapis.com and fonts.gstatic.com.
 - `package.json` has a `browserslist` config targeting modern browsers (Chrome 92+, Firefox 90+, Safari 15+, Edge 92+) to eliminate legacy polyfills.
+- The Material Symbols `<link rel="stylesheet">` is currently render-blocking (~150ms penalty on FCP). Making it non-blocking is tracked in Fix #13 in TASKS.md. The legacy JS flag (14 KiB) in PageSpeed is from Recharts and cannot be reduced without replacing that library.
+
+## Mobile Overflow Pattern
+
+The `<body>` uses `flex flex-col`, making all page-level `<main>` elements flex items. Flex items expand to fit their content rather than the viewport unless explicitly constrained. Any `<main>` that contains a wide element (table, grid with large gaps, etc.) will expand past 375px and cause page-level horizontal scroll.
+
+**Fix pattern:** Add `w-full` (constrains to viewport) and `overflow-x-hidden` (clips any remaining leak) to the `<main>` element. For the homepage grid specifically, use `gap-y-8 md:gap-8` instead of `gap-8` — on mobile, 12 column gaps × 32px = 352px which exceeds the content area and collapses all columns to 0px width.
+
+Pages fixed (May 2026): `strategies/[slug]`, `membership`, homepage grid, EmailCapture, ChartsSection, ScreenerClient toolbar.
 - WCAG AA contrast: use `text-[#27624a]` (not `text-[#71a38b]`) for any green text on white backgrounds.
 
 ## Portfolio Description Drafts
