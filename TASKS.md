@@ -27,6 +27,8 @@ _(nothing currently in progress)_
 
 - [x] **Fix #10 — Stat tooltips throughout the site** — `components/StatTooltip.jsx` (client, `position: fixed` tooltip escaping `overflow-hidden`; hover + click; `e.stopPropagation()`). `lib/statDefinitions.js` (plain JS, 19 stat definitions, importable by both server and client components). Tooltips wired to all 11 StatRow entries on portfolio detail pages and all 11 Advanced Filters sliders in screener sidebar. Tooltips intentionally NOT added to screener table column headers (didn't look right there).
 
+- [ ] **Fix #12 — Mobile horizontal scroll on strategy detail pages** — On mobile, the text description above the comparison table in `app/strategies/[slug]/page.js` causes the whole page to scroll horizontally. The table scroll is fine; the text should not require horizontal scrolling. Previous attempt (overflow-hidden + overflow-x-auto on same element) did not fully resolve it — needs further investigation.
+
 - [ ] **Fix #11 — Signal email automation + Brief market context** — Build a Claude-powered workflow to auto-generate the monthly signal email with a brief market context paragraph (what drove changes that month). Once the automation is in place, add "Brief market context" back to the 'What you get each month' list in `app/membership/page.js` (it was removed May 2026 pending automation). Prompt template already designed — see session history.
 
 ---
