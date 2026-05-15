@@ -23,10 +23,9 @@ export async function POST(request) {
     body: JSON.stringify({ email, groups: [groupId] }),
   });
 
-  const body = await res.text();
-  console.log('MailerLite response:', res.status, body);
-
   if (!res.ok) {
+    const body = await res.text();
+    console.error('MailerLite API error:', res.status, body);
     return Response.json({ error: 'Subscription failed. Please try again.' }, { status: 502 });
   }
 
