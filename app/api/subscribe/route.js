@@ -5,23 +5,28 @@ export async function POST(request) {
     return Response.json({ error: 'Valid email required.' }, { status: 400 });
   }
 
-  const formId = process.env.NEXT_PUBLIC_KIT_FORM_ID;
-  const apiKey = process.env.KIT_API_KEY;
+  const apiKey = process.env.MAILERLITE_API_KEY;
+  const groupId = process.env.MAILERLITE_GROUP_ID;
 
-  if (!formId || !apiKey) {
-    console.error('Missing KIT_FORM_ID or KIT_API_KEY env vars');
+  if (!apiKey || !groupId) {
+    console.error('Missing MAILERLITE_API_KEY or MAILERLITE_GROUP_ID env vars');
     return Response.json({ error: 'Server configuration error.' }, { status: 500 });
   }
 
-  const res = await fetch(`https://api.convertkit.com/v3/forms/${formId}/subscribe`, {
+  const res = await fetch('https://connect.mailerlite.com/api/subscribers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_secret: apiKey, email }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ email, groups: [groupId] }),
   });
 
+  const body = await res.text();
+  console.log('MailerLite response:', res.status, body);
+
   if (!res.ok) {
-    const body = await res.text();
-    console.error('Kit API error:', res.status, body);
     return Response.json({ error: 'Subscription failed. Please try again.' }, { status: 502 });
   }
 
