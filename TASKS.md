@@ -9,6 +9,16 @@ _(nothing currently in progress)_
 
 ---
 
+## Reminders
+
+- [ ] **Email funnel review (check ~2026-06-01)** — Welcome sequence went live 2026-05-16. Review in MailerLite:
+  - Open rates (benchmark: 25–30% for finance)
+  - Click rate on Email 2 (signals database interest)
+  - Drop-off between Email 3 and Email 4 (high unsubscribes = Email 3 needs tightening)
+  - Ko-fi conversion on Email 4 (good open rate but low clicks = offer framing needs work)
+
+---
+
 ## Backlog
 
 - [x] **Fix #1 — Signal email example on membership page** — "What a signal looks like" section added to `app/membership/page.js`. Mock email card shows portfolio name headers with ticker/allocation pill badges (real data: ADM, Composite DM, GEM DM). Format reflects actual signal email style rather than a generic table.

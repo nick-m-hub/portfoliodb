@@ -267,8 +267,8 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 | ANTHROPIC_API_KEY             | app/api/screener/route.js    |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
 | NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
-| KIT_API_KEY                   | app/api/subscribe/route.js — Kit V3 API Secret (server-side only, never expose client-side) |
-| NEXT_PUBLIC_KIT_FORM_ID       | app/api/subscribe/route.js — Kit numeric form ID (9435321 = Clare form) |
+| MAILERLITE_API_KEY            | app/api/subscribe/route.js — MailerLite API token (server-side only, never expose client-side) |
+| MAILERLITE_GROUP_ID           | app/api/subscribe/route.js — MailerLite group ID to add subscribers to |
 
 All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY — scripts only, not needed in Vercel).
 
@@ -313,9 +313,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Placed on: homepage (below Top Strategies), membership page (above price callout), portfolio detail pages (below Related Portfolios)
 
 ### app/api/subscribe/route.js
-- POST handler — reads `KIT_API_KEY` (V3 API Secret) and `NEXT_PUBLIC_KIT_FORM_ID` (9435321) from env
-- Calls `https://api.convertkit.com/v3/forms/{formId}/subscribe` with `{ api_secret, email }`
-- Kit V3 (not V4) — V4 API keys have scope limitations; V3 secret has full access
+- POST handler — reads `MAILERLITE_API_KEY` and `MAILERLITE_GROUP_ID` from env
+- Calls `https://connect.mailerlite.com/api/subscribers` with `{ email, groups: [groupId] }`
 - Returns `{ success: true }` or `{ error: "..." }`
 
 ### app/strategies/[slug]/page.js + app/strategies/page.js
