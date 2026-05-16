@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getBlogPost, getAllBlogSlugs } from '@/lib/db';
 
 export const dynamicParams = true;
@@ -82,6 +83,7 @@ export default async function BlogPostPage({ params }) {
 
         <div className="prose-blog">
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               h2: ({ children }) => (
                 <h2 className="font-manrope text-2xl font-bold text-on-surface mt-10 mb-4">
