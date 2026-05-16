@@ -21,6 +21,10 @@ _(nothing currently in progress)_
 
 ## Backlog
 
+- [x] **Kit → MailerLite migration** — Replaced Kit V3 API with MailerLite in `app/api/subscribe/route.js`. New env vars: `MAILERLITE_API_KEY` (Sensitive) + `MAILERLITE_GROUP_ID` (187575433316795808 = "General Email List"). Set in Vercel. Kit env vars (`KIT_API_KEY`, `NEXT_PUBLIC_KIT_FORM_ID`) can be removed from Vercel.
+
+- [x] **Lead magnet + email welcome sequence** — PDF report ("How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years") set as lead magnet. `EmailCapture.jsx` copy updated. 4-email MailerLite automation built and live as of 2026-05-16 (see CLAUDE.md for sequence details).
+
 - [x] **Fix #1 — Signal email example on membership page** — "What a signal looks like" section added to `app/membership/page.js`. Mock email card shows portfolio name headers with ticker/allocation pill badges (real data: ADM, Composite DM, GEM DM). Format reflects actual signal email style rather than a generic table.
 
 - [x] **Fix #2 — Fix dead-end CTA on non-covered portfolio pages** — Non-covered portfolios now show a compact neutral card (no green background) in both hero and sidebar locations, explaining signals cover tactical portfolios only, with 'See covered portfolios →' link to `/membership`. Covered portfolios keep the full green card.

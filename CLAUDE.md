@@ -307,10 +307,12 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Currently used on: all 11 `StatRow` entries on portfolio detail pages; all 11 `FilterSlider` entries in the screener Advanced Filters sidebar. NOT used in screener table column headers.
 
 ### EmailCapture.jsx
-- Client component — compact horizontal card with email input + "Subscribe free" button
-- Posts to `/api/subscribe` (Next.js API route) which calls Kit V3 API server-side
+- Client component — compact horizontal card with email input + "Send me the report" button
+- Posts to `/api/subscribe` (Next.js API route) which calls MailerLite API server-side
 - Three states: idle, loading (spinner), success (confirmation message), error (inline message)
 - Placed on: homepage (below Top Strategies), membership page (above price callout), portfolio detail pages (below Related Portfolios)
+- Current copy: headline "Which portfolios survived the dot-com crash and 2008?", subline "Get our free crash analysis report — plus monthly portfolio insights."
+- Lead magnet: "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years" PDF, delivered via MailerLite automation
 
 ### app/api/subscribe/route.js
 - POST handler — reads `MAILERLITE_API_KEY` and `MAILERLITE_GROUP_ID` from env
@@ -486,6 +488,21 @@ Each month, insert one row per portfolio into monthly_returns:
 
 That is all. The portfolio_stats view recalculates everything automatically.
 No redeploy needed — data appears on the site immediately after insert.
+
+---
+
+## Email / MailerLite (May 2026)
+
+- Email provider: **MailerLite** (migrated from Kit May 2026 — Kit lacks email sequences on free plans)
+- Subscriber group: "General Email List" (ID: 187575433316795808)
+- API key: `MAILERLITE_API_KEY` env var (Sensitive in Vercel); group ID: `MAILERLITE_GROUP_ID`
+- Lead magnet: PDF report — "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years"
+- Welcome sequence: 4 emails set up in MailerLite automation (trigger: joins General Email List)
+  - Email 1 (immediate): PDF delivery
+  - Email 2 (Day 3): What PortfolioDB is, data insight
+  - Email 3 (Day 6): Why tactical signals differ from financial news (weather forecast analogy)
+  - Email 4 (Day 10): Soft pitch to Ko-fi membership ($19/mo)
+- Sequence went live: 2026-05-16
 
 ---
 
