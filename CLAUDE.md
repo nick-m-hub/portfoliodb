@@ -99,6 +99,23 @@ Reference/lookup table.
 | default_color | text | Hex color code  |
 | description   | text |                 |
 
+### Table: blog_posts
+Stores blog content. RLS set so only published rows are publicly readable.
+
+| Column       | Type        | Notes                                      |
+|--------------|-------------|--------------------------------------------|
+| id           | uuid        | Auto-generated                             |
+| slug         | text        | Unique URL identifier e.g. golden-butterfly-vs-permanent-portfolio |
+| title        | text        |                                            |
+| excerpt      | text        | 1-sentence summary, under 160 chars — used as meta description |
+| content      | text        | Full post body in Markdown                 |
+| status       | text        | 'draft' or 'published' — RLS enforces public read only on 'published' |
+| published_at | timestamptz | Set manually when publishing               |
+| created_at   | timestamptz | Auto-generated                             |
+| updated_at   | timestamptz | Auto-generated                             |
+
+To publish a post: insert a row with `status = 'published'` and a `published_at` timestamp. No redeploy needed — `dynamicParams: true` on the post page means it goes live immediately.
+
 ### View: portfolio_stats
 Calculates all performance stats automatically from monthly_returns.
 This is what the Next.js site queries — never query monthly_returns directly
@@ -188,7 +205,11 @@ portfoliodb/
       page.js                        # Strategy index page (server, SSG) — grid of all 12 strategy types with portfolio counts
       [slug]/
         page.js                      # Strategy detail page (server, SSG) — 2-para intro + ranked comparison table (CAGR/MaxDD/Sharpe/WorstYear/Risk)
-    sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages = 89 URLs total)
+    blog/
+      page.js                        # Blog index (server, static) — lists published posts newest-first; "No posts yet" empty state
+      [slug]/
+        page.js                      # Blog post page (server, dynamicParams: true) — react-markdown renderer, generateStaticParams, notFound() guard
+    sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages + blog posts)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
     portfolios/
@@ -249,6 +270,9 @@ portfoliodb/
 | `getSignalPortfolioCount()` | Count of portfolios where kofi_link IS NOT NULL — used by homepage banner and membership page H1 |
 | `getPortfoliosByStrategy(slug)` | All portfolio_stats rows tagged with a given strategy_slug, ordered by sharpe_ratio desc |
 | `getAllStrategiesWithCounts()` | All unique strategy_slugs with portfolio counts, sorted alphabetically |
+| `getBlogPosts()`               | All published blog_posts ordered by published_at desc — slug, title, excerpt, published_at |
+| `getBlogPost(slug)`            | Single published blog_post by slug — all columns; returns null if not found or not published |
+| `getAllBlogSlugs()`            | slug column only from published blog_posts (for generateStaticParams on blog post page) |
 
 All functions include error handling and return `null` or `[]` on failure.
 
@@ -290,6 +314,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Terms of Service       | `/terms-of-service`      | Complete |
 | Strategy Index         | `/strategies`            | Complete |
 | Strategy Detail        | `/strategies/[slug]`     | Complete |
+| Blog Index             | `/blog`                  | Complete |
+| Blog Post              | `/blog/[slug]`           | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -606,6 +632,7 @@ Then redeploy on Vercel.
 ## Reference Files
 
 - TASKS.md — complete step-by-step build checklist with Claude prompts
+- content-calendar.md — 25-post SEO content calendar; full outlines, keywords, portfolio slugs, and internal links for each post
 - Playbook .docx — full migration playbook (stored outside project)
 - description-drafts/ — 49 portfolio description drafts, DB-ready
 

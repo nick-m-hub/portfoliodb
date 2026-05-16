@@ -1,5 +1,6 @@
 # PortfolioDB — Task Backlog
 # Items to pick up in future sessions.
+# See also: content-calendar.md — 25-post SEO content calendar with full outlines, keywords, and portfolio slugs.
 
 ---
 
@@ -120,3 +121,5 @@ _(nothing currently in progress)_
 - [x] Fix #1 — Signal email example on membership page (see Backlog above)
 - [x] Fix #2 — Dead-end CTA on non-covered portfolio pages (see Backlog above)
 - [x] Fix #3 — Email capture (see Backlog above)
+- [x] SEO content calendar — 25-post calendar created in `content-calendar.md`; posts sorted Easy/Medium/Hard with full outlines, primary keywords, portfolio slugs, and internal links. Writing prompt template included at top of file.
+- [x] Blog — `app/blog/page.js` (index, static), `app/blog/[slug]/page.js` (post, dynamicParams: true + react-markdown), 3 db.js functions (getBlogPosts, getBlogPost, getAllBlogSlugs), sitemap updated. Publishing a post requires only a Supabase insert with status='published' — no redeploy needed.

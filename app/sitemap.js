@@ -1,4 +1,4 @@
-import { getAllSlugs, getAllStrategiesWithCounts } from '@/lib/db';
+import { getAllSlugs, getAllStrategiesWithCounts, getAllBlogSlugs } from '@/lib/db';
 
 const BASE_URL = 'https://portfoliodb.co';
 
@@ -13,9 +13,10 @@ const staticPages = [
 ];
 
 export default async function sitemap() {
-  const [slugs, strategies] = await Promise.all([
+  const [slugs, strategies, blogSlugs] = await Promise.all([
     getAllSlugs(),
     getAllStrategiesWithCounts(),
+    getAllBlogSlugs(),
   ]);
 
   const staticEntries = staticPages.map((path) => ({
@@ -33,5 +34,10 @@ export default async function sitemap() {
     lastModified: new Date(),
   }));
 
-  return [...staticEntries, ...portfolioEntries, ...strategyEntries];
+  const blogEntries = blogSlugs.map((row) => ({
+    url: `${BASE_URL}/blog/${row.slug}`,
+    lastModified: new Date(),
+  }));
+
+  return [...staticEntries, ...portfolioEntries, ...strategyEntries, ...blogEntries];
 }
