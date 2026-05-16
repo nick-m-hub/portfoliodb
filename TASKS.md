@@ -6,7 +6,7 @@
 
 ## In Progress / Next Up
 
-_(nothing currently in progress)_
+- [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
 ---
 
@@ -122,4 +122,7 @@ _(nothing currently in progress)_
 - [x] Fix #2 — Dead-end CTA on non-covered portfolio pages (see Backlog above)
 - [x] Fix #3 — Email capture (see Backlog above)
 - [x] SEO content calendar — 25-post calendar created in `content-calendar.md`; posts sorted Easy/Medium/Hard with full outlines, primary keywords, portfolio slugs, and internal links. Writing prompt template included at top of file.
-- [x] Blog — `app/blog/page.js` (index, static), `app/blog/[slug]/page.js` (post, dynamicParams: true + react-markdown), 3 db.js functions (getBlogPosts, getBlogPost, getAllBlogSlugs), sitemap updated. Publishing a post requires only a Supabase insert with status='published' — no redeploy needed.
+- [x] Blog — `app/blog/page.js` (index, static), `app/blog/[slug]/page.js` (post, dynamicParams: true + react-markdown + remark-gfm), 3 db.js functions (getBlogPosts, getBlogPost, getAllBlogSlugs), sitemap updated. Publishing a post requires only a Supabase insert with status='published' — no redeploy needed.
+- [x] Blog Post 1 published — "What Is the Ulcer Index?" (`/blog/what-is-the-ulcer-index`), published 2026-05-16. Used live portfolio_stats data for all numbers.
+- [x] Blog footer link — Added 'Blog' to `components/Footer.jsx` nav list (between Membership and Terms of Service). Intentionally kept out of navbar to avoid clutter; revisit when blog has 5–10 posts.
+- [x] remark-gfm — Added to `app/blog/[slug]/page.js` to fix markdown table rendering. Required for any post with a comparison table.

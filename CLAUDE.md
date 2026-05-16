@@ -116,6 +116,38 @@ Stores blog content. RLS set so only published rows are publicly readable.
 
 To publish a post: insert a row with `status = 'published'` and a `published_at` timestamp. No redeploy needed — `dynamicParams: true` on the post page means it goes live immediately.
 
+### Blog post writing workflow
+
+1. Pick the next post from `content-calendar.md` (recommended order: Posts 1–3 first, then 11–12)
+2. Run the SQL query below to pull fresh stats for the portfolios referenced in that post — never hardcode numbers
+3. Write the post in Claude (target ~1,200 words; follow style rules below)
+4. Insert into `blog_posts` with `status = 'draft'`, review on the live site at `/blog/[slug]`
+5. Flip to `status = 'published'` and set `published_at` when ready — goes live immediately
+6. Mark the post as published in `content-calendar.md`
+
+**SQL to pull fresh portfolio stats for writing:**
+```sql
+SELECT slug, name, cagr, max_drawdown, sharpe_ratio, sortino_ratio,
+       ulcer_index, ulcer_performance_index, best_year, worst_year,
+       cagr_10yr, cagr_gfc, cagr_dotcom,
+       rolling_1yr_low, rolling_1yr_avg, rolling_1yr_high,
+       rolling_3yr_low, rolling_3yr_avg, rolling_3yr_high,
+       rolling_10yr_low, rolling_10yr_avg, rolling_10yr_high
+FROM portfolio_stats
+WHERE slug IN ('slug-1', 'slug-2', 'slug-3');
+```
+
+**Blog post style rules:**
+- ~1,200 words; H2 subheadings every 250–300 words
+- Open with a concrete observation, not a question and not "Most investors..."
+- No em dashes or hyphens used as em dashes — rephrase as separate sentences or use commas/colons
+- No "Here's what that looks like" or similar AI transition phrases
+- Reference specific numbers (CAGR, drawdown, Sharpe) pulled from live data
+- Leave `[ADD YOUR TAKE HERE]` in 2 spots for Nick's editorial input before publishing
+- Internal links to at least two portfolio detail pages and one strategy page
+- Natural CTA near end linking to `/database` or `/portfolio-screener`
+- `remark-gfm` is installed — markdown tables render correctly in blog posts
+
 ### View: portfolio_stats
 Calculates all performance stats automatically from monthly_returns.
 This is what the Next.js site queries — never query monthly_returns directly
