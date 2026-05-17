@@ -1,0 +1,47 @@
+name: Monthly Returns — Stage 1 Calculate
+
+# Runs automatically on the 3rd of every month at 10am UTC.
+# The 3rd gives markets time to fully settle and EODHD time to finalize prices.
+# Can also be triggered manually with an optional month override.
+
+on:
+  schedule:
+    - cron: '0 10 3 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to calculate (YYYY-MM). Leave blank to auto-detect last completed month.'
+        required: false
+        default: ''
+
+jobs:
+  calculate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/auto-returns/requirements.txt
+
+      - name: Run Stage 1
+        working-directory: scripts/auto-returns
+        run: |
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            python stage1_calculate.py --month ${{ github.event.inputs.month }}
+          else
+            python stage1_calculate.py
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}

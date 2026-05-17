@@ -325,8 +325,12 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 | NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
 | MAILERLITE_API_KEY            | app/api/subscribe/route.js — MailerLite API token (server-side only, never expose client-side) |
 | MAILERLITE_GROUP_ID           | app/api/subscribe/route.js — MailerLite group ID to add subscribers to |
+| EODHD_API_KEY                 | scripts/auto-returns/stage1_calculate.py — EODHD price data API key (scripts only, not needed in Vercel) |
+| NOTIFY_EMAIL                  | scripts/auto-returns/stage1_calculate.py — recipient address for monthly summary email |
+| SMTP_USER                     | scripts/auto-returns/stage1_calculate.py — Gmail sending address |
+| SMTP_PASSWORD                 | scripts/auto-returns/stage1_calculate.py — Gmail App Password (16-char, not regular Gmail password) |
 
-All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY — scripts only, not needed in Vercel).
+All must also be set in Vercel project settings for production (except SUPABASE_SERVICE_ROLE_KEY, EODHD_API_KEY, NOTIFY_EMAIL, SMTP_USER, SMTP_PASSWORD — scripts only, not needed in Vercel).
 
 **Important:** `NEXT_PUBLIC_` variables are baked into the bundle at build time — a Vercel redeploy is required after adding or changing them. Do NOT use `NEXT_PUBLIC_VERCEL_ENV` — Vercel does not auto-set this variable; use hostname-based detection in client-side code instead.
 
@@ -541,11 +545,56 @@ All portfolio slugs from the old WordPress site exist in the Next.js DB, so no p
 
 ## Monthly Data Update Workflow
 
-Each month, insert one row per portfolio into monthly_returns:
-  `portfolio_slug | date (YYYY-MM-01) | monthly_return`
+**Buy and Hold + Robo-Advisor portfolios** are updated automatically via the returns automation pipeline (see below). No manual inserts needed.
 
-That is all. The portfolio_stats view recalculates everything automatically.
-No redeploy needed — data appears on the site immediately after insert.
+**Tactical portfolios** are updated manually each month — insert one row per portfolio into monthly_returns: `portfolio_slug | date (YYYY-MM-01) | monthly_return`. A separate automation script for tactical portfolios is planned for a future session.
+
+The portfolio_stats view recalculates everything automatically after any insert. No redeploy needed.
+
+---
+
+## Monthly Returns Automation Pipeline (May 2026)
+
+Automates monthly return calculations for all Buy and Hold and Robo-Advisor portfolios (41 total). Tactical portfolios are excluded and updated manually.
+
+**Data provider:** EODHD (eodhd.com) — $19.99/month All World plan. Uses `adjusted_close` prices to account for dividends and splits.
+
+**Scripts:** `scripts/auto-returns/`
+
+| File | Purpose |
+|------|---------|
+| `requirements.txt` | Python deps: requests, supabase, python-dotenv |
+| `utils.py` | Shared helpers: `get_supabase_client()`, `get_target_month()`, `month_display()`, `DOTENV_PATH` |
+| `stage1_calculate.py` | Fetches prices → calculates blended returns → writes to staging → emails summary |
+| `stage2_promote.py` | Promotes approved staging rows to live monthly_returns |
+
+**Supabase tables added:**
+- `monthly_returns_staging` — mirrors monthly_returns with extra columns: `status` (pending/approved/rejected), `flagged` (bool), `flag_reason` (text)
+- `staging_review` view — shows pending rows sorted flagged-first, joined with portfolio names
+
+**Monthly workflow:**
+1. Stage 1 runs automatically on the 3rd of each month (via GitHub Actions — Phase 4, not yet set up as of May 2026)
+2. You receive a summary email with all 41 portfolio returns and any flags
+3. Review flagged rows in Supabase: `SELECT * FROM staging_review;`
+4. Run Stage 2 manually to promote: `python3 stage2_promote.py --month YYYY-MM`
+5. Stats update live immediately — no redeploy needed
+
+**Running manually:**
+```bash
+cd scripts/auto-returns
+python3 stage1_calculate.py              # defaults to last completed month
+python3 stage1_calculate.py --month 2026-04   # override month
+python3 stage2_promote.py --month 2026-04
+```
+
+**Flag thresholds:** portfolio return < -25% or > +25%, missing ticker price data, or weights not summing to ~1.0 (±0.01 tolerance).
+
+**Stage 2 safety checks:** requires typed CONFIRM before promoting any flagged rows; aborts if rows already exist in monthly_returns for that month (prevents duplicate inserts).
+
+**Key decisions:**
+- Tactical portfolios excluded via `category != 'Tactical'` filter in both Stage 1 and Stage 2
+- JKI ticker was delisted — updated to IMCV in allocations table (May 2026)
+- GitHub Actions automation (Phase 4) not yet set up — scripts are run manually for now
 
 ---
 

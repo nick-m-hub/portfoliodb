@@ -6,6 +6,8 @@
 
 ## In Progress / Next Up
 
+- [ ] **Returns automation — Phase 4 (GitHub Actions)** — Phases 1–3 complete (staging table, Python scripts, email notification all working). Phase 4: create `.github/workflows/returns-stage1.yml` (cron 3rd of month, 10am UTC + manual dispatch) and `.github/workflows/returns-stage2.yml` (manual only). Also needs small update to `stage2_promote.py` to handle non-interactive mode in CI (auto-abort on flagged rows instead of `input()` prompt). Then add 6 secrets to GitHub repo settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `EODHD_API_KEY`, `NOTIFY_EMAIL`, `SMTP_USER`, `SMTP_PASSWORD`.
+
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
 ---
@@ -43,6 +45,8 @@
 - [x] **Fix #10 — Stat tooltips throughout the site** — `components/StatTooltip.jsx` (client, `position: fixed` tooltip escaping `overflow-hidden`; hover + click; `e.stopPropagation()`). `lib/statDefinitions.js` (plain JS, 19 stat definitions, importable by both server and client components). Tooltips wired to all 11 StatRow entries on portfolio detail pages and all 11 Advanced Filters sliders in screener sidebar. Tooltips intentionally NOT added to screener table column headers (didn't look right there).
 
 - [x] **Fix #12 — Mobile horizontal overflow (site-wide audit)** — Root cause: `<main>` elements are flex items inside the `flex flex-col` body and expand to fit content rather than the viewport. Fixed all affected pages: strategy detail (`w-full overflow-x-hidden` on `<main>`), homepage (`gap-y-8 md:gap-8` to prevent 12-column grid gap overflow), EmailCapture (input `flex-1 min-w-0` on mobile), ChartsSection (`overflow-hidden` on all 3 chart cards to contain portfolio name legend), ScreenerClient toolbar stacked to `flex-col sm:flex-row`, membership page (`w-full overflow-x-hidden` on `<main>`).
+
+- [x] **Returns automation — Phases 1–3** — Staging table (`monthly_returns_staging`) + `staging_review` view created in Supabase. Python scripts built in `scripts/auto-returns/`: `utils.py` (shared helpers), `stage1_calculate.py` (EODHD price fetch → blended return calc → staging write → Gmail summary email), `stage2_promote.py` (duplicate check → live insert → mark approved). Tactical portfolios excluded from both scripts. JKI ticker updated to IMCV in allocations table. April 2026 returns successfully calculated and promoted. Phase 4 (GitHub Actions) is next.
 
 - [ ] **Fix #11 — Signal email automation + Brief market context** — Build a Claude-powered workflow to auto-generate the monthly signal email with a brief market context paragraph (what drove changes that month). Once the automation is in place, add "Brief market context" back to the 'What you get each month' list in `app/membership/page.js` (it was removed May 2026 pending automation). Prompt template already designed — see session history.
 

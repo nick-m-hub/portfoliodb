@@ -1,0 +1,37 @@
+name: Monthly Returns — Stage 2 Promote
+
+# WARNING: This workflow writes directly to the live monthly_returns table.
+# Only run after reviewing the staging data in Supabase.
+# Run: SELECT * FROM staging_review; to inspect before triggering this.
+#
+# This workflow is MANUAL ONLY — it will never run automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to promote (YYYY-MM). Required.'
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/auto-returns/requirements.txt
+
+      - name: Run Stage 2
+        working-directory: scripts/auto-returns
+        run: python stage2_promote.py --month ${{ github.event.inputs.month }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
