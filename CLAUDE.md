@@ -594,7 +594,40 @@ python3 stage2_promote.py --month 2026-04
 **Key decisions:**
 - Tactical portfolios excluded via `category != 'Tactical'` filter in both Stage 1 and Stage 2
 - JKI ticker was delisted — updated to IMCV in allocations table (May 2026)
-- GitHub Actions automation (Phase 4) not yet set up — scripts are run manually for now
+- GitHub Actions: `.github/workflows/returns-stage1.yml` (cron 3rd of month 10am UTC + manual dispatch) and `.github/workflows/returns-stage2.yml` (manual only). 6 secrets in GitHub repo settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `EODHD_API_KEY`, `NOTIFY_EMAIL`, `SMTP_USER`, `SMTP_PASSWORD`
+- Stage 2 detects `GITHUB_ACTIONS=true` env var and auto-aborts on flagged rows instead of prompting
+
+---
+
+## Tactical Portfolio Automation (Planned — May 2026)
+
+29 tactical portfolios require a separate automation pipeline because their allocations change monthly based on momentum/trend signals.
+
+**Core difference from buy-and-hold:** Returns depend on what was *actually held* that month, determined by signals calculated at end of the prior month. The static `allocations` table is not used for return calculation.
+
+**Data model — new Supabase table (not yet created):**
+```sql
+tactical_monthly_holdings (
+  portfolio_slug, date, ticker, weight
+)
+```
+- `date` = first day of the month the holdings are IN EFFECT
+- Signals calculated end of month M-1 → holdings stored for month M → return calculated end of month M
+- Historical holdings not tracked — automation starts from current month forward
+
+**Strategy families and implementation order:**
+
+| Family | Portfolios | Status |
+|---|---|---|
+| Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Next up |
+| Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Planned |
+| Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned |
+| Simple rules-based | Trend Following Bonds, Tactical Permanent, Three-Way Model, Quint Switching, Paired Switching, Stoken's ACA | Planned |
+| Merriman Bear | Mama Bear, Papa Bear | Planned |
+| Alpha Architect | Robust AA Aggressive, Robust AA Balanced | Planned |
+| Other | The Trend is Our Friend - Global | Planned |
+
+**Scripts location (planned):** `scripts/auto-returns/tactical/` — one module per strategy family, each implementing a `get_holdings(target_month)` function returning `{ticker: weight}`.
 
 ---
 
