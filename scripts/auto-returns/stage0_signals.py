@@ -21,7 +21,7 @@ from utils import (
     get_supabase_client, get_target_month, month_display, DOTENV_PATH,
     fetch_ticker_prices, subtract_months,
 )
-from tactical import dual_momentum
+from tactical import dual_momentum, gtaa
 
 # Polite delay between EODHD API requests
 API_DELAY = 0.1
@@ -36,15 +36,23 @@ LOOKBACK_MONTHS = 13
 # ---------------------------------------------------------------------------
 
 SIGNAL_REGISTRY = {
+    # Dual Momentum family (Antonacci)
     "gem-dual-momentum":                       dual_momentum.gem,
     "gem-emerging-markets-dual-momentum":      dual_momentum.gem_em,
     "diversified-gem-dual-momentum":           dual_momentum.diversified_gem,
     "composite-dual-momentum":                 dual_momentum.composite_dm,
     "accelerating-dual-momentum":              dual_momentum.accelerating_dm,
+    # GTAA family (Meb Faber)
+    "ivy-portfolio-timing":                                         gtaa.ivy_timing,
+    "ivy-portfolio-rotation":                                       gtaa.ivy_rotation,
+    "global-tactical-asset-allocation-5-gtaa-5-meb-faber":         gtaa.gtaa5,
+    "global-tactical-asset-allocation-13-gtaa-13-meb-faber":       gtaa.gtaa13,
+    "global-tactical-asset-allocation-agg-3-meb-faber":            gtaa.gtaa_agg3,
+    "global-tactical-asset-allocation-agg-6-meb-faber":            gtaa.gtaa_agg6,
 }
 
 # All tickers needed across all registered strategy modules
-ALL_TICKERS = sorted(set(dual_momentum.ALL_TICKERS))
+ALL_TICKERS = sorted(set(dual_momentum.ALL_TICKERS) | set(gtaa.ALL_TICKERS))
 
 
 def main():
