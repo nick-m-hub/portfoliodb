@@ -1,19 +1,15 @@
 name: Monthly Returns — Stage 0 Signals
 
-# Runs on the 2nd of every month at 10am UTC.
-# Calculates tactical portfolio signals using prior month's prices
+# MANUAL TRIGGER ONLY — run this on the last trading day of each month.
+# Calculates tactical portfolio signals using that day's closing prices
 # and stores the resulting holdings in tactical_monthly_holdings.
-# Must run before Stage 1 on the 3rd.
-#
-# Can also be triggered manually with an optional month override.
+# Stage 1 on the 3rd of next month picks these holdings up automatically.
 
 on:
-  schedule:
-    - cron: '0 10 2 * *'
   workflow_dispatch:
     inputs:
       month:
-        description: 'Month to calculate holdings for (YYYY-MM). Leave blank to auto-detect.'
+        description: 'Month holdings are IN EFFECT (YYYY-MM, e.g. 2026-06 if run at end of May). Leave blank to auto-detect.'
         required: false
         default: ''
 
