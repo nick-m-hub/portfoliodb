@@ -599,13 +599,13 @@ python3 stage2_promote.py --month 2026-04
 
 ---
 
-## Tactical Portfolio Automation (Planned — May 2026)
+## Tactical Portfolio Automation (In Progress — May 2026)
 
-29 tactical portfolios require a separate automation pipeline because their allocations change monthly based on momentum/trend signals.
+29 tactical portfolios require a separate automation pipeline because their allocations change monthly based on momentum/trend signals. 11 portfolios (Dual Momentum + GTAA families) are fully automated as of May 2026.
 
 **Core difference from buy-and-hold:** Returns depend on what was *actually held* that month, determined by signals calculated at end of the prior month. The static `allocations` table is not used for return calculation.
 
-**Data model — new Supabase table (not yet created):**
+**Data model — Supabase table `tactical_monthly_holdings`:**
 ```sql
 tactical_monthly_holdings (
   portfolio_slug, date, ticker, weight
@@ -628,6 +628,7 @@ tactical_monthly_holdings (
 - `stage0_signals.py` — orchestrator: fetches prices, runs all signal functions, writes to `tactical_monthly_holdings`
 - `tactical/__init__.py` — package marker
 - `tactical/dual_momentum.py` — GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM
+- `tactical/gtaa.py` — Ivy Timing, Ivy Rotation, GTAA 5, GTAA 13, GTAA AGG 3, GTAA AGG 6; shared helpers `_above_sma()`, `_composite_score()`, `_sma_timing()`, `_momentum_rotation()`
 
 **Strategy families and implementation order:**
 
