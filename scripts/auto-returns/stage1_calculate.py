@@ -17,10 +17,12 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Optional
 
-import requests
 from dotenv import load_dotenv
 
-from utils import get_supabase_client, get_target_month, month_display, DOTENV_PATH
+from utils import (
+    get_supabase_client, get_target_month, month_display, DOTENV_PATH,
+    fetch_ticker_prices, get_last_trading_day_price,
+)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -37,56 +39,8 @@ API_DELAY = 0.1
 
 
 # ---------------------------------------------------------------------------
-# EODHD price fetching
+# Return calculation
 # ---------------------------------------------------------------------------
-
-def fetch_ticker_prices(ticker: str, from_date: date, to_date: date, api_key: str) -> list:
-    """
-    Fetch end-of-day price history for one ticker from EODHD.
-    Returns a list of dicts with 'date' and 'adjusted_close' keys.
-    Returns an empty list if the request fails.
-
-    EODHD requires tickers in the format TICKER.US for US-listed ETFs.
-    """
-    url = (
-        f"https://eodhd.com/api/eod/{ticker}.US"
-        f"?api_token={api_key}&fmt=json"
-        f"&from={from_date}&to={to_date}"
-    )
-
-    try:
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-
-        if not isinstance(data, list) or len(data) == 0:
-            print(f"  [WARN] No price data returned for {ticker}")
-            return []
-
-        return data
-
-    except requests.exceptions.RequestException as e:
-        print(f"  [ERROR] Failed to fetch {ticker}: {e}")
-        return []
-
-
-def get_last_trading_day_price(price_data: list, before_or_on: date) -> Optional[float]:
-    """
-    Find the adjusted_close on the last available trading day on or before
-    the given date. Price data must be sorted ascending by date (EODHD default).
-    Returns None if no data is available.
-    """
-    result = None
-    cutoff = before_or_on.isoformat()
-
-    for row in price_data:
-        if row["date"] <= cutoff:
-            result = row.get("adjusted_close")
-        else:
-            break
-
-    return result
-
 
 def calculate_ticker_return(price_data: list, target_month: date) -> Optional[float]:
     """
@@ -338,6 +292,110 @@ def main():
             "flag_reason": "; ".join(flag_reasons) if flag_reasons else None,
             "status": "pending",
         })
+
+    # -----------------------------------------------------------------------
+    # STEP 5b: Calculate tactical portfolio returns from stored holdings
+    # -----------------------------------------------------------------------
+    print(f"\nFetching tactical holdings for {month_display(target_month)}...")
+
+    tactical_resp = (
+        supabase.table("tactical_monthly_holdings")
+        .select("portfolio_slug, ticker, weight")
+        .eq("date", target_month.isoformat())
+        .execute()
+    )
+
+    if not tactical_resp.data:
+        print("  No tactical holdings found — run stage0_signals.py first to include tactical portfolios.\n")
+    else:
+        # Group holdings by portfolio slug
+        tactical_portfolios = {}
+        for row in tactical_resp.data:
+            slug = row["portfolio_slug"]
+            if slug not in tactical_portfolios:
+                tactical_portfolios[slug] = []
+            tactical_portfolios[slug].append({
+                "ticker": row["ticker"],
+                "weight": float(row["weight"]),
+            })
+
+        # Fetch prices for any tickers not already in ticker_returns
+        tactical_tickers = {row["ticker"] for row in tactical_resp.data}
+        new_tickers = sorted(tactical_tickers - set(ticker_returns.keys()))
+
+        if new_tickers:
+            print(f"  Fetching {len(new_tickers)} additional tickers for tactical portfolios...")
+            for ticker in new_tickers:
+                print(f"    Fetching {ticker}...", end=" ")
+                price_data = fetch_ticker_prices(ticker, prior_month_start, target_month_end, api_key)
+                if not price_data:
+                    ticker_returns[ticker] = None
+                    missing_tickers.append(ticker)
+                    print("MISSING")
+                else:
+                    monthly_return = calculate_ticker_return(price_data, target_month)
+                    ticker_returns[ticker] = monthly_return
+                    if monthly_return is not None:
+                        print(f"{monthly_return:+.2f}%")
+                    else:
+                        print("MISSING (no price on boundary dates)")
+                        missing_tickers.append(ticker)
+                time.sleep(API_DELAY)
+
+        # Look up portfolio names for tactical slugs
+        tactical_names_resp = (
+            supabase.table("portfolios")
+            .select("slug, name")
+            .in_("slug", list(tactical_portfolios.keys()))
+            .execute()
+        )
+        tactical_names = {p["slug"]: p["name"] for p in tactical_names_resp.data}
+
+        print(f"\n  Calculating {len(tactical_portfolios)} tactical portfolio returns...")
+
+        for slug, allocations in tactical_portfolios.items():
+            name = tactical_names.get(slug, slug)
+            total_weight = sum(a["weight"] for a in allocations)
+            weight_ok = abs(total_weight - 1.0) <= 0.01
+
+            blended = 0.0
+            has_missing = False
+            missing_in_portfolio = []
+
+            for a in allocations:
+                t_return = ticker_returns.get(a["ticker"])
+                if t_return is None:
+                    has_missing = True
+                    missing_in_portfolio.append(a["ticker"])
+                else:
+                    blended += t_return * a["weight"]
+
+            blended = round(blended, 4)
+            flagged = False
+            flag_reasons = []
+
+            if has_missing:
+                flagged = True
+                flag_reasons.append(f"Missing price data for: {', '.join(missing_in_portfolio)}")
+            if not weight_ok:
+                flagged = True
+                flag_reasons.append(f"Weights sum to {total_weight:.4f} (expected ~1.0)")
+            if blended < FLAG_THRESHOLD_LOW:
+                flagged = True
+                flag_reasons.append(f"Return {blended:.2f}% is below {FLAG_THRESHOLD_LOW}% threshold")
+            if blended > FLAG_THRESHOLD_HIGH:
+                flagged = True
+                flag_reasons.append(f"Return {blended:.2f}% is above {FLAG_THRESHOLD_HIGH}% threshold")
+
+            results.append({
+                "portfolio_slug": slug,
+                "name": name,
+                "date": target_month.isoformat(),
+                "monthly_return": blended,
+                "flagged": flagged,
+                "flag_reason": "; ".join(flag_reasons) if flag_reasons else None,
+                "status": "pending",
+            })
 
     # -----------------------------------------------------------------------
     # STEP 6: Write results to monthly_returns_staging

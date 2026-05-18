@@ -1,0 +1,47 @@
+name: Monthly Returns — Stage 0 Signals
+
+# Runs on the 2nd of every month at 10am UTC.
+# Calculates tactical portfolio signals using prior month's prices
+# and stores the resulting holdings in tactical_monthly_holdings.
+# Must run before Stage 1 on the 3rd.
+#
+# Can also be triggered manually with an optional month override.
+
+on:
+  schedule:
+    - cron: '0 10 2 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to calculate holdings for (YYYY-MM). Leave blank to auto-detect.'
+        required: false
+        default: ''
+
+jobs:
+  signals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/auto-returns/requirements.txt
+
+      - name: Run Stage 0
+        working-directory: scripts/auto-returns
+        run: |
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            python stage0_signals.py --month ${{ github.event.inputs.month }}
+          else
+            python stage0_signals.py
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
