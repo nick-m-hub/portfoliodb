@@ -6,7 +6,7 @@
 
 ## In Progress / Next Up
 
-- [ ] **Tactical portfolio automation — next family** — Dual Momentum + GTAA + simple rules-based families complete. Next recommended: Merriman Bear (Mama Bear, Papa Bear), then Alpha Architect (Robust AA Aggressive/Balanced), and finally Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) — most complex, do last.
+- [ ] **Tactical portfolio automation — next family** — Dual Momentum + GTAA + simple rules-based + Muscular Portfolios families complete. Next recommended: Alpha Architect (Robust AA Aggressive/Balanced), then Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) — most complex, do last.
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
@@ -45,6 +45,8 @@
 - [x] **Fix #10 — Stat tooltips throughout the site** — `components/StatTooltip.jsx` (client, `position: fixed` tooltip escaping `overflow-hidden`; hover + click; `e.stopPropagation()`). `lib/statDefinitions.js` (plain JS, 19 stat definitions, importable by both server and client components). Tooltips wired to all 11 StatRow entries on portfolio detail pages and all 11 Advanced Filters sliders in screener sidebar. Tooltips intentionally NOT added to screener table column headers (didn't look right there).
 
 - [x] **Fix #12 — Mobile horizontal overflow (site-wide audit)** — Root cause: `<main>` elements are flex items inside the `flex flex-col` body and expand to fit content rather than the viewport. Fixed all affected pages: strategy detail (`w-full overflow-x-hidden` on `<main>`), homepage (`gap-y-8 md:gap-8` to prevent 12-column grid gap overflow), EmailCapture (input `flex-1 min-w-0` on mobile), ChartsSection (`overflow-hidden` on all 3 chart cards to contain portfolio name legend), ScreenerClient toolbar stacked to `flex-col sm:flex-row`, membership page (`w-full overflow-x-hidden` on `<main>`).
+
+- [x] **Returns automation — Muscular Portfolios tactical family** — `tactical/muscular_portfolios.py` implements: Mama Bear (top-3 of 9-asset universe by 5-month return; BIL in universe as defensive) and Papa Bear (top-3 of 14-asset universe by avg 3/6/12-month composite momentum; always invested). 19 tactical slugs now automated total.
 
 - [x] **Returns automation — simple rules-based tactical family** — `tactical/rules_based.py` implements: Tactical Permanent (10M SMA overlay on 4 PP assets), Three-Way Model (3M vs 10M SMA on SPY/TLT/GLD), Paired Switching (3M SPY vs TLT), Quint Switching Filtered (unanimity filter + top-1 of 5), Trend Following Bonds (dual momentum on 8-asset bond universe, top 3), Stoken's ACA (3-sleeve price channel with prior-state continuity). `stage0_signals.py` updated with `inspect`-based 3-arg dispatch for Stoken prior-holdings query. 17 slugs now automated total.
 
