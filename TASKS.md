@@ -6,7 +6,7 @@
 
 ## In Progress / Next Up
 
-- [ ] **Tactical portfolio automation — Phase 1 (Dual Momentum family)** — Architecture decided (see CLAUDE.md). Start with the 5 Dual Momentum portfolios (GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM). Steps: (1) create `tactical_monthly_holdings` table in Supabase, (2) build signal calculation script for Dual Momentum family, (3) extend Stage 1 to calculate returns from tactical holdings, (4) extend Stage 2 to promote tactical returns. Historical holdings not tracked — automation starts from current month forward.
+- [ ] **Tactical portfolio automation — next family** — Dual Momentum family complete (see below). Next recommended: Meb Faber GTAA family (6 portfolios: GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation) or simple rules-based group (Trend Following Bonds, Tactical Permanent, Three-Way Model, Quint Switching, Paired Switching, Stoken's ACA). Save Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) for last — most complex.
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
@@ -46,7 +46,7 @@
 
 - [x] **Fix #12 — Mobile horizontal overflow (site-wide audit)** — Root cause: `<main>` elements are flex items inside the `flex flex-col` body and expand to fit content rather than the viewport. Fixed all affected pages: strategy detail (`w-full overflow-x-hidden` on `<main>`), homepage (`gap-y-8 md:gap-8` to prevent 12-column grid gap overflow), EmailCapture (input `flex-1 min-w-0` on mobile), ChartsSection (`overflow-hidden` on all 3 chart cards to contain portfolio name legend), ScreenerClient toolbar stacked to `flex-col sm:flex-row`, membership page (`w-full overflow-x-hidden` on `<main>`).
 
-- [x] **Returns automation — Phases 1–4** — Staging table + review view in Supabase. Python scripts in `scripts/auto-returns/` (Stage 1: fetch → calculate → stage → email; Stage 2: promote). GitHub Actions workflows: Stage 1 cron (3rd of month, 10am UTC) + manual dispatch; Stage 2 manual-only. Stage 2 updated for non-interactive CI mode (auto-aborts on flagged rows). 6 secrets added to GitHub. Tactical portfolios excluded; JKI → IMCV ticker fix. April 2026 returns promoted successfully. Monthly workflow live.
+- [x] **Returns automation — Phases 1–4 + Dual Momentum tactical family** — Staging table + review view in Supabase. Python scripts in `scripts/auto-returns/`: Stage 0 (tactical signals, manual on last trading day), Stage 1 (B&H + tactical returns, cron 3rd of month), Stage 2 (promote, manual). `tactical/dual_momentum.py` implements GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM. `tactical_monthly_holdings` table stores monthly holdings per tactical portfolio. `SIGNAL_REGISTRY` in stage0_signals.py — add one line per new portfolio. GitHub Actions: Stage 0 manual-only, Stage 1 cron, Stage 2 manual. April 2026 returns live.
 
 - [ ] **Fix #11 — Signal email automation + Brief market context** — Build a Claude-powered workflow to auto-generate the monthly signal email with a brief market context paragraph (what drove changes that month). Once the automation is in place, add "Brief market context" back to the 'What you get each month' list in `app/membership/page.js` (it was removed May 2026 pending automation). Prompt template already designed — see session history.
 

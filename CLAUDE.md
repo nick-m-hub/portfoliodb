@@ -615,19 +615,31 @@ tactical_monthly_holdings (
 - Signals calculated end of month M-1 → holdings stored for month M → return calculated end of month M
 - Historical holdings not tracked — automation starts from current month forward
 
+**Monthly workflow:**
+1. **Last trading day of month** — run Stage 0 manually from GitHub Actions (calculates signals, stores next month's holdings in `tactical_monthly_holdings`)
+2. **3rd of next month** — Stage 1 runs automatically (calculates B&H + tactical returns, emails summary)
+3. **Within a day or two** — run Stage 2 manually to promote everything to live
+
+**Stage 0 timing note:** Signals must be calculated on the last trading day of the month so the signal email to members goes out the same day. Cron cannot target "last trading day" reliably, so Stage 0 is manual-only. Stage 1 picks up the stored holdings automatically on the 3rd.
+
+**Signal registry** (`stage0_signals.py`): maps portfolio slugs to their signal functions. To add a new portfolio: add its signal function to the relevant module and one line to `SIGNAL_REGISTRY`. Nothing else changes.
+
+**Scripts:**
+- `stage0_signals.py` — orchestrator: fetches prices, runs all signal functions, writes to `tactical_monthly_holdings`
+- `tactical/__init__.py` — package marker
+- `tactical/dual_momentum.py` — GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM
+
 **Strategy families and implementation order:**
 
 | Family | Portfolios | Status |
 |---|---|---|
-| Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Next up |
-| Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Planned |
-| Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned |
+| Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Complete |
+| Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Next up |
 | Simple rules-based | Trend Following Bonds, Tactical Permanent, Three-Way Model, Quint Switching, Paired Switching, Stoken's ACA | Planned |
 | Merriman Bear | Mama Bear, Papa Bear | Planned |
 | Alpha Architect | Robust AA Aggressive, Robust AA Balanced | Planned |
+| Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned (most complex — do last) |
 | Other | The Trend is Our Friend - Global | Planned |
-
-**Scripts location (planned):** `scripts/auto-returns/tactical/` — one module per strategy family, each implementing a `get_holdings(target_month)` function returning `{ticker: weight}`.
 
 ---
 
