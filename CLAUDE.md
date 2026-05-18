@@ -634,7 +634,7 @@ tactical_monthly_holdings (
 | Family | Portfolios | Status |
 |---|---|---|
 | Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Complete |
-| Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Next up |
+| Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Complete |
 | Simple rules-based | Trend Following Bonds, Tactical Permanent, Three-Way Model, Quint Switching, Paired Switching, Stoken's ACA | Planned |
 | Merriman Bear | Mama Bear, Papa Bear | Planned |
 | Alpha Architect | Robust AA Aggressive, Robust AA Balanced | Planned |
