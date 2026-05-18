@@ -622,13 +622,23 @@ tactical_monthly_holdings (
 
 **Stage 0 timing note:** Signals must be calculated on the last trading day of the month so the signal email to members goes out the same day. Cron cannot target "last trading day" reliably, so Stage 0 is manual-only. Stage 1 picks up the stored holdings automatically on the 3rd.
 
+**Stage 0 always requires `--month YYYY-MM`** for the normal monthly workflow. The no-flag default returns the *last completed* calendar month, not next month — it is only useful for recalculating a past month. To store June holdings, run:
+```bash
+python3 stage0_signals.py --month 2026-06
+```
+
+**Run after market close.** EODHD is an end-of-day feed. If you run Stage 0 mid-day on the last trading day, EODHD will not yet have that day's closing prices and the script will silently fall back to the prior day's close. Run after ~5pm ET, or on the following morning (Saturday), to guarantee the correct prices.
+
 **Signal registry** (`stage0_signals.py`): maps portfolio slugs to their signal functions. To add a new portfolio: add its signal function to the relevant module and one line to `SIGNAL_REGISTRY`. Nothing else changes.
+
+**Stateful strategies (Stoken's ACA):** `stoken_aca()` accepts an optional third argument `prior_holdings` to resolve the "between channels" state. `stage0_signals.py` queries last month's `tactical_monthly_holdings` for any slug listed in `_PRIOR_HOLDINGS_SLUGS` and passes the result automatically. If no prior data exists (first run), all sleeves default to their defensive asset.
 
 **Scripts:**
 - `stage0_signals.py` — orchestrator: fetches prices, runs all signal functions, writes to `tactical_monthly_holdings`
 - `tactical/__init__.py` — package marker
 - `tactical/dual_momentum.py` — GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM
 - `tactical/gtaa.py` — Ivy Timing, Ivy Rotation, GTAA 5, GTAA 13, GTAA AGG 3, GTAA AGG 6; shared helpers `_above_sma()`, `_composite_score()`, `_sma_timing()`, `_momentum_rotation()`
+- `tactical/rules_based.py` — Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA; shared helpers `_calc_sma()`, `_above_sma()`, `_channel_extreme()`
 
 **Strategy families and implementation order:**
 
@@ -636,7 +646,7 @@ tactical_monthly_holdings (
 |---|---|---|
 | Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Complete |
 | Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Complete |
-| Simple rules-based | Trend Following Bonds, Tactical Permanent, Three-Way Model, Quint Switching, Paired Switching, Stoken's ACA | Planned |
+| Simple rules-based | Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA | Complete |
 | Merriman Bear | Mama Bear, Papa Bear | Planned |
 | Alpha Architect | Robust AA Aggressive, Robust AA Balanced | Planned |
 | Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned (most complex — do last) |

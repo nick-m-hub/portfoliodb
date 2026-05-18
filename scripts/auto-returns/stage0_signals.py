@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import inspect
 import os
 import time
 from datetime import timedelta
@@ -21,7 +22,7 @@ from utils import (
     get_supabase_client, get_target_month, month_display, DOTENV_PATH,
     fetch_ticker_prices, subtract_months,
 )
-from tactical import dual_momentum, gtaa
+from tactical import dual_momentum, gtaa, rules_based
 
 # Polite delay between EODHD API requests
 API_DELAY = 0.1
@@ -49,10 +50,23 @@ SIGNAL_REGISTRY = {
     "global-tactical-asset-allocation-13-gtaa-13-meb-faber":       gtaa.gtaa13,
     "global-tactical-asset-allocation-agg-3-meb-faber":            gtaa.gtaa_agg3,
     "global-tactical-asset-allocation-agg-6-meb-faber":            gtaa.gtaa_agg6,
+    # Simple rules-based family
+    "tactical-permanent-portfolio":            rules_based.tactical_permanent,
+    "three-way-model-by-ned-davis":            rules_based.three_way_model,
+    "paired-switching-lewis-glenn":            rules_based.paired_switching,
+    "quint-switching-filtered":                rules_based.quint_switching,
+    "trend-following-bonds-by-paul-novell":    rules_based.trend_following_bonds,
+    "stokens-active-combined-asset":           rules_based.stoken_aca,
 }
 
 # All tickers needed across all registered strategy modules
-ALL_TICKERS = sorted(set(dual_momentum.ALL_TICKERS) | set(gtaa.ALL_TICKERS))
+ALL_TICKERS = sorted(
+    set(dual_momentum.ALL_TICKERS) | set(gtaa.ALL_TICKERS) | set(rules_based.ALL_TICKERS)
+)
+
+# Slugs whose signal functions accept a third argument: prior_holdings dict.
+# stage0 queries last month's holdings for these before running the signal loop.
+_PRIOR_HOLDINGS_SLUGS = {"stokens-active-combined-asset"}
 
 
 def main():
@@ -97,6 +111,32 @@ def main():
     print()
 
     # -----------------------------------------------------------------------
+    # Fetch prior month's holdings for strategies that need state continuity
+    # (currently: Stoken's ACA — "between channels" uses last month's position)
+    # -----------------------------------------------------------------------
+    prior_month = subtract_months(target_month, 1)
+    prior_holdings_map = {}
+
+    if _PRIOR_HOLDINGS_SLUGS:
+        print("Fetching prior month holdings for stateful strategies...\n")
+        for slug in _PRIOR_HOLDINGS_SLUGS:
+            resp = (
+                supabase.table("tactical_monthly_holdings")
+                .select("ticker, weight")
+                .eq("portfolio_slug", slug)
+                .eq("date", prior_month.isoformat())
+                .execute()
+            )
+            if resp.data:
+                prior_holdings_map[slug] = {
+                    row["ticker"]: float(row["weight"]) for row in resp.data
+                }
+                print(f"  {slug}: prior holdings found ({len(resp.data)} tickers)")
+            else:
+                print(f"  {slug}: no prior holdings — sleeves will default to defensive")
+        print()
+
+    # -----------------------------------------------------------------------
     # Calculate signals and write holdings to Supabase
     # -----------------------------------------------------------------------
     print("Calculating signals and writing holdings...\n")
@@ -105,7 +145,11 @@ def main():
     skipped = []
 
     for slug, signal_fn in SIGNAL_REGISTRY.items():
-        holdings = signal_fn(target_month, price_cache)
+        sig = inspect.signature(signal_fn)
+        if len(sig.parameters) >= 3:
+            holdings = signal_fn(target_month, price_cache, prior_holdings_map.get(slug))
+        else:
+            holdings = signal_fn(target_month, price_cache)
 
         if holdings is None:
             print(f"  [SKIP] {slug} — insufficient price data")
