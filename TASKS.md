@@ -58,6 +58,8 @@
 
 - [ ] **Fix #11 — Signal email automation + Brief market context** — Build a Claude-powered workflow to auto-generate the monthly signal email with a brief market context paragraph (what drove changes that month). Once the automation is in place, add "Brief market context" back to the 'What you get each month' list in `app/membership/page.js` (it was removed May 2026 pending automation). Prompt template already designed — see session history.
 
+- [ ] **Returns automation — rebalancing frequency** — Stage 1 calculates buy-and-hold portfolio returns using fixed target weights from the `allocations` table every month, which is mathematically equivalent to monthly rebalancing. True buy-and-hold would require tracking drifted weights over time. Monthly rebalancing is the industry standard (used by Portfolio Visualizer, etc.) and produces a small rebalancing bonus vs. annual or no rebalancing. Consider adding annual rebalancing as an option if precision becomes a priority.
+
 - [ ] **Fix #13 — Non-render-blocking Material Symbols font** — The Material Symbols CSS `<link rel="stylesheet">` in `app/layout.tsx` is render-blocking, costing ~150ms on FCP (flagged by PageSpeed Insights, May 2026). Fix: change to `rel="preload" as="style"` + `onLoad="this.rel='stylesheet'"` pattern with a `<noscript>` fallback. Icons will be briefly unstyled (show as text characters) until the font loads — acceptable trade-off. Expected improvement: ~3–5 PageSpeed points.
 
 ---

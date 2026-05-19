@@ -63,6 +63,7 @@ SIGNAL_REGISTRY = {
     "quint-switching-filtered":                rules_based.quint_switching,
     "trend-following-bonds-by-paul-novell":    rules_based.trend_following_bonds,
     "stokens-active-combined-asset":           rules_based.stoken_aca,
+    "the-trend-is-our-friend-global":          rules_based.trend_is_our_friend_global,
     # Keller et al. family
     "protective-asset-allocation":                      keller.paa,
     "vigilant-asset-allocation-g4-aggressive":          keller.vaa_g4,

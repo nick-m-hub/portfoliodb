@@ -23,6 +23,7 @@ Sources:
   Quint Switching Filtered: Lewis A. Glenn, SSRN 3129098
   Trend Following Bonds: Paul Novell, investingforaliving.us
   Stoken ACA: Dick Stoken, "Survival of the Fittest for Investors" (McGraw-Hill, 2012)
+  Trend is Our Friend — Global: Clare, Seaton, Smith & Thomas (SSRN 2126478)
 """
 
 from calendar import monthrange
@@ -44,6 +45,8 @@ ALL_TICKERS = list({
     "SHY", "TIP", "LQD", "HYG", "BNDX", "EMB",
     # Stoken ACA (SPY, GLD, IEF, TLT already above)
     "VNQ",
+    # Trend is Our Friend — Global (SPY, EEM, IEF, VNQ, BIL already above)
+    "BWX", "DBC", "RWO",
 })
 
 
@@ -300,5 +303,85 @@ def stoken_aca(target_month, price_cache, prior_holdings=None):
             out = risk if (prior_holdings or {}).get(risk, 0) > 0 else defensive
 
         combined[out] = round(combined.get(out, 0.0) + sleeve_weight, 8)
+
+    return {t: round(w, 6) for t, w in combined.items()}
+
+
+# ---------------------------------------------------------------------------
+# The Trend is Our Friend — Global (Risk-Parity Variant)
+# Clare, Seaton, Smith & Thomas (SSRN 2126478)
+#
+# Universe: SPY, EEM, IEF, BWX, DBC, VNQ, RWO (7 global asset classes)
+# Cash: BIL
+#
+# Each asset receives an inverse-volatility weight based on the standard
+# deviation of its 12 trailing monthly returns. Assets whose price is below
+# their 10-month SMA are excluded from the risky portfolio — their weight
+# is redirected to BIL.
+# ---------------------------------------------------------------------------
+
+_TTIOF_UNIVERSE = ["SPY", "EEM", "IEF", "BWX", "DBC", "VNQ", "RWO"]
+_TTIOF_CASH     = "BIL"
+
+
+def _calc_monthly_returns(price_data, signal_date, n_months):
+    """
+    Return a list of n_months consecutive monthly returns ending at signal_date's month.
+    Returns None if any month-end price is missing.
+    """
+    returns = []
+    for i in range(n_months):
+        end_month = signal_date.month - i
+        end_year  = signal_date.year
+        while end_month <= 0:
+            end_month += 12
+            end_year  -= 1
+
+        start_month = end_month - 1
+        start_year  = end_year
+        if start_month <= 0:
+            start_month += 12
+            start_year  -= 1
+
+        end_price   = _month_end_price(price_data, end_year,   end_month)
+        start_price = _month_end_price(price_data, start_year, start_month)
+
+        if end_price is None or start_price is None or start_price == 0:
+            return None
+        returns.append((end_price / start_price - 1) * 100)
+    return returns
+
+
+def trend_is_our_friend_global(target_month, price_cache):
+    sd = _signal_date(target_month)
+
+    # Step 1: compute inverse-volatility weights from 12M rolling std of monthly returns
+    inv_vols = {}
+    for ticker in _TTIOF_UNIVERSE:
+        data    = price_cache.get(ticker, [])
+        monthly = _calc_monthly_returns(data, sd, 12)
+        if monthly is None:
+            return None  # insufficient history for this asset
+
+        n    = len(monthly)
+        mean = sum(monthly) / n
+        vol  = (sum((r - mean) ** 2 for r in monthly) / n) ** 0.5
+        inv_vols[ticker] = (1.0 / vol) if vol > 0 else 0.0
+
+    total_inv_vol = sum(inv_vols.values())
+    if total_inv_vol == 0:
+        return None
+
+    base_weights = {t: inv_vols[t] / total_inv_vol for t in _TTIOF_UNIVERSE}
+
+    # Step 2: apply 10-month SMA filter — failed assets move weight to BIL
+    combined = {}
+    for ticker in _TTIOF_UNIVERSE:
+        data  = price_cache.get(ticker, [])
+        above = _above_sma(data, sd, periods=10)
+        if above is None:
+            return None
+        out = ticker if above else _TTIOF_CASH
+        combined[out] = round(combined.get(out, 0.0) + base_weights[ticker], 8)
 
     return {t: round(w, 6) for t, w in combined.items()}

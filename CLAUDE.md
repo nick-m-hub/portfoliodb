@@ -672,7 +672,7 @@ python3 stage0_signals.py --month 2026-06
 | Muscular Portfolios (Livingston) | Mama Bear, Papa Bear | Complete |
 | Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
 | Keller et al. | PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA | Complete (May 2026) |
-| Other | The Trend is Our Friend - Global | Planned |
+| Other | The Trend is Our Friend - Global | Complete (May 2026) |
 
 ---
 
