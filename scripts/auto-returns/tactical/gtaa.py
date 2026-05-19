@@ -30,8 +30,21 @@ from utils import get_last_trading_day_price, n_month_return
 
 IVY_UNIVERSE       = ["VTI", "VEU", "VNQ", "AGG", "DBC"]
 GTAA5_UNIVERSE     = ["SPY", "EFA", "IEF", "VNQ", "DBC"]
-GTAA13_UNIVERSE    = ["IWD", "MTUM", "IWN", "EFA", "EEM",
-                      "IEF", "BWX", "LQD", "TLT", "DBC", "GLD", "VNQ"]
+GTAA13_WEIGHTS     = {
+    "IWD":  0.05,   # US Large Cap Value
+    "MTUM": 0.10,   # US Momentum (large + small cap combined)
+    "IWN":  0.05,   # US Small Cap Value
+    "EFA":  0.10,   # Foreign Developed
+    "EEM":  0.10,   # Foreign Emerging
+    "IEF":  0.05,   # US 10yr Govt Bonds
+    "BWX":  0.05,   # Foreign 10yr Bonds
+    "LQD":  0.05,   # US Corporate Bonds
+    "TLT":  0.05,   # US 30yr Bonds
+    "DBC":  0.10,   # Commodities
+    "GLD":  0.10,   # Gold
+    "VNQ":  0.20,   # REITs
+}
+GTAA13_UNIVERSE    = list(GTAA13_WEIGHTS.keys())
 GTAA_AGG_UNIVERSE  = ["IWD", "MTUM", "IWN", "IWM", "EFA", "EEM",
                       "IEF", "BWX", "LQD", "TLT", "DBC", "GLD", "VNQ"]
 
@@ -198,15 +211,22 @@ def gtaa5(target_month, price_cache):
 # ---------------------------------------------------------------------------
 # GTAA 13
 #
-# Universe: 12 risky assets (IWD, MTUM, IWN, EFA, EEM, IEF, BWX, LQD,
-#           TLT, DBC, GLD, VNQ)
-# Rule: hold each asset at equal weight if above 10-month SMA; else BIL
-# Weight per asset = 1/12 ≈ 8.33%
+# Universe: 12 assets with fixed unequal weights (see GTAA13_WEIGHTS above)
+# Rule: hold each asset at its specified weight if above 10-month SMA; else BIL
+# Weights: VNQ 20%, MTUM/EFA/EEM/DBC/GLD 10% each, IWD/IWN/IEF/BWX/LQD/TLT 5% each
 # ---------------------------------------------------------------------------
 
 def gtaa13(target_month, price_cache):
-    weight_each = round(1.0 / len(GTAA13_UNIVERSE), 8)
-    return _sma_timing(GTAA13_UNIVERSE, weight_each, target_month, price_cache)
+    sd = _signal_date(target_month)
+    combined = {}
+
+    for ticker, weight in GTAA13_WEIGHTS.items():
+        data = price_cache.get(ticker, [])
+        above = _above_sma(data, sd)
+        out = ticker if (above is True) else CASH
+        combined[out] = round(combined.get(out, 0.0) + weight, 8)
+
+    return {t: round(w, 6) for t, w in combined.items()}
 
 
 # ---------------------------------------------------------------------------
