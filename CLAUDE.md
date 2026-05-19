@@ -640,6 +640,7 @@ python3 stage0_signals.py --month 2026-06
 - `tactical/gtaa.py` — Ivy Timing, Ivy Rotation, GTAA 5, GTAA 13, GTAA AGG 3, GTAA AGG 6; shared helpers `_above_sma()`, `_composite_score()`, `_sma_timing()`, `_momentum_rotation()`
 - `tactical/rules_based.py` — Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA; shared helpers `_calc_sma()`, `_above_sma()`, `_channel_extreme()`
 - `tactical/muscular_portfolios.py` — Mama Bear (top-3 of 9 by 5M momentum), Papa Bear (top-3 of 14 by avg 3/6/12M momentum)
+- `tactical/alpha_architect.py` — RAA Aggressive, RAA Balanced; dual-signal (TMOM + 10M MA) graduated allocation (100%/50%/0%) per asset
 
 **Strategy families and implementation order:**
 
@@ -649,7 +650,7 @@ python3 stage0_signals.py --month 2026-06
 | Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Complete |
 | Simple rules-based | Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA | Complete |
 | Muscular Portfolios (Livingston) | Mama Bear, Papa Bear | Complete |
-| Alpha Architect | Robust AA Aggressive, Robust AA Balanced | Planned |
+| Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
 | Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned (most complex — do last) |
 | Other | The Trend is Our Friend - Global | Planned |
 

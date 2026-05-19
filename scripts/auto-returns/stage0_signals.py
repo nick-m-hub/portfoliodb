@@ -22,7 +22,7 @@ from utils import (
     get_supabase_client, get_target_month, month_display, DOTENV_PATH,
     fetch_ticker_prices, subtract_months,
 )
-from tactical import dual_momentum, gtaa, rules_based, muscular_portfolios
+from tactical import dual_momentum, gtaa, rules_based, muscular_portfolios, alpha_architect
 
 # Polite delay between EODHD API requests
 API_DELAY = 0.1
@@ -53,6 +53,9 @@ SIGNAL_REGISTRY = {
     # Muscular Portfolios family (Brian Livingston)
     "mama-bear-portfolio":                     muscular_portfolios.mama_bear,
     "papa-bear-portfolio":                     muscular_portfolios.papa_bear,
+    # Alpha Architect RAA family (Gray & Vogel)
+    "robust-asset-allocation-aggressive":      alpha_architect.raa_aggressive,
+    "robust-asset-allocation-balanced":        alpha_architect.raa_balanced,
     # Simple rules-based family
     "tactical-permanent-portfolio":            rules_based.tactical_permanent,
     "three-way-model-by-ned-davis":            rules_based.three_way_model,
@@ -66,6 +69,7 @@ SIGNAL_REGISTRY = {
 ALL_TICKERS = sorted(
     set(dual_momentum.ALL_TICKERS) | set(gtaa.ALL_TICKERS)
     | set(rules_based.ALL_TICKERS) | set(muscular_portfolios.ALL_TICKERS)
+    | set(alpha_architect.ALL_TICKERS)
 )
 
 # Slugs whose signal functions accept a third argument: prior_holdings dict.

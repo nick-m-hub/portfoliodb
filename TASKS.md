@@ -6,7 +6,7 @@
 
 ## In Progress / Next Up
 
-- [ ] **Tactical portfolio automation — next family** — Dual Momentum + GTAA + simple rules-based + Muscular Portfolios families complete. Next recommended: Alpha Architect (Robust AA Aggressive/Balanced), then Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) — most complex, do last.
+- [ ] **Tactical portfolio automation — next family** — Dual Momentum + GTAA + simple rules-based + Muscular Portfolios + Alpha Architect RAA families complete. Next recommended: Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) — most complex, do last. Also remaining: "The Trend is Our Friend - Global".
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
@@ -47,6 +47,8 @@
 - [x] **Fix #12 — Mobile horizontal overflow (site-wide audit)** — Root cause: `<main>` elements are flex items inside the `flex flex-col` body and expand to fit content rather than the viewport. Fixed all affected pages: strategy detail (`w-full overflow-x-hidden` on `<main>`), homepage (`gap-y-8 md:gap-8` to prevent 12-column grid gap overflow), EmailCapture (input `flex-1 min-w-0` on mobile), ChartsSection (`overflow-hidden` on all 3 chart cards to contain portfolio name legend), ScreenerClient toolbar stacked to `flex-col sm:flex-row`, membership page (`w-full overflow-x-hidden` on `<main>`).
 
 - [x] **Returns automation — Muscular Portfolios tactical family** — `tactical/muscular_portfolios.py` implements: Mama Bear (top-3 of 9-asset universe by 5-month return; BIL in universe as defensive) and Papa Bear (top-3 of 14-asset universe by avg 3/6/12-month composite momentum; always invested). 19 tactical slugs now automated total.
+
+- [x] **Returns automation — Alpha Architect RAA tactical family** — `tactical/alpha_architect.py` implements: RAA Aggressive (80/10/10 equity/real/bonds) and RAA Balanced (40/40/20). Dual-signal framework: TMOM (12M excess return vs BIL) + MA (price vs 10M SMA). Both signals positive → 100% weight; one positive → 50% asset + 50% BIL; neither → 100% BIL. Base weights: Aggressive MTUM/IWD/EFV/EFA 20% each, VNQ/DBC 5% each, IEF 10%; Balanced MTUM/IWD/EFV/EFA 10% each, VNQ/DBC 20% each, IEF 20%. 21 tactical slugs now automated total.
 
 - [x] **Returns automation — simple rules-based tactical family** — `tactical/rules_based.py` implements: Tactical Permanent (10M SMA overlay on 4 PP assets), Three-Way Model (3M vs 10M SMA on SPY/TLT/GLD), Paired Switching (3M SPY vs TLT), Quint Switching Filtered (unanimity filter + top-1 of 5), Trend Following Bonds (dual momentum on 8-asset bond universe, top 3), Stoken's ACA (3-sleeve price channel with prior-state continuity). `stage0_signals.py` updated with `inspect`-based 3-arg dispatch for Stoken prior-holdings query. 17 slugs now automated total.
 
