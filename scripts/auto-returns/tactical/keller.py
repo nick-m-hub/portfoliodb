@@ -330,15 +330,15 @@ def vaa_g4(target_month, price_cache):
 #
 # Risky:  SPY, IWM, QQQ, VGK, EWJ, EEM, VNQ, DBC, GLD, TLT, LQD, HYG
 # Cash:   BIL, IEF, LQD  — best by 13612W momentum
-# Params: T=2, B=4  (Easy Trading formula)
-#   b=0–1 → Top 2 risky 50/50
-#   b=2–3 → Top 1 risky (50%) + best cash (50%)
+# Params: T=5, B=4  (Easy Trading formula)
+#   b=0–1 → Top 5 risky, equal weight (1/5 each)
+#   b=2–3 → Top 4 risky (80%) + best cash (20%); then 3+40%, 2+60%, 1+80%
 #   b≥4   → 100% best cash
 # Source: Keller & Keuning (2017), SSRN 3002624
 # ---------------------------------------------------------------------------
 
 _VAA_G12_RISKY = ["SPY", "IWM", "QQQ", "VGK", "EWJ", "EEM", "VNQ", "DBC", "GLD", "TLT", "LQD", "HYG"]
-_VAA_G12_T = 2
+_VAA_G12_T = 5
 _VAA_G12_B = 4
 
 

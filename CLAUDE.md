@@ -659,7 +659,7 @@ python3 stage0_signals.py --month 2026-06
 
 **Easy Trading (VAA/DAA):**
 - `cash_slots = floor(b * T / B)`, `risky_slots = T - cash_slots`
-- VAA G12: T=2, B=4 → b=0–1: 2 risky; b=2–3: 1 risky + 1 cash; b≥4: 100% cash
+- VAA G12: T=5, B=4 → b=0–1: 5 risky (20% each); b=2: 4 risky+20% cash; b=3: 3 risky+40% cash; b≥4: 100% cash
 - DAA: T=6, B=2 → b_canary=0: 6 risky; b_canary=1: 3 risky + 3 cash; b_canary=2: 100% cash
 
 **Strategy families and implementation order:**
