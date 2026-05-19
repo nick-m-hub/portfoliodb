@@ -6,7 +6,9 @@
 
 ## In Progress / Next Up
 
-- [ ] **Tactical portfolio automation — next family** — Dual Momentum + GTAA + simple rules-based + Muscular Portfolios + Alpha Architect RAA families complete. Next recommended: Keller et al. (PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12) — most complex, do last. Also remaining: "The Trend is Our Friend - Global".
+- [x] **Tactical portfolio automation — Keller et al. family** — `tactical/keller.py` implements PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA. All 7 registered in SIGNAL_REGISTRY. numpy + scipy added to requirements.txt. 28 total automated tactical portfolios. Only remaining: "The Trend is Our Friend - Global" (no source docs available yet).
+
+- [ ] **Tactical portfolio automation — "The Trend is Our Friend - Global"** — No source documentation available yet. Needs research before implementation.
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 

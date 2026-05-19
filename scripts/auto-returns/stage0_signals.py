@@ -22,7 +22,7 @@ from utils import (
     get_supabase_client, get_target_month, month_display, DOTENV_PATH,
     fetch_ticker_prices, subtract_months,
 )
-from tactical import dual_momentum, gtaa, rules_based, muscular_portfolios, alpha_architect
+from tactical import dual_momentum, gtaa, rules_based, muscular_portfolios, alpha_architect, keller
 
 # Polite delay between EODHD API requests
 API_DELAY = 0.1
@@ -63,13 +63,21 @@ SIGNAL_REGISTRY = {
     "quint-switching-filtered":                rules_based.quint_switching,
     "trend-following-bonds-by-paul-novell":    rules_based.trend_following_bonds,
     "stokens-active-combined-asset":           rules_based.stoken_aca,
+    # Keller et al. family
+    "protective-asset-allocation":                      keller.paa,
+    "vigilant-asset-allocation-g4-aggressive":          keller.vaa_g4,
+    "vigilant-asset-allocation-g12":                    keller.vaa_g12,
+    "defensive-asset-allocation":                       keller.daa,
+    "generalized-protective-momentum":                  keller.gpm,
+    "kipnis-defensive-adaptive-asset-allocation-kda":   keller.kda,
+    "adaptive-asset-allocation":                        keller.aaa,
 }
 
 # All tickers needed across all registered strategy modules
 ALL_TICKERS = sorted(
     set(dual_momentum.ALL_TICKERS) | set(gtaa.ALL_TICKERS)
     | set(rules_based.ALL_TICKERS) | set(muscular_portfolios.ALL_TICKERS)
-    | set(alpha_architect.ALL_TICKERS)
+    | set(alpha_architect.ALL_TICKERS) | set(keller.ALL_TICKERS)
 )
 
 # Slugs whose signal functions accept a third argument: prior_holdings dict.

@@ -641,6 +641,26 @@ python3 stage0_signals.py --month 2026-06
 - `tactical/rules_based.py` — Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA; shared helpers `_calc_sma()`, `_above_sma()`, `_channel_extreme()`
 - `tactical/muscular_portfolios.py` — Mama Bear (top-3 of 9 by 5M momentum), Papa Bear (top-3 of 14 by avg 3/6/12M momentum)
 - `tactical/alpha_architect.py` — RAA Aggressive, RAA Balanced; dual-signal (TMOM + 10M MA) graduated allocation (100%/50%/0%) per asset
+- `tactical/keller.py` — PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA; shared helpers for 13612W momentum, SMA momentum, Easy Trading formula, min-variance optimization (scipy). requires numpy + scipy in requirements.txt.
+
+**Keller et al. momentum formulas:**
+- **13612W** (VAA/DAA/KDA/GPM canary): `12*R1 + 4*R3 + 2*R6 + R12` — fast, front-weighted
+- **SMA(12)** (PAA): `p0 / avg(p1..p12) - 1` — current price vs. 12-month average of month-end prices
+- **Simple avg** (GPM ri): `(R1 + R3 + R6 + R12) / 4` — equal-weight
+
+**Keller universe reference:**
+- PAA / GPM risky (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, GSG, GLD, TLT, HYG, LQD
+- VAA G12 / DAA risky (N=12): SPY, IWM, QQQ, VGK, EWJ, VWO, VNQ, GSG, GLD, TLT, LQD, HYG
+- VAA G4 risky (N=4): SPY, EFA, EEM, AGG
+- KDA / AAA investment (N=10): SPY, VGK, EWJ, EEM, VNQ, RWX, IEF, TLT, DBC, GLD
+- VAA/DAA/KDA cash (best of 3 by 13612W): BIL, IEF, LQD
+- DAA/KDA canary: EEM, BND
+- PAA/GPM cash: IEF only (PAA); IEF or BIL by highest zi score (GPM)
+
+**Easy Trading (VAA/DAA):**
+- `cash_slots = floor(b * T / B)`, `risky_slots = T - cash_slots`
+- VAA G12: T=2, B=4 → b=0–1: 2 risky; b=2–3: 1 risky + 1 cash; b≥4: 100% cash
+- DAA: T=6, B=2 → b_canary=0: 6 risky; b_canary=1: 3 risky + 3 cash; b_canary=2: 100% cash
 
 **Strategy families and implementation order:**
 
@@ -651,7 +671,7 @@ python3 stage0_signals.py --month 2026-06
 | Simple rules-based | Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA | Complete |
 | Muscular Portfolios (Livingston) | Mama Bear, Papa Bear | Complete |
 | Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
-| Keller et al. | PAA, DAA, AAA, GPM, KDA, VAA G4, VAA G12 | Planned (most complex — do last) |
+| Keller et al. | PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA | Complete (May 2026) |
 | Other | The Trend is Our Friend - Global | Planned |
 
 ---
