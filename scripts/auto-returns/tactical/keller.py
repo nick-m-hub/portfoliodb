@@ -45,8 +45,8 @@ from utils import get_last_trading_day_price, n_month_return
 ALL_TICKERS = list({
     # PAA / GPM risky universe
     "SPY", "QQQ", "IWM", "VGK", "EWJ", "EEM", "IYR", "GSG", "GLD", "TLT", "HYG", "LQD",
-    # VAA G12 / DAA risky universe (VWO replaces EEM, VNQ replaces IYR)
-    "VWO", "VNQ",
+    # VAA G12 / DAA risky universe extras (EEM shared with PAA; VNQ replaces IYR; DBC replaces GSG)
+    "VNQ", "DBC",
     # VAA G4 extras
     "EFA", "AGG",
     # Cash universe for VAA / DAA / KDA  (BIL replaces SHY)
@@ -328,7 +328,7 @@ def vaa_g4(target_month, price_cache):
 # ---------------------------------------------------------------------------
 # VAA G12 — Vigilant Asset Allocation, 12-asset universe
 #
-# Risky:  SPY, IWM, QQQ, VGK, EWJ, VWO, VNQ, GSG, GLD, TLT, LQD, HYG
+# Risky:  SPY, IWM, QQQ, VGK, EWJ, EEM, VNQ, DBC, GLD, TLT, LQD, HYG
 # Cash:   BIL, IEF, LQD  — best by 13612W momentum
 # Params: T=2, B=4  (Easy Trading formula)
 #   b=0–1 → Top 2 risky 50/50
@@ -337,7 +337,7 @@ def vaa_g4(target_month, price_cache):
 # Source: Keller & Keuning (2017), SSRN 3002624
 # ---------------------------------------------------------------------------
 
-_VAA_G12_RISKY = ["SPY", "IWM", "QQQ", "VGK", "EWJ", "VWO", "VNQ", "GSG", "GLD", "TLT", "LQD", "HYG"]
+_VAA_G12_RISKY = ["SPY", "IWM", "QQQ", "VGK", "EWJ", "EEM", "VNQ", "DBC", "GLD", "TLT", "LQD", "HYG"]
 _VAA_G12_T = 2
 _VAA_G12_B = 4
 

@@ -650,7 +650,7 @@ python3 stage0_signals.py --month 2026-06
 
 **Keller universe reference:**
 - PAA / GPM risky (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, GSG, GLD, TLT, HYG, LQD
-- VAA G12 / DAA risky (N=12): SPY, IWM, QQQ, VGK, EWJ, VWO, VNQ, GSG, GLD, TLT, LQD, HYG
+- VAA G12 / DAA risky (N=12): SPY, IWM, QQQ, VGK, EWJ, EEM, VNQ, DBC, GLD, TLT, LQD, HYG
 - VAA G4 risky (N=4): SPY, EFA, EEM, AGG
 - KDA / AAA investment (N=10): SPY, VGK, EWJ, EEM, VNQ, RWX, IEF, TLT, DBC, GLD
 - VAA/DAA/KDA cash (best of 3 by 13612W): BIL, IEF, LQD
