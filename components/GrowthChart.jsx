@@ -16,7 +16,7 @@ function formatDollar(val) {
   return `$${val.toFixed(0)}`;
 }
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, benchmarkLabel }) {
   if (!active || !payload?.length) return null;
   const portfolio = payload.find((p) => p.dataKey === 'value');
   const benchmark = payload.find((p) => p.dataKey === 'benchmark');
@@ -31,14 +31,14 @@ function CustomTooltip({ active, payload, label }) {
       {benchmark?.value != null && (
         <p className="font-manrope font-bold text-[13px] text-outline mt-0.5">
           {formatDollar(benchmark.value)}{' '}
-          <span className="font-inter font-normal text-[10px]">60/40</span>
+          {benchmarkLabel && <span className="font-inter font-normal text-[10px]">{benchmarkLabel}</span>}
         </p>
       )}
     </div>
   );
 }
 
-export default function GrowthChart({ data, logScale = false }) {
+export default function GrowthChart({ data, logScale = false, benchmarkLabel }) {
   const hasBenchmark = data.some((d) => d.benchmark != null);
 
   return (
@@ -68,7 +68,7 @@ export default function GrowthChart({ data, logScale = false }) {
           axisLine={false}
           width={60}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip benchmarkLabel={benchmarkLabel} />} />
         {hasBenchmark && (
           <Area
             type="monotone"

@@ -11,6 +11,26 @@ function mergeWithBenchmark(portfolioData, benchmarkData) {
   return portfolioData.map((d) => ({ ...d, benchmark: map.get(d.label) ?? null }));
 }
 
+// When a benchmark is active, both lines must start at $10,000 in the same year.
+// Slices to the benchmark's first available data point and re-indexes the
+// portfolio values so both lines start at 10000.
+function alignGrowthToCommonStart(mergedData) {
+  if (!mergedData?.length) return mergedData;
+  const firstIdx = mergedData.findIndex((d) => d.benchmark != null);
+  if (firstIdx < 0) return mergedData; // no benchmark data at all
+  const slice = mergedData.slice(firstIdx);
+  const basePortfolio = slice[0].value;
+  const baseBenchmark = slice[0].benchmark;
+  if (!basePortfolio || !baseBenchmark) return slice;
+  return slice.map((d) => ({
+    ...d,
+    value:     Math.round((d.value     / basePortfolio) * 10000 * 100) / 100,
+    benchmark: d.benchmark != null
+      ? Math.round((d.benchmark / baseBenchmark) * 10000 * 100) / 100
+      : null,
+  }));
+}
+
 export default function ChartsSection({
   slug,
   portfolioName,
@@ -38,7 +58,7 @@ export default function ChartsSection({
   const baseBenchmarkGrowthData = show10yr ? activeBenchmark?.growthData10yr : activeBenchmark?.growthData;
 
   const activeGrowthData = activeBenchmark
-    ? mergeWithBenchmark(baseGrowthData, baseBenchmarkGrowthData)
+    ? alignGrowthToCommonStart(mergeWithBenchmark(baseGrowthData, baseBenchmarkGrowthData))
     : baseGrowthData;
 
   const activeDrawdownData = activeBenchmark
@@ -163,7 +183,7 @@ export default function ChartsSection({
               )}
             </div>
           </div>
-          <GrowthChart data={activeGrowthData} logScale={logScale} />
+          <GrowthChart data={activeGrowthData} logScale={logScale} benchmarkLabel={activeBenchmark?.label} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 mt-4 border-t border-outline-variant">
             <div>
               <span className="block font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Sharpe Ratio</span>
