@@ -431,32 +431,35 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 ### GrowthChart.jsx
 - Client component using Recharts AreaChart
-- Input: `data` array of `{ label: 'YYYY-MM', value: number, benchmark?: number }`
+- Input: `data` array of `{ label: 'YYYY', value: number, benchmark?: number }`
 - Accepts `logScale` boolean prop — passes `scale="log"` to Recharts YAxis when true
+- Accepts `benchmarkLabel` string prop — shown in tooltip next to benchmark value (dynamic, not hardcoded)
 - Renders optional grey dashed benchmark Area when any data point has `benchmark != null`
-- Growth of $10K computed in portfolio detail page by compounding monthly_returns
+- Growth of $10K computed in portfolio detail page by compounding monthly_returns, downsampled to one point per year
 
 ### DrawdownChart.jsx
 - Recharts AreaChart showing % decline from running peak (values always ≤ 0)
 - Input: `data` array of `{ label: 'YYYY-MM', value: number, benchmark?: number }`
+- Accepts `benchmarkLabel` string prop — shown in tooltip next to benchmark value
 - Y-axis domain: `Math.floor(min/5)*5 - 5` to 0
 
 ### RollingReturnChart.jsx
 - Recharts LineChart with 1Y/3Y/5Y/10Y tab buttons
 - Input: `datasets` object keyed by window label, each value is same data shape
+- Accepts `benchmarkLabel` string prop — shown in tooltip next to benchmark value
 - Tabs hidden when that window's data is empty
 - Optional grey dashed benchmark Line
 
 ### ChartsSection.jsx
-- Client component — owns `showBenchmark`, `show10yr`, and `logScale` toggle state
+- Client component — owns `selectedBenchmark`, `show10yr`, and `logScale` toggle state
 - `logScale` defaults to `true` (log scale is the default view for Growth of $10K)
 - Renders Growth of $10K, Historical Drawdown, and Rolling Returns sections
-- "Compare to: None / US 60/40" toggle hidden on the benchmark page itself
+- "Compare to" bar shows up to 3 benchmarks (None / US 60/40 / US Stocks / Global Stocks); each page's own slug is filtered out so a portfolio never compares to itself
 - "Full / Last 10Y" toggle and "Log / Linear" toggle both appear under the Growth of $10K heading
-- `mergeWithBenchmark()` merges benchmark data into chart data by label (YYYY-MM)
-- Benchmark slug: `united-states-60-40-portfolio`
-- All benchmark data computed in portfolios/[slug]/page.js using same
-  `buildGrowthData()`, `buildDrawdownData()`, `buildRollingReturnData()` helpers
+- `mergeWithBenchmark()` merges benchmark data into chart data by label
+- `alignGrowthToCommonStart()` re-indexes both portfolio and benchmark growth values to $10,000 at the first common year when a benchmark is selected — prevents mismatched starting values when portfolios have different history lengths
+- All benchmark data computed in portfolios/[slug]/page.js and passed as a `benchmarks` object keyed by slug: `{ [slug]: { label, growthData, growthData10yr, drawdownData, rollingDatasets } }`
+- Three benchmarks: `united-states-60-40-portfolio` (US 60/40), `us-stock-market` (US Stocks), `global-stock-market` (Global Stocks)
 
 ### ScreenerClient.jsx
 - Sidebar filters: Asset Classes (collapsible checkbox list, uses assetClasses prop),

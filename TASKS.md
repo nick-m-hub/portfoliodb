@@ -8,7 +8,7 @@
 
 - [x] **Tactical portfolio automation — Keller et al. family** — `tactical/keller.py` implements PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA. All 7 registered in SIGNAL_REGISTRY. numpy + scipy added to requirements.txt. 28 total automated tactical portfolios. Only remaining: "The Trend is Our Friend - Global" (no source docs available yet).
 
-- [ ] **Tactical portfolio automation — "The Trend is Our Friend - Global"** — No source documentation available yet. Needs research before implementation.
+- [x] **Tactical portfolio automation — "The Trend is Our Friend - Global"** — Implemented in `tactical/rules_based.py`. Risk-parity (inverse-volatility) weighting across 7 global asset classes (SPY, EEM, IEF, BWX, DBC, VNQ, RWO); 10-month SMA filter redirects failing assets to BIL. 29 tactical portfolios now fully automated. (May 2026)
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
@@ -140,3 +140,5 @@
 - [x] Blog Post 1 published — "What Is the Ulcer Index?" (`/blog/what-is-the-ulcer-index`), published 2026-05-16. Used live portfolio_stats data for all numbers.
 - [x] Blog footer link — Added 'Blog' to `components/Footer.jsx` nav list (between Membership and Terms of Service). Intentionally kept out of navbar to avoid clutter; revisit when blog has 5–10 posts.
 - [x] remark-gfm — Added to `app/blog/[slug]/page.js` to fix markdown table rendering. Required for any post with a comparison table.
+- [x] **US Stock Market + Global Stock Market portfolios (May 2026)** — Two new Buy and Hold portfolios added. US Stock Market: VFINX proxy Jan 1980–May 2001, VTI Jun 2001–present. Global Stock Market: MSCI ACWI Index daily data Jan 1999–Jun 2008, VT Jul 2008–present. New `Global Stocks` asset class (#2E75B6) added to `asset_classes`. Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py` and `backfill_global_stock_market.py`. Stage 1 handles both automatically going forward (43 total B&H + Robo-Advisor portfolios).
+- [x] **Compare to benchmarks expanded (May 2026)** — Portfolio detail charts now offer three benchmark options: US 60/40, US Stocks, Global Stocks. Each page's own slug is automatically excluded. `ChartsSection.jsx` uses `selectedBenchmark` state (slug string, not boolean); `benchmarks` prop is an object keyed by slug. `alignGrowthToCommonStart()` normalizes both lines to $10,000 at the first common year. All three chart tooltips (Growth, Drawdown, Rolling Returns) show the dynamic benchmark label instead of hardcoded "60/40".
