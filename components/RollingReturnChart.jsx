@@ -19,7 +19,7 @@ const WINDOWS = [
   { label: '10Y', months: 120 },
 ];
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, benchmarkLabel }) {
   if (!active || !payload?.length) return null;
   const portfolio = payload.find((p) => p.dataKey === 'value');
   const benchmark = payload.find((p) => p.dataKey === 'benchmark');
@@ -34,14 +34,14 @@ function CustomTooltip({ active, payload, label }) {
       {benchmark?.value != null && (
         <p className="font-manrope font-bold text-[13px] text-outline mt-0.5">
           {benchmark.value >= 0 ? '+' : ''}{benchmark.value.toFixed(2)}%{' '}
-          <span className="font-inter font-normal text-[10px]">60/40</span>
+          {benchmarkLabel && <span className="font-inter font-normal text-[10px]">{benchmarkLabel}</span>}
         </p>
       )}
     </div>
   );
 }
 
-export default function RollingReturnChart({ datasets }) {
+export default function RollingReturnChart({ datasets, benchmarkLabel }) {
   const availableTabs = WINDOWS.filter((w) => datasets[w.label]?.length > 0);
   const [activeTab, setActiveTab] = useState(availableTabs[0]?.label ?? '1Y');
 
@@ -97,7 +97,7 @@ export default function RollingReturnChart({ datasets }) {
             axisLine={false}
             width={50}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip benchmarkLabel={benchmarkLabel} />} />
           {hasBenchmark && (
             <Line
               type="monotone"

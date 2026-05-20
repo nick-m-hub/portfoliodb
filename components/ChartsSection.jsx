@@ -222,7 +222,7 @@ export default function ChartsSection({
               Percentage decline from the portfolio's peak value at each point in time.
             </p>
           </div>
-          <DrawdownChart data={activeDrawdownData} />
+          <DrawdownChart data={activeDrawdownData} benchmarkLabel={activeBenchmark?.label} />
         </section>
       )}
 
@@ -235,7 +235,7 @@ export default function ChartsSection({
               Annualised return for each rolling period ending on that date.
             </p>
           </div>
-          <RollingReturnChart datasets={activeRollingDatasets} />
+          <RollingReturnChart datasets={activeRollingDatasets} benchmarkLabel={activeBenchmark?.label} />
         </section>
       )}
     </>

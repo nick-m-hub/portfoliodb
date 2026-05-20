@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, benchmarkLabel }) {
   if (!active || !payload?.length) return null;
   const portfolio = payload.find((p) => p.dataKey === 'value');
   const benchmark = payload.find((p) => p.dataKey === 'benchmark');
@@ -26,14 +26,14 @@ function CustomTooltip({ active, payload, label }) {
       {benchmark?.value != null && (
         <p className="font-manrope font-bold text-[13px] text-outline mt-0.5">
           {benchmark.value.toFixed(2)}%{' '}
-          <span className="font-inter font-normal text-[10px]">60/40</span>
+          {benchmarkLabel && <span className="font-inter font-normal text-[10px]">{benchmarkLabel}</span>}
         </p>
       )}
     </div>
   );
 }
 
-export default function DrawdownChart({ data }) {
+export default function DrawdownChart({ data, benchmarkLabel }) {
   const hasBenchmark = data.some((d) => d.benchmark != null);
   const minVal = Math.min(...data.map((d) => d.value));
   const yMin = Math.floor(minVal / 5) * 5 - 5;
@@ -65,7 +65,7 @@ export default function DrawdownChart({ data }) {
           axisLine={false}
           width={50}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip benchmarkLabel={benchmarkLabel} />} />
         {hasBenchmark && (
           <Area
             type="monotone"
