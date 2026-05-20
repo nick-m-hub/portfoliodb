@@ -5,8 +5,6 @@ import GrowthChart from '@/components/GrowthChart';
 import DrawdownChart from '@/components/DrawdownChart';
 import RollingReturnChart from '@/components/RollingReturnChart';
 
-const BENCHMARK_SLUG = 'united-states-60-40-portfolio';
-
 function mergeWithBenchmark(portfolioData, benchmarkData) {
   if (!benchmarkData?.length) return portfolioData;
   const map = new Map(benchmarkData.map((d) => [d.label, d.value]));
@@ -23,36 +21,35 @@ export default function ChartsSection({
   growthData10yr,
   drawdownData,
   rollingDatasets,
-  benchmarkGrowthData,
-  benchmarkGrowthData10yr,
-  benchmarkDrawdownData,
-  benchmarkRollingDatasets,
+  benchmarks,
 }) {
-  const [showBenchmark, setShowBenchmark] = useState(false);
+  const [selectedBenchmark, setSelectedBenchmark] = useState(null);
   const [show10yr, setShow10yr] = useState(false);
   const [logScale, setLogScale] = useState(true);
 
-  const isBenchmarkPage = slug === BENCHMARK_SLUG;
-  const hasBenchmarkData = benchmarkGrowthData?.length > 0;
-  const showBenchmarkToggle = !isBenchmarkPage && hasBenchmarkData;
+  // Filter out this page's own slug so a portfolio never compares to itself
+  const availableBenchmarks = Object.entries(benchmarks || {}).filter(([s]) => s !== slug);
+  const showBenchmarkToggle = availableBenchmarks.length > 0;
   const showTimelineToggle = growthData10yr?.length > 0;
 
-  const baseGrowthData = show10yr ? growthData10yr : growthData;
-  const baseBenchmarkGrowthData = show10yr ? benchmarkGrowthData10yr : benchmarkGrowthData;
+  const activeBenchmark = selectedBenchmark ? benchmarks?.[selectedBenchmark] : null;
 
-  const activeGrowthData = showBenchmark
+  const baseGrowthData = show10yr ? growthData10yr : growthData;
+  const baseBenchmarkGrowthData = show10yr ? activeBenchmark?.growthData10yr : activeBenchmark?.growthData;
+
+  const activeGrowthData = activeBenchmark
     ? mergeWithBenchmark(baseGrowthData, baseBenchmarkGrowthData)
     : baseGrowthData;
 
-  const activeDrawdownData = showBenchmark
-    ? mergeWithBenchmark(drawdownData, benchmarkDrawdownData)
+  const activeDrawdownData = activeBenchmark
+    ? mergeWithBenchmark(drawdownData, activeBenchmark.drawdownData)
     : drawdownData;
 
-  const activeRollingDatasets = showBenchmark && benchmarkRollingDatasets
+  const activeRollingDatasets = activeBenchmark
     ? Object.fromEntries(
         Object.entries(rollingDatasets).map(([key, data]) => [
           key,
-          mergeWithBenchmark(data, benchmarkRollingDatasets[key]),
+          mergeWithBenchmark(data, activeBenchmark.rollingDatasets?.[key]),
         ])
       )
     : rollingDatasets;
@@ -68,25 +65,28 @@ export default function ChartsSection({
           <span className="font-inter text-[13px] text-on-surface-variant">Compare to:</span>
           <div className="flex gap-2">
             <button
-              onClick={() => setShowBenchmark(false)}
+              onClick={() => setSelectedBenchmark(null)}
               className={`px-4 py-1.5 rounded-full font-inter text-[12px] font-semibold transition-colors ${
-                !showBenchmark
+                selectedBenchmark === null
                   ? 'bg-primary text-on-primary'
                   : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
               None
             </button>
-            <button
-              onClick={() => setShowBenchmark(true)}
-              className={`px-4 py-1.5 rounded-full font-inter text-[12px] font-semibold transition-colors ${
-                showBenchmark
-                  ? 'bg-primary text-on-primary'
-                  : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-low'
-              }`}
-            >
-              US 60/40
-            </button>
+            {availableBenchmarks.map(([s, b]) => (
+              <button
+                key={s}
+                onClick={() => setSelectedBenchmark(s)}
+                className={`px-4 py-1.5 rounded-full font-inter text-[12px] font-semibold transition-colors ${
+                  selectedBenchmark === s
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-low'
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -153,11 +153,11 @@ export default function ChartsSection({
                   {portfolioName}
                 </span>
               </div>
-              {showBenchmark && (
+              {activeBenchmark && (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-0.5 rounded" style={{ backgroundColor: '#bfc9c2' }} />
                   <span className="font-inter text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                    US 60/40
+                    {activeBenchmark.label}
                   </span>
                 </div>
               )}

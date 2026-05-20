@@ -45,7 +45,11 @@ export async function generateMetadata({ params }) {
 }
 
 
-const BENCHMARK_SLUG = 'united-states-60-40-portfolio';
+const BENCHMARKS = [
+  { slug: 'united-states-60-40-portfolio', label: 'US 60/40' },
+  { slug: 'us-stock-market',               label: 'US Stocks' },
+  { slug: 'global-stock-market',           label: 'Global Stocks' },
+];
 
 // Trim benchmark returns to the portfolio's own date range
 function trimToRange(benchmarkReturns, portfolioReturns) {
@@ -112,12 +116,12 @@ function StatRow({ icon, label, value, valueClass = 'text-primary', definition }
 export default async function PortfolioDetailPage({ params }) {
   const { slug } = await params;
 
-  const [portfolio, allocations, monthlyReturns, rawBenchmarkReturns, relatedPortfolios] = await Promise.all([
+  const [portfolio, allocations, monthlyReturns, relatedPortfolios, ...rawBenchmarkReturnsList] = await Promise.all([
     getPortfolio(slug),
     getAllocations(slug),
     getMonthlyReturns(slug),
-    slug !== BENCHMARK_SLUG ? getMonthlyReturns(BENCHMARK_SLUG) : Promise.resolve([]),
     getRelatedPortfolios(slug),
+    ...BENCHMARKS.map((b) => getMonthlyReturns(b.slug)),
   ]);
 
   if (!portfolio) notFound();
@@ -134,16 +138,22 @@ export default async function PortfolioDetailPage({ params }) {
   const last10yrReturns = monthlyReturns.slice(-120);
   const growthData10yr = monthlyReturns.length > 120 ? buildGrowthData(last10yrReturns) : [];
 
-  const benchmarkReturns = trimToRange(rawBenchmarkReturns, monthlyReturns);
-  const benchmarkGrowthData = buildGrowthData(benchmarkReturns);
-  const benchmarkGrowthData10yr = benchmarkReturns.length > 120 ? buildGrowthData(benchmarkReturns.slice(-120)) : [];
-  const benchmarkDrawdownData = buildDrawdownData(benchmarkReturns);
-  const benchmarkRollingDatasets = {
-    '1Y': buildRollingReturnData(benchmarkReturns, 12),
-    '3Y': buildRollingReturnData(benchmarkReturns, 36),
-    '5Y': buildRollingReturnData(benchmarkReturns, 60),
-    '10Y': buildRollingReturnData(benchmarkReturns, 120),
-  };
+  const benchmarks = {};
+  BENCHMARKS.forEach((b, i) => {
+    const raw = trimToRange(rawBenchmarkReturnsList[i], monthlyReturns);
+    benchmarks[b.slug] = {
+      label: b.label,
+      growthData: buildGrowthData(raw),
+      growthData10yr: raw.length > 120 ? buildGrowthData(raw.slice(-120)) : [],
+      drawdownData: buildDrawdownData(raw),
+      rollingDatasets: {
+        '1Y': buildRollingReturnData(raw, 12),
+        '3Y': buildRollingReturnData(raw, 36),
+        '5Y': buildRollingReturnData(raw, 60),
+        '10Y': buildRollingReturnData(raw, 120),
+      },
+    };
+  });
 
   const isTactical = portfolio.category === 'Tactical';
   const allocationLabel = isTactical ? 'Average Allocation' : 'Target Allocation';
@@ -424,10 +434,7 @@ export default async function PortfolioDetailPage({ params }) {
               growthData10yr={growthData10yr}
               drawdownData={drawdownData}
               rollingDatasets={rollingDatasets}
-              benchmarkGrowthData={benchmarkGrowthData}
-              benchmarkGrowthData10yr={benchmarkGrowthData10yr}
-              benchmarkDrawdownData={benchmarkDrawdownData}
-              benchmarkRollingDatasets={benchmarkRollingDatasets}
+              benchmarks={benchmarks}
             />
           </div>
 
