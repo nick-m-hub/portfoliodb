@@ -555,7 +555,7 @@ The portfolio_stats view recalculates everything automatically after any insert.
 
 ## Monthly Returns Automation Pipeline (May 2026)
 
-Automates monthly return calculations for all Buy and Hold and Robo-Advisor portfolios (41 total). Tactical portfolios are excluded and updated manually.
+Automates monthly return calculations for all Buy and Hold and Robo-Advisor portfolios (43 total). Tactical portfolios are excluded and updated manually.
 
 **Data provider:** EODHD (eodhd.com) — $19.99/month All World plan. Uses `adjusted_close` prices to account for dividends and splits.
 
@@ -590,6 +590,11 @@ python3 stage2_promote.py --month 2026-04
 **Flag thresholds:** portfolio return < -25% or > +25%, missing ticker price data, or weights not summing to ~1.0 (±0.01 tolerance).
 
 **Stage 2 safety checks:** requires typed CONFIRM before promoting any flagged rows; aborts if rows already exist in monthly_returns for that month (prevents duplicate inserts).
+
+**New portfolios added May 2026:**
+- `us-stock-market` — VTI (100%). Backfilled with VFINX (EODHD) for Jan 1980 – May 2001, then VTI for Jun 2001 – Apr 2026. Stage 1 handles VTI going forward.
+- `global-stock-market` — VT (100%). Backfilled with MSCI ACWI Index daily prices for Jan 1999 – Jun 2008, then VT (EODHD) for Jul 2008 – Apr 2026. Stage 1 handles VT going forward.
+- Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py` and `scripts/auto-returns/backfill_global_stock_market.py` (idempotent, safe to re-run)
 
 **Key decisions:**
 - Tactical portfolios excluded via `category != 'Tactical'` filter in both Stage 1 and Stage 2
