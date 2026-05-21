@@ -10,6 +10,7 @@ const PAGE_SIZE = 25;
 // ── Column definitions ──────────────────────────────────────────────────────
 const ALL_COLUMNS = [
   // Performance Benchmarks
+  { key: 'ytd_return',               label: 'YTD',           group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['YTD'],             format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface font-semibold' },
   { key: 'cagr',                    label: 'CAGR',         group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['CAGR'],            format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
   { key: 'max_drawdown',            label: 'Max DD',        group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['Max DD'],           format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-error font-semibold' },
   { key: 'sharpe_ratio',            label: 'Sharpe',        group: 'performance', defaultOn: true,  definition: STAT_DEFINITIONS['Sharpe'],           format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },

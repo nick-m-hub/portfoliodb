@@ -100,7 +100,7 @@ function PortfolioCard({ portfolio }) {
 
       {/* Allocation bar */}
       {allocations.length > 0 && (
-        <div className="mt-auto">
+        <div>
           <div className="flex justify-between items-end mb-1">
             <span className="text-[10px] font-bold text-outline uppercase tracking-widest font-inter">ALLOCATION</span>
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest font-inter">
@@ -175,6 +175,11 @@ function PortfolioRow({ portfolio }) {
       <td className="px-6 py-4 text-right">
         <span className="font-inter text-on-surface text-[14px]">
           {portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(2) : '—'}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-right">
+        <span className={`font-inter font-semibold text-[14px] ${portfolio.ytd_return != null ? (portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error') : 'text-on-surface-variant'}`}>
+          {portfolio.ytd_return != null ? `${portfolio.ytd_return.toFixed(1)}%` : '—'}
         </span>
       </td>
       <td className="px-6 py-4 text-right">
@@ -524,6 +529,9 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
                       </th>
                       <th className="px-6 py-4 font-inter text-[11px] font-bold text-on-surface-variant uppercase tracking-wider text-right">
                         Sharpe
+                      </th>
+                      <th className="px-6 py-4 font-inter text-[11px] font-bold text-on-surface-variant uppercase tracking-wider text-right">
+                        YTD
                       </th>
                       <th className="px-6 py-4" />
                     </tr>

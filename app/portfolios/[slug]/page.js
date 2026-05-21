@@ -215,6 +215,14 @@ export default async function PortfolioDetailPage({ params }) {
                   {portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(2) : '—'}
                 </span>
               </div>
+              {portfolio.ytd_return != null && (
+                <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
+                  <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">YTD Return</span>
+                  <span className={`font-manrope text-[36px] font-bold leading-none ${portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'}`}>
+                    {portfolio.ytd_return.toFixed(1)}%
+                  </span>
+                </div>
+              )}
             </div>
 
             {descriptionIntro && (
@@ -338,6 +346,9 @@ export default async function PortfolioDetailPage({ params }) {
                 <StatRow icon="show_chart" label="Sortino Ratio" value={portfolio.sortino_ratio != null ? portfolio.sortino_ratio.toFixed(3) : '—'} definition={STAT_DEFINITIONS['Sortino Ratio']} />
                 <StatRow icon="arrow_upward" label="Best Year" value={portfolio.best_year != null ? `+${portfolio.best_year.toFixed(1)}%` : '—'} definition={STAT_DEFINITIONS['Best Year']} />
                 <StatRow icon="arrow_downward" label="Worst Year" value={portfolio.worst_year != null ? `${portfolio.worst_year.toFixed(1)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Worst Year']} />
+                {portfolio.ytd_return != null && (
+                  <StatRow icon="calendar_today" label="YTD Return" value={`${portfolio.ytd_return.toFixed(2)}%`} valueClass={portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['YTD Return']} />
+                )}
                 {portfolio.cagr_10yr != null && (
                   <StatRow icon="update" label="10-Year CAGR" value={`${portfolio.cagr_10yr.toFixed(2)}%`} valueClass={portfolio.cagr_10yr >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['10-Year CAGR']} />
                 )}
