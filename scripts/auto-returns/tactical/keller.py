@@ -217,7 +217,7 @@ def _safe_corrcoef(ret_matrix, n):
     """Compute correlation matrix from a return matrix; falls back to identity."""
     if ret_matrix is None or ret_matrix.shape[0] < 5:
         return np.eye(n)
-    return np.corrcoef(ret_matrix.T)
+    return np.atleast_2d(np.corrcoef(ret_matrix.T))
 
 
 def _psd_clip(matrix):
@@ -605,9 +605,12 @@ def kda(target_month, price_cache):
         cp_dest = "IEF" if (ief_mom is not None and ief_mom > 0) else "BIL"
         return {cp_dest: 1.0}
 
-    # Step 4: Minimum variance weights for selected assets
-    cov = _kda_covariance(selected, price_cache, sd)
-    risky_weights = _min_var_weights(selected, cov)
+    if len(selected) == 1:
+        risky_weights = {selected[0]: 1.0}
+    else:
+        # Step 4: Minimum variance weights for selected assets
+        cov = _kda_covariance(selected, price_cache, sd)
+        risky_weights = _min_var_weights(selected, cov)
 
     # Step 5: Apply canary scaling
     result = {t: round(w * p_aggressive, 6) for t, w in risky_weights.items()}
