@@ -5,7 +5,8 @@ import { getPortfolio, getAllocations, getMonthlyReturns, getAllSlugs, getRelate
 import StructuredData from '@/components/StructuredData';
 import AllocationDonut from '@/components/AllocationDonut';
 import ChartsSection from '@/components/ChartsSection';
-import EmailCapture from '@/components/EmailCapture';
+import EmailCapture from '@/components/EmailCapture'
+import SignalTeaser from '@/components/SignalTeaser';
 import StatTooltip from '@/components/StatTooltip';
 import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 
@@ -253,25 +254,7 @@ export default async function PortfolioDetailPage({ params }) {
                 Invest on M1 Finance
               </a>
             )}
-            {portfolio.kofi_link ? (
-              <div className="rounded-xl border border-[#27624a]/30 bg-[#f0f7f3] p-4 flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-primary">mark_email_unread</span>
-                  <span className="font-manrope text-[15px] font-bold text-primary">Monthly signals available for this portfolio</span>
-                </div>
-                <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed">
-                  One email, once a month. No research required.
-                </p>
-                <Link
-                  href="/membership"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-on-primary rounded-lg font-inter text-[13px] font-semibold hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
-                  See membership options
-                </Link>
-                <p className="font-inter text-[11px] text-on-surface-variant text-center">Cancel anytime. No lock-in.</p>
-              </div>
-            ) : (
+            {!portfolio.kofi_link && (
               <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[16px] text-on-surface-variant">info</span>
@@ -286,6 +269,7 @@ export default async function PortfolioDetailPage({ params }) {
                 </Link>
               </div>
             )}
+            {portfolio.kofi_link && <SignalTeaser />}
           </div>
         </section>
 
@@ -571,6 +555,7 @@ export default async function PortfolioDetailPage({ params }) {
               </Link>
             </div>
             )}
+
 
           </aside>
         </div>

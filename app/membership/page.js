@@ -201,7 +201,7 @@ export default async function MembershipPage() {
               </div>
             ))}
             <p className="px-5 py-3 font-inter text-[12px] text-on-surface-variant italic">
-              + 14 more portfolios in the full signal email
+              + {signalCount - 3} more portfolios in the full signal email
             </p>
           </div>
         </div>
