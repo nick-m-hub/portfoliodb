@@ -12,6 +12,8 @@
 
 - [ ] **Blog content** — Post 1 published 2026-05-16. Next recommended: Post 2 (Permanent Portfolio Review) or Post 3 (All-Weather Portfolio Review) — both high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
 
+- [x] **Signal Teaser + portfolio page layout overhaul (May 2026)** — `components/SignalTeaser.jsx` added: blurred placeholder ticker rows + lock overlay, links to `/membership`, only renders on covered portfolios. Hero CTA card removed on covered portfolios (Teaser replaces it). Portfolio detail page restructured to lead with data: first description paragraph stays in hero, Investment Philosophy/Who It's For/Pros/Cons moved to a card after the charts. Membership page: "+ N more portfolios" count made dynamic (`signalCount - 3`); main CTA button changed to "Subscribe on Ko-fi".
+
 ---
 
 ## Reminders

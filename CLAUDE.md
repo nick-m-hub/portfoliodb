@@ -266,6 +266,7 @@ portfoliodb/
     EmailCapture.jsx                 # Email capture card (client) — compact horizontal layout, posts to /api/subscribe, success/error states
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
+    SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
@@ -706,17 +707,13 @@ python3 stage0_signals.py --month 2026-06
 
 ## Membership CTA
 
-Portfolio detail pages show a membership CTA on **every** portfolio page — two placements:
-- **Hero section** (right column, below Back to Database button) — compact card
-- **Sidebar** (right column of body, below At a Glance) — fuller card with 3 bullet points
+Portfolio detail pages show membership touchpoints in the hero right column:
+- **kofi_link IS NOT NULL** → `SignalTeaser` component: blurred placeholder ticker rows + lock icon + "See membership options" link to `/membership`. No text CTA card.
+- **kofi_link IS NULL** → compact neutral "not covered" info card explaining signals cover tactical portfolios only, with "See covered portfolios →" link to `/membership`.
 
-`kofi_link` acts as a **copy switcher**, not an on/off toggle:
-- **kofi_link IS NOT NULL** → "covered" variant: "Monthly signals available for this portfolio" / "One email, once a month. No research required." / "See membership options"
-- **kofi_link IS NULL** → "not covered" variant: "Monthly signals for select portfolios" / "We cover a curated selection of portfolios in this database." / "See what's covered"
+The sidebar (right column of body) has a fuller green CTA card with 3 bullet points on covered portfolios, and a matching neutral card on uncovered portfolios.
 
-Sidebar bullet 1 also switches: "Signals for a curated set of portfolios" (covered) vs. "This portfolio is not currently in the signal set" (not covered).
-
-All CTA buttons link to `/membership` (not directly to Ko-fi). The `/membership` page has the Ko-fi join button.
+All CTA buttons link to `/membership` (not directly to Ko-fi). The `/membership` page has the "Subscribe on Ko-fi" button.
 
 To add a portfolio to the signal set: set any non-null value in the `kofi_link` column. Portfolio detail pages are SSG, so a Vercel redeploy is required for changes to appear.
 
@@ -726,6 +723,8 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 - Ko-fi URL: `KOFI_MEMBERSHIP_URL` constant at top of the same file — currently `https://ko-fi.com/portfoliodb`
 - Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and callout banner on homepage both show live count
 - "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
+- "What a signal looks like" mock email shows 3 hardcoded portfolios; "+ N more" count is dynamic: `{signalCount - 3}` — updates automatically as portfolios are added
+- Main CTA button copy: "Subscribe on Ko-fi" — links directly to Ko-fi via `KOFI_MEMBERSHIP_URL`
 - Homepage has two membership touchpoints: a compact callout banner (between hero and Top Strategies) and the Premium section (below Top Strategies)
 
 ---
