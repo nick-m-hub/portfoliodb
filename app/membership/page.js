@@ -128,7 +128,7 @@ export default async function MembershipPage() {
             className="flex items-center gap-2 bg-primary text-on-primary font-inter text-[15px] font-semibold px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap"
           >
             <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
-            See membership options
+            Subscribe on Ko-fi
           </a>
         </div>
       </section>
