@@ -16,6 +16,8 @@
 
 - [x] **Signal Teaser + portfolio page layout overhaul (May 2026)** — `components/SignalTeaser.jsx` added: blurred placeholder ticker rows + lock overlay, links to `/membership`, only renders on covered portfolios. Hero CTA card removed on covered portfolios (Teaser replaces it). Portfolio detail page restructured to lead with data: first description paragraph stays in hero, Investment Philosophy/Who It's For/Pros/Cons moved to a card after the charts. Membership page: "+ N more portfolios" count made dynamic (`signalCount - 3`); main CTA button changed to "Subscribe on Ko-fi".
 
+- [x] **Lead magnet visibility + homepage flow improvements (May 2026)** — `EmailCapture.jsx`: added "Free Report" badge + `picture_as_pdf` icon, replaced question headline with actual report title, updated subline to name the PDF format. Homepage: moved EmailCapture above Top Strategies (now directly below hero); removed redundant compact membership callout banner; Premium section headline updated to "Monthly Signals for {signalCount} Portfolios" (live count). `AIRecommend.jsx`: placeholder updated to goal-based language ("saving for retirement in 20 years") instead of jargon ("high growth with low volatility").
+
 ---
 
 ## Reminders

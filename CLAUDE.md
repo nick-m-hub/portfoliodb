@@ -258,7 +258,7 @@ portfoliodb/
     portfoliodb-icon.svg             # Site logo SVG (also copied to public/ for Next.js Image)
     NavSearch.jsx                    # Navbar search box (client) — live portfolio search with dropdown
     FilterBar.jsx                    # Home page filter bar (client) — navigates to /database
-    AIRecommend.jsx                  # AI "find portfolios" search bar (client)
+    AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language (e.g. 'saving for retirement in 20 years')
     TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
     DatabaseClient.jsx               # Database page UI with filters/sort/grid/list (client)
     ScreenerClient.jsx               # Screener page UI with sliders/table/export/column-picker (client)
@@ -382,8 +382,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Client component — compact horizontal card with email input + "Send me the report" button
 - Posts to `/api/subscribe` (Next.js API route) which calls MailerLite API server-side
 - Three states: idle, loading (spinner), success (confirmation message), error (inline message)
-- Placed on: homepage (below Top Strategies), membership page (above price callout), portfolio detail pages (below Related Portfolios)
-- Current copy: headline "Which portfolios survived the dot-com crash and 2008?", subline "Get our free crash analysis report — plus monthly portfolio insights."
+- Placed on: homepage (above Top Strategies, directly below the hero), membership page (above price callout), portfolio detail pages (below Related Portfolios)
+- Current copy: "Free Report" badge + `picture_as_pdf` icon; headline is the actual report title "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years"; subline "Download the free PDF — plus get monthly portfolio insights from PortfolioDB."
 - Lead magnet: "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years" PDF, delivered via MailerLite automation
 
 ### app/api/subscribe/route.js
@@ -798,11 +798,11 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 
 - Price: `$19/mo` — stored as `MEMBERSHIP_PRICE` constant at top of `app/membership/page.js`; update there when price changes
 - Ko-fi URL: `KOFI_MEMBERSHIP_URL` constant at top of the same file — currently `https://ko-fi.com/portfoliodb`
-- Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and callout banner on homepage both show live count
+- Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and Premium section headline on homepage both show live count
 - "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
 - "What a signal looks like" mock email shows 3 hardcoded portfolios; "+ N more" count is dynamic: `{signalCount - 3}` — updates automatically as portfolios are added
 - Main CTA button copy: "Subscribe on Ko-fi" — links directly to Ko-fi via `KOFI_MEMBERSHIP_URL`
-- Homepage has two membership touchpoints: a compact callout banner (between hero and Top Strategies) and the Premium section (below Top Strategies)
+- Homepage has one membership touchpoint: the Premium section (below Top Strategies), with headline "Monthly Signals for {signalCount} Portfolios" (live count). The compact callout banner was removed May 2026.
 
 ---
 
