@@ -551,6 +551,52 @@ All portfolio slugs from the old WordPress site exist in the Next.js DB, so no p
 
 ---
 
+## New Portfolio Checklist
+
+Work through these phases in order whenever a new portfolio is added.
+
+### Phase 1 — Supabase (must follow this insert order — foreign key constraints)
+
+- [ ] **`portfolios`** — slug, name, category, trade_frequency, min_timeline_years, risk_level, description. Leave kofi_link null unless adding to signal set immediately. Never include id or created_at.
+  - Slug must match WordPress URL slug exactly
+- [ ] **`asset_classes`** — if any allocation uses an asset class not already in this table, insert it first (default_color + description)
+- [ ] **`allocations`** — one row per holding: portfolio_slug, asset_class, ticker, percentage (0–100), color (hex). Percentages must sum to 100.
+- [ ] **`portfolio_strategies`** — one row per tag. Valid slugs: momentum, factor-tilt, rules-based, global, income, tactical, simple, risk-parity, all-weather, bond-heavy, robo-advisor, target-date
+- [ ] **`monthly_returns`** — historical return rows. Date = first of month (e.g. 2024-11-01). Return = percentage (1.8 = +1.8%).
+- [ ] **Refresh view** — `REFRESH MATERIALIZED VIEW portfolio_stats;`
+
+### Phase 2 — Automation
+
+**Buy and Hold / Robo-Advisor:** no code changes — Stage 1 reads allocations automatically.
+
+**Tactical:**
+- [ ] Write signal function in the appropriate module (rules_based.py, keller.py, etc.)
+- [ ] Add any new tickers to that module's ALL_TICKERS list
+- [ ] Add one line to SIGNAL_REGISTRY in stage0_signals.py
+- [ ] Run Stage 0 for the current month to generate first holdings entry
+- [ ] Commit and push
+
+### Phase 3 — Description
+
+- [ ] Write description draft (200–400 words, no performance numbers, no ETF names, `\n` line breaks) — see description format spec below
+- [ ] Save to `description-drafts/[slug].md`
+- [ ] Run `node scripts/update-descriptions.js`
+
+### Phase 4 — Deploy
+
+- [ ] Trigger a Vercel redeploy (portfolio detail page is SSG — won't exist until rebuild)
+- [ ] Verify `/portfolios/[slug]` loads correctly
+- [ ] Verify slug appears in `/sitemap.xml`
+
+### Phase 5 — Optional
+
+- [ ] **Signal set** — set kofi_link if portfolio should have trade signals (requires redeploy)
+- [ ] **Blog** — add to content-calendar.md if it warrants a comparison post
+
+**Easy things to miss:** forgetting REFRESH MATERIALIZED VIEW · inserting allocations before portfolios exists · forgetting Vercel redeploy · for tactical: forgetting new tickers in ALL_TICKERS before Stage 0 runs
+
+---
+
 ## Monthly Data Update Workflow
 
 **Buy and Hold + Robo-Advisor portfolios** are updated automatically via the returns automation pipeline (see below). No manual inserts needed.
