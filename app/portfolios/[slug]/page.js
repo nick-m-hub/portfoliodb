@@ -196,32 +196,34 @@ export default async function PortfolioDetailPage({ params }) {
             </h1>
 
             {/* Hero stat tiles */}
-            <div className="flex flex-wrap gap-4 pt-2">
-              <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              <div className="px-4 py-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
                 <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Real CAGR</span>
-                <span className="font-manrope text-[36px] font-bold text-primary leading-none">
+                <span className="font-manrope text-[26px] font-bold text-primary leading-none">
                   {portfolio.cagr != null ? `${portfolio.cagr.toFixed(1)}%` : '—'}
                 </span>
               </div>
-              <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
+              <div className="px-4 py-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
                 <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Max Drawdown</span>
-                <span className="font-manrope text-[36px] font-bold text-error leading-none">
+                <span className="font-manrope text-[26px] font-bold text-error leading-none">
                   {portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(1)}%` : '—'}
                 </span>
               </div>
-              <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
+              <div className="px-4 py-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
                 <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Sharpe Ratio</span>
-                <span className="font-manrope text-[36px] font-bold text-on-surface leading-none">
+                <span className="font-manrope text-[26px] font-bold text-on-surface leading-none">
                   {portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(2) : '—'}
                 </span>
               </div>
-              {portfolio.ytd_return != null && (
-                <div className="px-6 py-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
+              {portfolio.ytd_return != null ? (
+                <div className="px-4 py-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
                   <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">YTD Return</span>
-                  <span className={`font-manrope text-[36px] font-bold leading-none ${portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'}`}>
+                  <span className={`font-manrope text-[26px] font-bold leading-none ${portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'}`}>
                     {portfolio.ytd_return.toFixed(1)}%
                   </span>
                 </div>
+              ) : (
+                <div className="hidden lg:block" />
               )}
             </div>
 
