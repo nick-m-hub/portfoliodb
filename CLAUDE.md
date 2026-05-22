@@ -245,6 +245,8 @@ portfoliodb/
       page.js                        # Blog index (server, static) — lists published posts newest-first; "No posts yet" empty state
       [slug]/
         page.js                      # Blog post page (server, dynamicParams: true) — react-markdown renderer, generateStaticParams, notFound() guard
+    compare/
+      page.js                        # Portfolio Comparison page (server, dynamic) — reads ?slugs= param, fetches up to 4 portfolios, passes to CompareClient
     sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages + blog posts)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
@@ -271,6 +273,8 @@ portfoliodb/
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
+    CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
+    CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
@@ -357,6 +361,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Strategy Detail        | `/strategies/[slug]`     | Complete |
 | Blog Index             | `/blog`                  | Complete |
 | Blog Post              | `/blog/[slug]`           | Complete |
+| Portfolio Comparison   | `/compare`               | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -517,6 +522,19 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Rendered at the bottom of every portfolio detail page, below the charts section
 - Data from `getRelatedPortfolios(slug)` — runs in parallel with other page fetches in `Promise.all`
 - Shows 3 cards: portfolio name (linked), category badge, CAGR/Sharpe/Max Drawdown stats
+
+### CompareClient.jsx + CompareGrowthChart.jsx (Portfolio Comparison — /compare)
+- `app/compare/page.js` is a server component (dynamic, not SSG — reads `searchParams.slugs`)
+- Reads `?slugs=a,b,c,d` from URL, deduplicates, caps at 4, fetches portfolio stats + allocations + monthly returns in parallel
+- Growth data (`buildGrowthData`) computed server-side using the same compounding logic as portfolio detail pages
+- `CompareClient` uses `useRouter` + `useTransition` to push new `?slugs=` URLs when portfolios are added/removed — each change is a full server re-render (no client-side data fetching)
+- Portfolio selector: search box filters `allPortfolioNames` client-side, excludes already-selected slugs, caps at 4
+- Comparisons are shareable via URL (e.g. `/compare?slugs=golden-butterfly-portfolio,permanent-portfolio`)
+- "Compare This Portfolio" button on every portfolio detail page links to `/compare?slugs=${slug}`
+- **Stats table color logic:** green (`text-primary`) = positive value, red (`text-error`) = negative value — same as the rest of the site. Winner (best value per stat) gets a subtle `bg-[#f0f7f3]` cell background + `emoji_events` trophy icon. No special color for the worst.
+- `PORTFOLIO_COLORS` = `['#074a34', '#1565c0', '#b71c1c', '#e67e22']` — one per portfolio slot, used consistently across pills, header card borders, chart lines, and table column headers
+- **Growth chart normalization:** `mergeGrowthData()` finds the latest start year across all selected portfolios (shortest lookback), re-indexes every portfolio's growth data to $10,000 at that year, then merges into a single array keyed by `{year, p0, p1, p2, p3}`. This ensures a fair visual comparison when portfolios have different history lengths.
+- `CompareGrowthChart` uses Recharts `LineChart` (not `AreaChart`) with `connectNulls={false}` — portfolios with shorter histories simply start later on the chart
 
 ---
 
