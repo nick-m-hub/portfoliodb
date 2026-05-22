@@ -822,6 +822,8 @@ The `<body>` uses `flex flex-col`, making all page-level `<main>` elements flex 
 **Fix pattern:** Add `w-full` (constrains to viewport) and `overflow-x-hidden` (clips any remaining leak) to the `<main>` element. For the homepage grid specifically, use `gap-y-8 md:gap-8` instead of `gap-8` — on mobile, 12 column gaps × 32px = 352px which exceeds the content area and collapses all columns to 0px width.
 
 Pages fixed (May 2026): `strategies/[slug]`, `membership`, homepage grid, EmailCapture, ChartsSection, ScreenerClient toolbar.
+
+**Hero stat tiles** on portfolio detail pages use `grid grid-cols-2 lg:grid-cols-4` (not `flex flex-wrap`) so the 4 cards (CAGR, Max Drawdown, Sharpe, YTD Return) always stay in one row on desktop and max 2 rows on mobile. When YTD Return is null, an empty `hidden lg:block` div holds the 4th grid slot so the other 3 cards don't stretch.
 - WCAG AA contrast: use `text-[#27624a]` (not `text-[#71a38b]`) for any green text on white backgrounds.
 
 ## Portfolio Description Drafts
