@@ -53,7 +53,7 @@ export default function AIRecommend() {
               type="text"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              placeholder="Describe your ideal portfolio (e.g. 'high growth with low volatility for 10 years')…"
+              placeholder="Describe your ideal portfolio (e.g. 'I'm saving for retirement in 20 years and don't want big losses')…"
               className="flex-1 bg-transparent font-inter text-[15px] text-on-surface placeholder:text-on-surface-variant/60 placeholder:italic focus:outline-none"
               disabled={loading}
             />
