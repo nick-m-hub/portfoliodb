@@ -249,6 +249,13 @@ export default async function PortfolioDetailPage({ params }) {
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Database
             </Link>
+            <Link
+              href={`/compare?slugs=${slug}`}
+              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">compare_arrows</span>
+              Compare This Portfolio
+            </Link>
             {portfolio.m1_link && (
               <a
                 href={portfolio.m1_link}

@@ -6,6 +6,7 @@ const staticPages = [
   '/',
   '/database',
   '/portfolio-screener',
+  '/compare',
   '/glossary-of-terms',
   '/methodology',
   '/membership',

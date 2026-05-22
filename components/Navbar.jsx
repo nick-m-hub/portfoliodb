@@ -39,6 +39,12 @@ export default function Navbar({ portfolios = [] }) {
                 Strategies
               </Link>
               <Link
+                href="/compare"
+                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+              >
+                Compare
+              </Link>
+              <Link
                 href="/membership"
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
@@ -71,6 +77,12 @@ export default function Navbar({ portfolios = [] }) {
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
           >
             Strategies
+          </Link>
+          <Link
+            href="/compare"
+            className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+          >
+            Compare
           </Link>
           <Link
             href="/membership"
