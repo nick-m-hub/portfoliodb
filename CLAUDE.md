@@ -554,7 +554,7 @@ All portfolio slugs from the old WordPress site exist in the Next.js DB, so no p
 
 **Buy and Hold + Robo-Advisor portfolios** are updated automatically via the returns automation pipeline (see below). No manual inserts needed.
 
-**Tactical portfolios** are updated manually each month — insert one row per portfolio into monthly_returns: `portfolio_slug | date (YYYY-MM-01) | monthly_return`. A separate automation script for tactical portfolios is planned for a future session.
+**Tactical portfolios** are fully automated via the Stage 0 → Stage 1 → Stage 2 pipeline (see Tactical Portfolio Automation section below). No manual inserts needed.
 
 The portfolio_stats view recalculates everything automatically after any insert. No redeploy needed.
 
@@ -562,7 +562,7 @@ The portfolio_stats view recalculates everything automatically after any insert.
 
 ## Monthly Returns Automation Pipeline (May 2026)
 
-Automates monthly return calculations for all Buy and Hold and Robo-Advisor portfolios (43 total). Tactical portfolios are excluded and updated manually.
+Automates monthly return calculations for all Buy and Hold, Robo-Advisor, and Tactical portfolios. B&H/Robo-Advisor returns are calculated from static allocations; tactical returns are calculated from holdings stored by Stage 0.
 
 **Data provider:** EODHD (eodhd.com) — $19.99/month All World plan. Uses `adjusted_close` prices to account for dividends and splits.
 
@@ -604,7 +604,7 @@ python3 stage2_promote.py --month 2026-04
 - Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py` and `scripts/auto-returns/backfill_global_stock_market.py` (idempotent, safe to re-run)
 
 **Key decisions:**
-- Tactical portfolios excluded via `category != 'Tactical'` filter in both Stage 1 and Stage 2
+- Stage 1 calculates tactical returns separately in Step 5b using `tactical_monthly_holdings` (run Stage 0 first). Stage 2 promotes all pending rows regardless of category — tactical and B&H together.
 - JKI ticker was delisted — updated to IMCV in allocations table (May 2026)
 - GitHub Actions: `.github/workflows/returns-stage1.yml` (cron 3rd of month 10am UTC + manual dispatch) and `.github/workflows/returns-stage2.yml` (manual only). 6 secrets in GitHub repo settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `EODHD_API_KEY`, `NOTIFY_EMAIL`, `SMTP_USER`, `SMTP_PASSWORD`
 - Stage 2 detects `GITHUB_ACTIONS=true` env var and auto-aborts on flagged rows instead of prompting
