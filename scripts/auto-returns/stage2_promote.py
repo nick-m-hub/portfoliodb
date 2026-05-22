@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 
 from utils import get_supabase_client, get_target_month, month_display
@@ -31,22 +32,11 @@ def main():
     # -----------------------------------------------------------------------
     print(f"Fetching pending rows from staging for {target_date}...")
 
-    # Fetch non-tactical slugs so we never promote tactical portfolios
-    # (those are updated manually via a separate script)
-    non_tactical_resp = (
-        supabase.table("portfolios")
-        .select("slug")
-        .neq("category", "Tactical")
-        .execute()
-    )
-    non_tactical_slugs = [p["slug"] for p in non_tactical_resp.data]
-
     staging_resp = (
         supabase.table("monthly_returns_staging")
         .select("portfolio_slug, date, monthly_return, flagged, flag_reason")
         .eq("status", "pending")
         .eq("date", target_date)
-        .in_("portfolio_slug", non_tactical_slugs)
         .execute()
     )
 

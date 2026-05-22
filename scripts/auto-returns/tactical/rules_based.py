@@ -17,7 +17,7 @@ stoken_aca() accepts an optional third argument:
 Signal date = last calendar day of the prior month.
 
 Sources:
-  Tactical Permanent: Harry Browne (1981) + Faber 10-month SMA overlay
+  Tactical Permanent: GestaltU — 200-day MA filter, 1/vol risk parity, 7% vol target
   Three-Way Model: Ned Davis / Meb Faber — mebfaber.com/2015/06/16/three-way-model/
   Paired Switching: Lewis A. Glenn, SSRN 2437049
   Quint Switching Filtered: Lewis A. Glenn, SSRN 3129098
@@ -122,22 +122,120 @@ def _channel_extreme(price_data, signal_date, n_months, fn):
 # ---------------------------------------------------------------------------
 # Tactical Permanent Portfolio
 #
-# Universe: SPY (stocks), TLT (bonds), GLD (gold), BIL (cash)
-# Rule: each of SPY/TLT/GLD is held at 25% if above its 10-month SMA;
-#       otherwise that 25% moves to BIL. The cash sleeve is always BIL.
+# Universe: SPY (stocks), IEF (bonds), GLD (gold)
+# Cash: BIL
+#
+# Rule (GestaltU / PortfolioDB implementation):
+#   1. Select assets whose price is above their 200-day MA (signal date).
+#      If none qualify → 100% BIL.
+#   2. Assign 1/vol risk-parity weights using 21-day annualized daily volatility.
+#   3. Compute portfolio annualized volatility via 60-day daily covariance matrix.
+#      If portfolio vol > 7% → scale risky weights down by (7% / port_vol),
+#      putting the remainder in BIL.
+#      If portfolio vol ≤ 7% → hold as-is (no leverage).
 # ---------------------------------------------------------------------------
+
+def _above_200dma(price_data, signal_date):
+    """True if the close on signal_date is >= the 200-day MA. None if insufficient data."""
+    cutoff = signal_date.isoformat()
+    prices = [row["adjusted_close"] for row in price_data if row["date"] <= cutoff]
+    if len(prices) < 200:
+        return None
+    return prices[-1] >= sum(prices[-200:]) / 200
+
+
+def _daily_returns_n(price_data, signal_date, n_days):
+    """Return a list of n_days daily returns (as decimals) ending at signal_date.
+    Returns None if there is insufficient price history."""
+    cutoff = signal_date.isoformat()
+    prices = [row["adjusted_close"] for row in price_data if row["date"] <= cutoff]
+    if len(prices) < n_days + 1:
+        return None
+    prices = prices[-(n_days + 1):]
+    return [prices[i] / prices[i - 1] - 1 for i in range(1, len(prices))]
+
+
+def _portfolio_annualized_vol(weights_dict, price_cache, signal_date, n_days=60):
+    """Annualized portfolio volatility via n_days daily-returns covariance matrix."""
+    tickers = list(weights_dict.keys())
+    n = len(tickers)
+
+    returns = []
+    for t in tickers:
+        rets = _daily_returns_n(price_cache.get(t, []), signal_date, n_days)
+        if rets is None:
+            return None
+        returns.append(rets)
+
+    n_obs = len(returns[0])
+    if n_obs < 2:
+        return None
+
+    means = [sum(returns[i]) / n_obs for i in range(n)]
+
+    cov = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            cov[i][j] = (
+                sum((returns[i][k] - means[i]) * (returns[j][k] - means[j])
+                    for k in range(n_obs))
+                / (n_obs - 1)
+            ) * 252  # annualise
+
+    w = [weights_dict[t] for t in tickers]
+    port_var = sum(w[i] * w[j] * cov[i][j] for i in range(n) for j in range(n))
+    return max(port_var, 0.0) ** 0.5
+
 
 def tactical_permanent(target_month, price_cache):
     sd = _signal_date(target_month)
-    combined = {"BIL": 0.25}  # cash sleeve is always BIL
 
-    for ticker in ["SPY", "TLT", "GLD"]:
+    # Step 1: 200-day MA filter
+    selected = []
+    for ticker in ["SPY", "IEF", "GLD"]:
         data = price_cache.get(ticker, [])
-        above = _above_sma(data, sd, periods=10)
-        out = ticker if (above is True) else "BIL"
-        combined[out] = round(combined.get(out, 0.0) + 0.25, 8)
+        above = _above_200dma(data, sd)
+        if above is None:
+            return None  # insufficient history
+        if above:
+            selected.append(ticker)
 
-    return {t: round(w, 6) for t, w in combined.items()}
+    if not selected:
+        return {"BIL": 1.0}
+
+    # Step 2: 1/vol risk-parity weights (21-day annualised vol)
+    inv_vols = {}
+    for ticker in selected:
+        rets = _daily_returns_n(price_cache.get(ticker, []), sd, 21)
+        if rets is None or len(rets) < 2:
+            return None
+        n = len(rets)
+        mean = sum(rets) / n
+        sample_var = sum((r - mean) ** 2 for r in rets) / (n - 1)
+        vol = (sample_var ** 0.5) * (252 ** 0.5)
+        if vol == 0:
+            return None
+        inv_vols[ticker] = 1.0 / vol
+
+    total_inv = sum(inv_vols.values())
+    risky_weights = {t: inv_vols[t] / total_inv for t in selected}
+
+    # Step 3: portfolio vol scaling (60-day covariance)
+    port_vol = _portfolio_annualized_vol(risky_weights, price_cache, sd)
+    if port_vol is None:
+        return None
+
+    if port_vol <= 0.07:
+        # Below target vol — hold risk-parity weights as-is, no leverage
+        return {t: round(w, 6) for t, w in risky_weights.items()}
+
+    # Above 7% — scale down to 7%, remainder to BIL
+    scale = 0.07 / port_vol
+    result = {t: round(w * scale, 8) for t, w in risky_weights.items()}
+    cash = round(1.0 - sum(result.values()), 8)
+    if cash > 1e-9:
+        result["BIL"] = cash
+    return {t: round(w, 6) for t, w in result.items()}
 
 
 # ---------------------------------------------------------------------------

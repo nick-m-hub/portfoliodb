@@ -155,12 +155,15 @@ for display purposes.
 
 Columns returned: slug, name, category, trade_frequency, min_timeline_years,
 risk_level, description, m1_link, kofi_link, cagr, current_value, max_drawdown,
-sharpe_ratio, sortino_ratio, best_year, worst_year, total_months, last_updated,
+sharpe_ratio, sortino_ratio, best_year, worst_year, ytd_return, total_months, last_updated,
 cagr_10yr, ulcer_index, ulcer_performance_index, cagr_gfc, cagr_dotcom,
 rolling_1yr_low, rolling_1yr_avg, rolling_1yr_high,
 rolling_3yr_low, rolling_3yr_avg, rolling_3yr_high,
 rolling_5yr_low, rolling_5yr_avg, rolling_5yr_high,
 rolling_10yr_low, rolling_10yr_avg, rolling_10yr_high.
+
+Source of truth for the view definition: `scripts/portfolio_stats_view.sql`.
+To add a column: edit that file, then paste the full DROP + CREATE into the Supabase SQL Editor and run it.
 
 Key formula approach:
 - portfolio_value and current_value use window functions:
@@ -647,7 +650,7 @@ python3 stage0_signals.py --month 2026-06
 - `tactical/__init__.py` — package marker
 - `tactical/dual_momentum.py` — GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM
 - `tactical/gtaa.py` — Ivy Timing, Ivy Rotation, GTAA 5, GTAA 13, GTAA AGG 3, GTAA AGG 6; shared helpers `_above_sma()`, `_composite_score()`, `_sma_timing()`, `_momentum_rotation()`
-- `tactical/rules_based.py` — Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA; shared helpers `_calc_sma()`, `_above_sma()`, `_channel_extreme()`
+- `tactical/rules_based.py` — Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA, Trend is Our Friend Global; shared helpers `_calc_sma()`, `_above_sma()`, `_channel_extreme()`, `_above_200dma()`, `_daily_returns_n()`, `_portfolio_annualized_vol()`
 - `tactical/muscular_portfolios.py` — Mama Bear (top-3 of 9 by 5M momentum), Papa Bear (top-3 of 14 by avg 3/6/12M momentum)
 - `tactical/alpha_architect.py` — RAA Aggressive, RAA Balanced; dual-signal (TMOM + 10M MA) graduated allocation (100%/50%/0%) per asset
 - `tactical/keller.py` — PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA; shared helpers for 13612W momentum, SMA momentum, Easy Trading formula, min-variance optimization (scipy). requires numpy + scipy in requirements.txt.
@@ -677,11 +680,20 @@ python3 stage0_signals.py --month 2026-06
 |---|---|---|
 | Dual Momentum (Antonacci) | GEM, GEM+EM, Diversified GEM, Composite DM, Accelerating DM | Complete |
 | Meb Faber GTAA | GTAA 5, GTAA 13, AGG 3, AGG 6, Ivy Timing, Ivy Rotation | Complete |
-| Simple rules-based | Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA | Complete |
+| Simple rules-based | Tactical Permanent, Three-Way Model, Paired Switching, Quint Switching Filtered, Trend Following Bonds, Stoken's ACA | Complete (rules corrected May 2026 — see note below) |
 | Muscular Portfolios (Livingston) | Mama Bear, Papa Bear | Complete |
 | Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
 | Keller et al. | PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA | Complete (May 2026) |
 | Other | The Trend is Our Friend - Global | Complete (May 2026) |
+
+**Tactical Permanent Portfolio rules (corrected May 2026):**
+Original implementation used TLT (not IEF) and a 10-month SMA with equal 25% weights — incorrect.
+Correct rules (GestaltU implementation):
+- Universe: SPY, IEF, GLD (cash: BIL)
+- Filter: assets above their 200-day MA (daily prices)
+- Weights: 1/vol risk parity using 21-day annualized daily volatility
+- Vol target: 7% portfolio annualized vol (60-day covariance). If below 7% → hold as-is (no leverage). If above 7% → scale down, put remainder in BIL.
+- Three daily-price helpers in `rules_based.py`: `_above_200dma()`, `_daily_returns_n()`, `_portfolio_annualized_vol()`
 
 ---
 
