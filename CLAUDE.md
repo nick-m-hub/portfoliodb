@@ -35,6 +35,7 @@ English alongside any technical output.
 - Project folder: `portfoliodb`
 - GitHub repo: `portfoliodb`
 - Vercel: connected to GitHub, auto-deploys on every push
+- Git push: works directly from Claude Code. SSH key (`~/.ssh/id_ed25519`) is stored in the macOS Keychain with `~/.ssh/config` set to `UseKeychain yes` + `AddKeysToAgent yes`, so all subprocesses can push without an interactive terminal session.
 
 ---
 

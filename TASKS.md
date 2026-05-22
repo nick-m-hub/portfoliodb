@@ -98,7 +98,7 @@
 - [x] portfolio_strategies table integration — Strategy filter on Database page
 - [x] Growth of $10K chart — log scale by default with Log / Linear toggle (ChartsSection + GrowthChart)
 - [x] Navbar search — live portfolio search with dropdown, navigates to portfolio detail page (NavSearch.jsx + layout.tsx)
-- [x] GitHub SSH auth — switched remote from HTTPS to SSH (ed25519 key, macOS Keychain)
+- [x] GitHub SSH auth — switched remote from HTTPS to SSH (ed25519 key, macOS Keychain); configured `~/.ssh/config` with `UseKeychain yes` + `AddKeysToAgent yes` (May 2026) so Claude Code subprocesses can push directly without an interactive terminal session.
 - [x] Vercel TypeScript build errors — `getPortfolioNames() ?? []` in layout.tsx + JSDoc type annotation in Navbar.jsx
 - [x] Canonical tags — NEXT_PUBLIC_SITE_URL env var set in Vercel; all pages now emit correct production canonical URLs
 - [x] Sitemap audit — all 70 portfolio slugs confirmed present in /sitemap.xml
