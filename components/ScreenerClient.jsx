@@ -40,6 +40,18 @@ const ALL_COLUMNS = [
 const DEFAULT_VISIBLE = new Set(ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key));
 
 // ── Asset exposure helpers ──────────────────────────────────────────────────
+function getAssetBucket(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('bond') || n.includes('treasury') || n.includes('fixed') || n.includes('corporate') || n.includes('inflation-protected') || n.includes('high yield')) return 'FI';
+  if (n.includes('equity') || n.includes('stock') || n.includes('equit') ||
+      n.includes('-cap') || n.includes('blend') || n.includes('dividend') ||
+      n.includes('growth') || n.includes('value') || n.includes('momentum') ||
+      n.includes('developed')) return 'EQ';
+  if (n.includes('gold') || n.includes('commodit') || n.includes('natural resource') || n.includes('broad comm')) return 'CMD';
+  if (n.includes('real estate') || n.includes('reit')) return 'RE';
+  return 'ALT';
+}
+
 function assetBadges(allocations) {
   const badges = new Set();
   for (const a of allocations) {
@@ -379,26 +391,39 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
                   {assetClassesOpen ? 'expand_less' : 'expand_more'}
                 </span>
               </button>
-              {assetClassesOpen && (
-                <div className="space-y-1.5 pt-1">
-                  {assetClasses.map(ac => (
-                    <label key={ac.asset_class} className="flex items-center gap-2.5 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={assetClassFilters.includes(ac.asset_class)}
-                        onChange={() => toggleAssetClass(ac.asset_class)}
-                        className="w-3.5 h-3.5 rounded border-outline-variant text-primary focus:ring-primary flex-shrink-0"
-                      />
-                      {ac.default_color && (
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ac.default_color }} />
-                      )}
-                      <span className="font-inter text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors leading-snug">
-                        {ac.asset_class}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
+              {assetClassesOpen && (() => {
+                const grouped = Object.fromEntries(ASSET_BUCKETS.map(b => [b, []]));
+                for (const ac of assetClasses) grouped[getAssetBucket(ac.asset_class)].push(ac);
+                return (
+                  <div className="space-y-3 pt-1">
+                    {ASSET_BUCKETS.filter(b => grouped[b].length > 0).map(b => (
+                      <div key={b}>
+                        <p className="font-inter text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5">
+                          {BUCKET_LABELS[b]}
+                        </p>
+                        <div className="space-y-1.5">
+                          {grouped[b].map(ac => (
+                            <label key={ac.asset_class} className="flex items-center gap-2.5 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={assetClassFilters.includes(ac.asset_class)}
+                                onChange={() => toggleAssetClass(ac.asset_class)}
+                                className="w-3.5 h-3.5 rounded border-outline-variant text-primary focus:ring-primary flex-shrink-0"
+                              />
+                              {ac.default_color && (
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ac.default_color }} />
+                              )}
+                              <span className="font-inter text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors leading-snug">
+                                {ac.asset_class}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Performance Benchmarks */}
