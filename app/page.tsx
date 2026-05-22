@@ -96,29 +96,13 @@ export default async function Home() {
             </div>
           </section>
 
-          {/* ── Membership callout ── */}
-          <section className="col-span-12">
-            <div className="bg-surface-container-low border border-outline-variant rounded-xl px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <p className="font-manrope text-[16px] font-semibold text-on-surface mb-1">Monthly signals for {signalCount} portfolios.</p>
-                <p className="font-inter text-[13px] text-on-surface-variant">Members receive monthly rebalancing guidance for a curated selection of portfolios in the database.</p>
-              </div>
-              <Link
-                href="/membership"
-                className="flex-shrink-0 bg-primary text-on-primary font-inter text-[13px] font-semibold px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity whitespace-nowrap"
-              >
-                See membership options
-              </Link>
-            </div>
-          </section>
-
-          {/* ── Top Strategies ── */}
-          <TopStrategies sections={topSections} />
-
           {/* ── Email Capture ── */}
           <section className="col-span-12">
             <EmailCapture />
           </section>
+
+          {/* ── Top Strategies ── */}
+          <TopStrategies sections={topSections} />
 
           {/* ── Premium ── */}
           <section className="col-span-12 mb-12">
@@ -133,7 +117,7 @@ export default async function Home() {
                   </span>
                 </div>
                 <h2 className="font-manrope text-[28px] font-semibold text-on-surface mb-6 tracking-tight">
-                  Monthly Rebalancing Guidance
+                  Monthly Signals for {signalCount} Portfolios
                 </h2>
                 <p className="font-inter text-[18px] text-on-surface-variant mb-8 leading-relaxed">
                   Take the guesswork out of rebalancing. Get actionable updates for selected

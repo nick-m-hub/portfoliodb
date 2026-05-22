@@ -47,11 +47,15 @@ export default function EmailCapture() {
     <div className="bg-surface-container-low border border-outline-variant rounded-xl px-6 py-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-primary text-[16px]">picture_as_pdf</span>
+            <span className="font-inter text-[11px] font-semibold text-primary uppercase tracking-wider">Free Report</span>
+          </div>
           <p className="font-manrope text-[15px] font-semibold text-on-surface mb-0.5">
-            Which portfolios survived the dot-com crash and 2008?
+            How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years
           </p>
           <p className="font-inter text-[13px] text-on-surface-variant">
-            Get our free crash analysis report — plus monthly portfolio insights.
+            Download the free PDF — plus get monthly portfolio insights from PortfolioDB.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="flex gap-2 w-full sm:w-auto">
