@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import NavSearch from '@/components/NavSearch';
+import MobileMoreMenu from '@/components/MobileMoreMenu';
 
 /** @param {{ portfolios: Array<{name: string, slug: string}> }} props */
 export default function Navbar({ portfolios = [] }) {
@@ -59,7 +60,7 @@ export default function Navbar({ portfolios = [] }) {
         </div>
 
         {/* Mobile-only nav links row */}
-        <div className="flex md:hidden items-center gap-6 border-t border-outline-variant/40 py-2">
+        <div className="flex md:hidden items-center justify-between border-t border-outline-variant/40 py-2">
           <Link
             href="/database"
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
@@ -78,18 +79,7 @@ export default function Navbar({ portfolios = [] }) {
           >
             Strategies
           </Link>
-          <Link
-            href="/compare"
-            className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
-          >
-            Compare
-          </Link>
-          <Link
-            href="/membership"
-            className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
-          >
-            Membership
-          </Link>
+          <MobileMoreMenu />
         </div>
 
       </div>
