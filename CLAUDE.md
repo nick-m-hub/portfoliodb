@@ -94,11 +94,12 @@ Many-to-many: each portfolio can have multiple strategy tags.
 ### Table: asset_classes
 Reference/lookup table.
 
-| Column        | Type | Notes           |
-|---------------|------|-----------------|
-| asset_class   | text | Primary key     |
-| default_color | text | Hex color code  |
-| description   | text |                 |
+| Column         | Type | Notes                                         |
+|----------------|------|-----------------------------------------------|
+| asset_class    | text | Primary key                                   |
+| default_color  | text | Hex color code                                |
+| default_ticker | text | Default ETF ticker for this asset class       |
+| description    | text |                                               |
 
 ### Table: blog_posts
 Stores blog content. RLS set so only published rows are publicly readable.
@@ -257,6 +258,7 @@ portfoliodb/
     Navbar.jsx                       # Top navigation bar (server) — accepts portfolios prop, renders NavSearch; uses portfoliodb-icon.svg logo
     portfoliodb-icon.svg             # Site logo SVG (also copied to public/ for Next.js Image)
     NavSearch.jsx                    # Navbar search box (client) — live portfolio search with dropdown
+    MobileMoreMenu.jsx               # Mobile "More ▾" dropdown (client) — toggles Compare + Membership links; click-outside to close
     FilterBar.jsx                    # Home page filter bar (client) — navigates to /database
     AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language (e.g. 'saving for retirement in 20 years')
     TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
@@ -399,8 +401,9 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Navbar "Strategies" link added to both desktop (`hidden md:flex`) and mobile row
 
 ### Navbar.jsx
-- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener/Strategies links on mobile only
-- Stays a server component — all interactivity is in NavSearch.jsx (client)
+- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener/Strategies + `<MobileMoreMenu />` on mobile only
+- Mobile "More ▾" dropdown: Compare and Membership are tucked into `MobileMoreMenu.jsx` (client component) to avoid cramming the mobile row
+- Stays a server component — all interactivity is in NavSearch.jsx and MobileMoreMenu.jsx (both client)
 - JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx
 - Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
 
@@ -666,7 +669,22 @@ python3 stage2_promote.py --month 2026-04
 **New portfolios added May 2026:**
 - `us-stock-market` — VTI (100%). Backfilled with VFINX (EODHD) for Jan 1980 – May 2001, then VTI for Jun 2001 – Apr 2026. Stage 1 handles VTI going forward.
 - `global-stock-market` — VT (100%). Backfilled with MSCI ACWI Index daily prices for Jan 1999 – Jun 2008, then VT (EODHD) for Jul 2008 – Apr 2026. Stage 1 handles VT going forward.
-- Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py` and `scripts/auto-returns/backfill_global_stock_market.py` (idempotent, safe to re-run)
+- `ben-felix-model-portfolio` — SPY/VTI/EFA/IWN/EEM/AVDV. Backfilled Jul 1995 – Apr 2026 using a multi-proxy chain (VTSMX→VTI, DFSVX→IWN, PRITX→EFA, FEMKX→EEM, DISVX→DLS→AVDV). DISVX EODHD data floor (Jul 1995) is the binding constraint.
+- Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py`, `backfill_global_stock_market.py`, `backfill_ben_felix_model_portfolio.py` (all idempotent, safe to re-run)
+
+**Backtest proxy chains (established May 2026):**
+Use these when backfilling new B&H portfolios that hold these ETFs. See `reference_backtest_proxy_chains.md` in memory for full details.
+
+| Live ETF | Proxy | Transition |
+|---|---|---|
+| VTI | VTSMX | Jun 2001 |
+| IWN | DFSVX | Aug 2000 |
+| EFA | PRITX | Sep 2001 |
+| EEM | FEMKX | May 2003 |
+| AVDV | DLS (Jul 2006–Sep 2019), then DISVX (pre Jul 2006) | Oct 2019 |
+
+`backfill_ben_felix_model_portfolio.py` is the reference implementation for multi-proxy backfills.
+DISVX EODHD data starts Jul 1995 — practical floor for any portfolio with an AVDV/international small-cap value allocation.
 
 **Key decisions:**
 - Stage 1 calculates tactical returns separately in Step 5b using `tactical_monthly_holdings` (run Stage 0 first). Stage 2 promotes all pending rows regardless of category — tactical and B&H together.
@@ -828,7 +846,7 @@ Pages fixed (May 2026): `strategies/[slug]`, `membership`, homepage grid, EmailC
 
 ## Portfolio Description Drafts
 
-All 49 portfolio descriptions have been drafted, reviewed, and stored in `description-drafts/` at the project root. Each file is saved directly in `\n` format (the DB-ready format) — no separate code block, no human-readable section. The file content is what gets pasted into Supabase.
+All 72 portfolio descriptions have been drafted, reviewed, and stored in `description-drafts/` at the project root. Each file is saved directly in `\n` format (the DB-ready format) — no separate code block, no human-readable section. The file content is what gets pasted into Supabase.
 
 ### Description format spec
 
@@ -856,7 +874,7 @@ Descriptions are stored as a single text value. Use the two-character sequence `
 
 ### Valid internal portfolio links
 When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
-`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`
 
 Do NOT link to: `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
 
@@ -879,7 +897,7 @@ Then redeploy on Vercel.
 - TASKS.md — complete step-by-step build checklist with Claude prompts
 - content-calendar.md — 25-post SEO content calendar; full outlines, keywords, portfolio slugs, and internal links for each post
 - Playbook .docx — full migration playbook (stored outside project)
-- description-drafts/ — 49 portfolio description drafts, DB-ready
+- description-drafts/ — 72 portfolio description drafts, DB-ready
 
 ---
 
