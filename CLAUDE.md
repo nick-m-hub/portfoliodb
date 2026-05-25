@@ -248,6 +248,11 @@ portfoliodb/
         page.js                      # Blog post page (server, dynamicParams: true) — react-markdown renderer, generateStaticParams, notFound() guard
     compare/
       page.js                        # Portfolio Comparison page (server, dynamic) — reads ?slugs= param, fetches up to 4 portfolios, passes to CompareClient
+    monte-carlo-simulation/
+      page.js                        # Monte Carlo Simulation page (server, dynamic) — reads ?slug= param, pre-fetches monthly returns server-side, passes to MonteCarloClient
+    api/
+      monte-carlo-returns/
+        route.js                     # GET — returns monthly_returns + portfolio stats for a given slug; used by MonteCarloClient when user changes portfolio
     sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages + blog posts)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
@@ -277,6 +282,7 @@ portfoliodb/
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
+    MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards
   lib/
     supabase.js                      # Supabase client init
     db.js                            # All database query functions (see below)
@@ -364,6 +370,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Blog Index             | `/blog`                  | Complete |
 | Blog Post              | `/blog/[slug]`           | Complete |
 | Portfolio Comparison   | `/compare`               | Complete |
+| Monte Carlo Simulation | `/monte-carlo-simulation`| Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -513,6 +520,20 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Data is pre-computed server-side in `page.tsx` using `getAllAllocations()` + array sort; no client-side fetching
 - Dropdown is a styled native `<select>` with `appearance-none` + Material Symbols `expand_more` arrow overlay
 - Primary stat, icon, and secondary stats all update based on selected metric
+
+### MonteCarloClient.jsx (Monte Carlo Simulation — /monte-carlo-simulation)
+
+- `app/monte-carlo-simulation/page.js` is a server component (dynamic) — reads `?slug=` from URL, pre-fetches `getMonthlyReturns(slug)` and `getPortfolio(slug)` server-side so the page loads with data already populated
+- When the user changes the portfolio dropdown client-side, `MonteCarloClient` fetches fresh data from `GET /api/monte-carlo-returns?slug=...` (returns `{ returns, portfolio }`)
+- **Simulation inputs:** portfolio selector, initial value (formatted with commas), withdrawal amount (formatted with commas), withdrawal frequency (monthly/quarterly/annually), inflation adjustment (3%/yr hardcoded, yes/no), simulation period (1–50 years), return method (historical/statistical), sequence of returns risk (None or Worst 1–10 years first)
+- **Return methods:**
+  - *Historical (bootstrap):* randomly resamples full calendar years from the portfolio's actual monthly return history; maintains return autocorrelation within a year
+  - *Statistical:* draws random monthly returns from a normal distribution fitted to the portfolio's historical mean and std dev (Box-Muller transform)
+- **Sequence of returns risk:** groups monthly returns by calendar year, sorts years worst-to-best by annual return, prepends the N worst calendar years to the front of every simulation's return sequence; remaining period is bootstrapped or statistical as selected. All 1,000 simulations share the same forced-bad prefix.
+- **Output:** 5-line Recharts `LineChart` showing 10th/25th/50th/75th/90th percentile portfolio values at each year-end. 90th and 75th are solid lines; 50th (median) is bold primary green; 25th and 10th are dashed. Plus 4 stat cards: success rate (% of simulations where portfolio > $0 at end), median ending balance, 90th percentile, 10th percentile.
+- **Inflation:** adjusts the withdrawal amount by `(1.03)^(1/12) - 1` every month, regardless of withdrawal frequency. On a withdrawal month, the current (already-inflated) amount is subtracted.
+- **"Monte Carlo Simulation" button** on every portfolio detail page hero links to `/monte-carlo-simulation?slug=${slug}`, pre-populating the portfolio.
+- Navbar: "Monte Carlo" link added to desktop nav and mobile More dropdown.
 
 ### OG Images (app/opengraph-image.js + app/portfolios/[slug]/opengraph-image.js)
 - Built with `next/og` (`ImageResponse`) — no extra package needed
