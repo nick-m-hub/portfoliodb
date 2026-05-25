@@ -1,4 +1,4 @@
-# PortfolioDB.co — Project Context
+# PortfolioDB.com — Project Context
 # Claude reads this file at the start of every session.
 # Do not delete or rename this file.
 
@@ -6,7 +6,7 @@
 
 ## What This Project Is
 
-PortfolioDB.co is a portfolio database and screener site for finance/investing
+PortfolioDB.com is a portfolio database and screener site for finance/investing
 audiences. It is being migrated from WordPress to a modern Next.js stack.
 
 The owner (Nick) is not a developer. All explanations should be in plain
@@ -270,7 +270,7 @@ portfoliodb/
     RollingReturnChart.jsx           # Recharts line chart for Rolling Returns 1Y/3Y/5Y/10Y (client)
     ChartsSection.jsx                # Client wrapper owning benchmark, timeline, and log/linear scale toggle state
     StructuredData.jsx               # JSON-LD structured data for portfolio pages
-    GoogleAnalytics.jsx              # GA4 script tag — fires only on portfoliodb.co (hostname check in inline script)
+    GoogleAnalytics.jsx              # GA4 script tag — fires only on www.portfoliodb.com (hostname check in inline script)
     EmailCapture.jsx                 # Email capture card (client) — compact horizontal layout, posts to /api/subscribe, success/error states
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
