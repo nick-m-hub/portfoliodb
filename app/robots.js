@@ -5,6 +5,6 @@ export default function robots() {
       allow: '/',
       disallow: '/api/',
     },
-    sitemap: 'https://portfoliodb.co/sitemap.xml',
+    sitemap: 'https://www.portfoliodb.com/sitemap.xml',
   };
 }

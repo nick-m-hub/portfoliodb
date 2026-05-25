@@ -16,7 +16,7 @@ export default function GoogleAnalytics() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          if (window.location.hostname === 'portfoliodb.co') {
+          if (window.location.hostname === 'www.portfoliodb.com') {
             gtag('config', '${GA_ID}');
           }
         `}

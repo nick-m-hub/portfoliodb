@@ -1,6 +1,6 @@
 import { getAllSlugs, getAllStrategiesWithCounts, getAllBlogSlugs } from '@/lib/db';
 
-const BASE_URL = 'https://portfoliodb.co';
+const BASE_URL = 'https://www.portfoliodb.com';
 
 const staticPages = [
   '/',
