@@ -46,6 +46,12 @@ export default function Navbar({ portfolios = [] }) {
                 Compare
               </Link>
               <Link
+                href="/monte-carlo-simulation"
+                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+              >
+                Monte Carlo
+              </Link>
+              <Link
                 href="/membership"
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >

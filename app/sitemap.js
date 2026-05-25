@@ -7,6 +7,7 @@ const staticPages = [
   '/database',
   '/portfolio-screener',
   '/compare',
+  '/monte-carlo-simulation',
   '/glossary-of-terms',
   '/methodology',
   '/membership',

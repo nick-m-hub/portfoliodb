@@ -34,6 +34,13 @@ export default function MobileMoreMenu() {
             Compare
           </Link>
           <Link
+            href="/monte-carlo-simulation"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
+          >
+            Monte Carlo
+          </Link>
+          <Link
             href="/membership"
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"

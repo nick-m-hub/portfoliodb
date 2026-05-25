@@ -258,6 +258,13 @@ export default async function PortfolioDetailPage({ params }) {
               <span className="material-symbols-outlined text-[18px]">compare_arrows</span>
               Compare This Portfolio
             </Link>
+            <Link
+              href={`/monte-carlo-simulation?slug=${slug}`}
+              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">monitoring</span>
+              Monte Carlo Simulation
+            </Link>
             {portfolio.m1_link && (
               <a
                 href={portfolio.m1_link}
