@@ -731,10 +731,13 @@ tactical_monthly_holdings (
 - Signals calculated end of month M-1 → holdings stored for month M → return calculated end of month M
 - Historical holdings not tracked — automation starts from current month forward
 
-**Monthly workflow:**
-1. **Last trading day of month** — run Stage 0 manually from GitHub Actions (calculates signals, stores next month's holdings in `tactical_monthly_holdings`)
-2. **3rd of next month** — Stage 1 runs automatically (calculates B&H + tactical returns, emails summary)
-3. **Within a day or two** — run Stage 2 manually to promote everything to live
+**Monthly workflow (example: end of May):**
+1. **May 31 (last trading day)** — run Stage 0 → stores June holdings in `tactical_monthly_holdings` (dated June 1). Signal email goes out to members the same day.
+2. *(June passes — portfolios hold those positions all month)*
+3. **July 3** — Stage 1 runs automatically → reads June holdings, fetches June closing prices, calculates June returns for all portfolios (B&H + tactical), emails summary
+4. **Shortly after July 3** — run Stage 2 manually → promotes June staging rows to live `monthly_returns`
+
+Stage 0 and Stage 1 are always one full month apart. Stage 0 sets *next* month's holdings; Stage 1 scores *last* month's holdings. They never operate on the same month simultaneously.
 
 **Stage 0 timing note:** Signals must be calculated on the last trading day of the month so the signal email to members goes out the same day. Cron cannot target "last trading day" reliably, so Stage 0 is manual-only. Stage 1 picks up the stored holdings automatically on the 3rd.
 
