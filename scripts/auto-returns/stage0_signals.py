@@ -89,6 +89,8 @@ _PRIOR_HOLDINGS_SLUGS = {"stokens-active-combined-asset"}
 def main():
     parser = argparse.ArgumentParser(description="Stage 0: Calculate tactical portfolio signals")
     parser.add_argument("--month", type=str, default=None, help="Target month YYYY-MM")
+    parser.add_argument("--force", action="store_true",
+                        help="Overwrite existing holdings for this month. Use only to correct a signal after confirming with members.")
     args = parser.parse_args()
 
     load_dotenv(dotenv_path=DOTENV_PATH)
@@ -158,8 +160,12 @@ def main():
     # -----------------------------------------------------------------------
     print("Calculating signals and writing holdings...\n")
 
+    if args.force:
+        print("  *** --force flag set: existing holdings will be overwritten ***\n")
+
     success = []
-    skipped = []
+    skipped_no_data = []
+    skipped_exists = []
 
     for slug, signal_fn in SIGNAL_REGISTRY.items():
         sig = inspect.signature(signal_fn)
@@ -170,14 +176,30 @@ def main():
 
         if holdings is None:
             print(f"  [SKIP] {slug} — insufficient price data")
-            skipped.append(slug)
+            skipped_no_data.append(slug)
             continue
 
-        # Delete any existing holdings for this portfolio + month, then insert fresh.
-        # This makes the script safe to re-run if you need to correct a signal.
-        supabase.table("tactical_monthly_holdings").delete().eq(
-            "portfolio_slug", slug
-        ).eq("date", target_month.isoformat()).execute()
+        # Check whether holdings already exist for this portfolio + month.
+        # By default, skip to protect the signal that was already sent to members.
+        # Use --force to overwrite intentionally (e.g. to correct a bad signal).
+        existing = (
+            supabase.table("tactical_monthly_holdings")
+            .select("ticker", count="exact")
+            .eq("portfolio_slug", slug)
+            .eq("date", target_month.isoformat())
+            .execute()
+        )
+        already_stored = existing.count and existing.count > 0
+
+        if already_stored and not args.force:
+            print(f"  [SKIP] {slug} — holdings already stored for {month_display(target_month)} (use --force to overwrite)")
+            skipped_exists.append(slug)
+            continue
+
+        if already_stored and args.force:
+            supabase.table("tactical_monthly_holdings").delete().eq(
+                "portfolio_slug", slug
+            ).eq("date", target_month.isoformat()).execute()
 
         rows = [
             {
@@ -198,13 +220,17 @@ def main():
     print(f"\n{'='*60}")
     print(f"SUMMARY — {month_display(target_month)}")
     print(f"{'='*60}")
-    print(f"  Signals calculated : {len(success)}")
-    if skipped:
-        print(f"  Skipped (no data) : {len(skipped)}")
-        for s in skipped:
+    print(f"  Signals written    : {len(success)}")
+    if skipped_exists:
+        print(f"  Skipped (exists)   : {len(skipped_exists)} — already stored, not overwritten")
+        for s in skipped_exists:
+            print(f"    {s}")
+    if skipped_no_data:
+        print(f"  Skipped (no data)  : {len(skipped_no_data)}")
+        for s in skipped_no_data:
             print(f"    {s}")
     print(f"\n  Holdings stored in tactical_monthly_holdings.")
-    print(f"  Stage 1 will pick these up when it runs on the 3rd.")
+    print(f"  Stage 1 will pick these up when it runs on the 3rd of next month.")
     print(f"{'='*60}\n")
 
 
