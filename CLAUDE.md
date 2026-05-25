@@ -748,6 +748,11 @@ python3 stage0_signals.py --month 2026-06
 
 **Run after market close.** EODHD is an end-of-day feed. If you run Stage 0 mid-day on the last trading day, EODHD will not yet have that day's closing prices and the script will silently fall back to the prior day's close. Run after ~5pm ET, or on the following morning (Saturday), to guarantee the correct prices.
 
+**Stage 0 is overwrite-safe by default.** If you re-run Stage 0 for a month that already has holdings stored, it skips those portfolios rather than overwriting them. This protects the exact signals that were sent to members on the last trading day. To intentionally overwrite (e.g. to correct a bad signal after notifying members), use:
+```bash
+python3 stage0_signals.py --month 2026-06 --force
+```
+
 **Signal registry** (`stage0_signals.py`): maps portfolio slugs to their signal functions. To add a new portfolio: add its signal function to the relevant module and one line to `SIGNAL_REGISTRY`. Nothing else changes.
 
 **Stateful strategies (Stoken's ACA):** `stoken_aca()` accepts an optional third argument `prior_holdings` to resolve the "between channels" state. `stage0_signals.py` queries last month's `tactical_monthly_holdings` for any slug listed in `_PRIOR_HOLDINGS_SLUGS` and passes the result automatically. If no prior data exists (first run), all sleeves default to their defensive asset.
