@@ -1025,6 +1025,8 @@ Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/che
 
 **Webhook URL:** `https://www.portfoliodb.com/api/memberful` — configure in Memberful → Settings → Webhooks. Webhook Secret auto-generated there; store as `MEMBERFUL_WEBHOOK_SECRET` in Vercel (Sensitive).
 
+**Memberful webhook payload structure (confirmed May 2026):** The actual payload is `{ event, subscription: { id, member: { id, email, ... }, subscription_plan: { name, ... }, expires_at, active, ... } }`. Key differences from initial assumptions: (1) `member` is nested inside `subscription`, not top-level; (2) plan is at `subscription.subscription_plan`, not `subscription.plan`; (3) `expires_at` can be either a Unix timestamp (number) or ISO string depending on context — handler checks `typeof` before multiplying by 1000.
+
 **Account management:** Members click "Manage subscription" → `https://portfoliodb.memberful.com/account` (Memberful-hosted portal).
 
 **Auth flow:**

@@ -5,10 +5,12 @@ import { useState } from 'react';
 // ─── Update these once Memberful plans are live ────────────────────────────────
 // Memberful checkout URLs look like: https://portfoliodb.memberful.com/checkout?plan=XXXXX
 // Leave as '#' until Nick has the Memberful account and plan IDs set up.
-const MEMBERFUL_BUILDER_MONTHLY_URL = 'https://portfoliodb.memberful.com/checkout?plan=147939';
-const MEMBERFUL_BUILDER_ANNUAL_URL  = 'https://portfoliodb.memberful.com/checkout?plan=147940';
-const MEMBERFUL_SIGNALS_MONTHLY_URL = 'https://portfoliodb.memberful.com/checkout?plan=147941';
-const MEMBERFUL_SIGNALS_ANNUAL_URL  = 'https://portfoliodb.memberful.com/checkout?plan=147942';
+// Temporarily disabled while Memberful post-purchase redirect is being configured.
+// Re-enable by restoring the real URLs once redirect to portfoliodb.com/account is confirmed working.
+const MEMBERFUL_BUILDER_MONTHLY_URL = '#';
+const MEMBERFUL_BUILDER_ANNUAL_URL  = '#';
+const MEMBERFUL_SIGNALS_MONTHLY_URL = '#';
+const MEMBERFUL_SIGNALS_ANNUAL_URL  = '#';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PLANS = {
