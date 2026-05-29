@@ -44,8 +44,8 @@ from utils import get_last_trading_day_price, n_month_return
 
 ALL_TICKERS = list({
     # PAA / GPM risky universe
-    "SPY", "QQQ", "IWM", "VGK", "EWJ", "EEM", "IYR", "GSG", "GLD", "TLT", "HYG", "LQD",
-    # VAA G12 / DAA risky universe extras (EEM shared with PAA; VNQ replaces IYR; DBC replaces GSG)
+    "SPY", "QQQ", "IWM", "VGK", "EWJ", "EEM", "IYR", "DBC", "GLD", "TLT", "HYG", "LQD",
+    # VAA G12 / DAA risky universe extras (EEM shared with PAA; VNQ replaces IYR)
     "VNQ", "DBC",
     # VAA G4 extras
     "EFA", "AGG",
@@ -259,7 +259,7 @@ def _min_var_weights(tickers, cov):
 # ---------------------------------------------------------------------------
 # PAA — Protective Asset Allocation  (PAA2 variant)
 #
-# Universe (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, GSG, GLD, TLT, HYG, LQD
+# Universe (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, DBC, GLD, TLT, HYG, LQD
 # Momentum:  SMA(12) = p0 / avg(p1..p12) - 1
 # Protection (a=2): BF = (N-n) / (N/2), capped at 100%
 #   → 100% IEF when n ≤ 6
@@ -267,7 +267,7 @@ def _min_var_weights(tickers, cov):
 # Source: Keller & Keuning (2016), SSRN 2759734
 # ---------------------------------------------------------------------------
 
-_PAA_RISKY = ["SPY", "QQQ", "IWM", "VGK", "EWJ", "EEM", "IYR", "GSG", "GLD", "TLT", "HYG", "LQD"]
+_PAA_RISKY = ["SPY", "QQQ", "IWM", "VGK", "EWJ", "EEM", "IYR", "DBC", "GLD", "TLT", "HYG", "LQD"]
 _PAA_N     = 12
 _PAA_TOP   = 6
 
@@ -412,7 +412,7 @@ def daa(target_month, price_cache):
 # ---------------------------------------------------------------------------
 # GPM — Generalized Protective Momentum
 #
-# Universe (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, GSG, GLD, TLT, HYG, LQD
+# Universe (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, DBC, GLD, TLT, HYG, LQD
 # CP assets: IEF, BIL  (select one by highest zi score)
 # Scores:
 #   ri = (R1 + R3 + R6 + R12) / 4   (simple average momentum, %)

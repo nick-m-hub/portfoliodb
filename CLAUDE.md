@@ -118,16 +118,59 @@ Stores blog content. RLS set so only published rows are publicly readable.
 
 To publish a post: insert a row with `status = 'published'` and a `published_at` timestamp. No redeploy needed — `dynamicParams: true` on the post page means it goes live immediately.
 
+### Table: user_subscriptions
+One row per Memberful subscriber. `user_id` is nullable — Memberful fires the webhook before the user may have created a Supabase account. The user_id gets linked at first login by matching email in `app/auth/callback/route.js`.
+
+| Column             | Type        | Notes                                                                       |
+|--------------------|-------------|-----------------------------------------------------------------------------|
+| id                 | uuid        | Auto-generated                                                              |
+| user_id            | uuid        | FK → auth.users.id — nullable until first login                             |
+| email              | text        | Memberful member email                                                      |
+| memberful_member_id | text        | Memberful member ID string — unique constraint, used as upsert conflict key |
+| plan               | text        | 'builder' or 'signals'                                                      |
+| billing_period     | text        | 'monthly' or 'annual'                                                       |
+| status             | text        | 'active', 'cancelled', or 'expired'                                         |
+| current_period_end | timestamptz | When the current billing period ends (used to show renewal/access-until)    |
+| updated_at         | timestamptz | Last updated                                                                |
+| created_at         | timestamptz | Auto-generated                                                              |
+
+RLS: users can read only their own row (matched by user_id). Webhook handler uses service role key and bypasses RLS.
+
+### Table: user_portfolios
+Saved custom mixes from the Portfolio Builder.
+
+| Column      | Type        | Notes                                                                       |
+|-------------|-------------|-----------------------------------------------------------------------------|
+| id          | uuid        | Auto-generated                                                              |
+| user_id     | uuid        | FK → auth.users.id                                                          |
+| name        | text        | User-provided mix name (optional)                                           |
+| selections  | jsonb       | Array of `{ slug, weight }` objects — e.g. `[{"slug":"golden-butterfly-portfolio","weight":"50"}]` |
+| created_at  | timestamptz | Auto-generated                                                              |
+
+RLS: users can read/insert/delete only their own rows. Builder tier enforces a max of 3 rows at the API layer (not DB constraint).
+
 ### Blog post writing workflow
 
 1. Pick the next post from `content-calendar.md` (recommended order: Posts 1–3 first, then 11–12)
-2. Run the SQL query below to pull fresh stats for the portfolios referenced in that post — never hardcode numbers
+2. Pull fresh stats for the portfolios referenced in that post — never hardcode numbers (see options below)
 3. Write the post in Claude (target ~1,200 words; follow style rules below)
 4. Insert into `blog_posts` with `status = 'draft'`, review on the live site at `/blog/[slug]`
-5. Flip to `status = 'published'` and set `published_at` when ready — goes live immediately
+5. Nick edits the two `[ADD YOUR TAKE HERE]` slots, then flips to `status = 'published'` and sets `published_at` — goes live immediately
 6. Mark the post as published in `content-calendar.md`
 
-**SQL to pull fresh portfolio stats for writing:**
+**Option A — temp Node script (preferred, no manual SQL needed):**
+```js
+// run with: node scripts/fetch-stats-temp.js
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+supabase.from('portfolio_stats')
+  .select('slug,name,cagr,max_drawdown,sharpe_ratio,sortino_ratio,ulcer_index,ulcer_performance_index,best_year,worst_year,cagr_10yr,cagr_gfc,cagr_dotcom,rolling_1yr_low,rolling_1yr_avg,rolling_1yr_high,rolling_3yr_low,rolling_3yr_avg,rolling_3yr_high,rolling_10yr_low,rolling_10yr_avg,rolling_10yr_high')
+  .in('slug', ['slug-1', 'slug-2', 'slug-3'])
+  .then(({ data }) => data.forEach(p => console.log(JSON.stringify(p, null, 2))));
+```
+Delete the temp script after use. A similar temp script can be used to insert a draft — see Post 2 session (May 2026) for reference.
+
+**Option B — SQL in Supabase SQL Editor:**
 ```sql
 SELECT slug, name, cagr, max_drawdown, sharpe_ratio, sortino_ratio,
        ulcer_index, ulcer_performance_index, best_year, worst_year,
@@ -138,6 +181,11 @@ SELECT slug, name, cagr, max_drawdown, sharpe_ratio, sortino_ratio,
 FROM portfolio_stats
 WHERE slug IN ('slug-1', 'slug-2', 'slug-3');
 ```
+
+**Crisis period definitions (confirmed from view source):**
+- `cagr_gfc` — annualized CAGR over 2007–2009 (Global Financial Crisis). Describe in posts as "during the 2007–2009 financial crisis."
+- `cagr_dotcom` — annualized CAGR over 2000–2002 (dot-com crash). Describe as "dot-com crash (2000–2002)."
+- Both require ≥24 months of data in the window to be non-null.
 
 **Blog post style rules:**
 - ~1,200 words; H2 subheadings every 250–300 words
@@ -248,11 +296,29 @@ portfoliodb/
         page.js                      # Blog post page (server, dynamicParams: true) — react-markdown renderer, generateStaticParams, notFound() guard
     compare/
       page.js                        # Portfolio Comparison page (server, dynamic) — reads ?slugs= param, fetches up to 4 portfolios, passes to CompareClient
+    login/
+      page.js                        # Login page (server) — reads searchParams.next + searchParams.error; renders LoginForm
+    account/
+      page.js                        # Account page (server, force-dynamic) — fetches user + subscription + saved mixes; shows plan badge, renewal date, saved mix list; redirects to /login if unauthenticated
+    auth/
+      callback/
+        route.js                     # Auth callback route — exchanges code for session, links Memberful subscription by email (sets user_id on matching null-user_id row), redirects to ?next= param
+    builder/
+      page.js                        # Portfolio Builder page (server, force-dynamic) — fetches auth user + active subscription (tier) + saved mix count + getPortfolioNames() + getAllAllocations() + getCurrentSignals() server-side; passes userId/tier/savedCount/allPortfolios/mixParam/allAllocations/allSignals to BuilderClient
     monte-carlo-simulation/
       page.js                        # Monte Carlo Simulation page (server, dynamic) — reads ?slug= param, pre-fetches monthly returns server-side, passes to MonteCarloClient
     api/
       monte-carlo-returns/
         route.js                     # GET — returns monthly_returns + portfolio stats for a given slug; used by MonteCarloClient when user changes portfolio
+      builder-returns/
+        route.js                     # GET — takes ?slugs=a,b,c (max 6), returns monthly_returns grouped by slug; used by BuilderClient when portfolios are added
+      builder-save/
+        route.js                     # POST — verifies auth (401), active subscription (403), builder 3-mix limit (429); inserts to user_portfolios; returns { id }
+      memberful/
+        route.js                     # POST — Memberful webhook handler; HMAC-SHA256 signature verification (X-Memberful-Webhook-Signature header); handles subscription.activated/created/renewed/updated → 'active'; subscription.deactivated → 'cancelled'; subscription.deleted/member.deleted → 'expired'; upserts user_subscriptions; mapPlan() checks name contains 'signals'/'builder'; mapBillingPeriod() checks for 'annual'/'yearly'
+      portfolios/
+        [id]/
+          route.js                   # DELETE — verifies auth, deletes user_portfolio row with .eq('id', id).eq('user_id', user.id) (RLS double-enforced)
     sitemap.js                       # Dynamic sitemap (portfolio slugs + static pages + strategy pages + blog posts)
     robots.js                        # robots.txt
     opengraph-image.js               # Static OG image for homepage and other pages (1200×630)
@@ -260,10 +326,10 @@ portfoliodb/
       [slug]/
         opengraph-image.js           # Dynamic per-portfolio OG image — fetches live data, renders name/CAGR/Sharpe/MaxDD
   components/
-    Navbar.jsx                       # Top navigation bar (server) — accepts portfolios prop, renders NavSearch; uses portfoliodb-icon.svg logo
+    Navbar.jsx                       # Top navigation bar (server) — accepts portfolios prop, renders NavSearch + account_circle icon linking to /account; uses portfoliodb-icon.svg logo
     portfoliodb-icon.svg             # Site logo SVG (also copied to public/ for Next.js Image)
-    NavSearch.jsx                    # Navbar search box (client) — live portfolio search with dropdown
-    MobileMoreMenu.jsx               # Mobile "More ▾" dropdown (client) — toggles Compare + Membership links; click-outside to close
+    NavSearch.jsx                    # Navbar search box (client) — search icon by default; click opens floating panel with input + results
+    MobileMoreMenu.jsx               # Mobile "More ▾" dropdown (client) — toggles Compare, Builder, Monte Carlo, Membership, Account links; click-outside to close
     FilterBar.jsx                    # Home page filter bar (client) — navigates to /database
     AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language (e.g. 'saving for retirement in 20 years')
     TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
@@ -280,11 +346,17 @@ portfoliodb/
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
+    PricingToggle.jsx                # Client component — monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge; 4 Memberful checkout URLs hardcoded (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
+    LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
+    SignOutButton.jsx                # Client component — calls supabase.auth.signOut(), router.push('/'), router.refresh()
+    SavedMixList.jsx                 # Client component — displays saved mixes with inline delete confirmation (no window.confirm); buildLoadUrl() generates /builder?mix=slug:weight,... URLs; empty state + Builder tier (x/3) counter with upgrade link; shows blended holdings per mix card (Signals tier = real data; Builder tier = blurred with upgrade prompt); accepts allAllocations + allSignals props from account/page.js
+    CurrentSignals.jsx               # Client component — two contexts: (1) 'builder': renders a single blended holdings list computed from the mix's weights × each portfolio's current holdings/allocations; tactical portions blurred for non-Signals members; (2) 'account': grid of all signal portfolios with current month holdings (blurred with lock overlay for non-Signals). Props: context, blendedHoldings (builder), signals (account), tier
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
     MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards
+    BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session
   lib/
-    supabase.js                      # Supabase client init
+    supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
     db.js                            # All database query functions (see below)
     statDefinitions.js               # Plain JS (no 'use client') — STAT_DEFINITIONS object with definitions for 19 stat keys; importable by both server and client components
   public/
@@ -293,6 +365,7 @@ portfoliodb/
       Manrope-ExtraBold.ttf          # Manrope 800 — used by OG image routes
   scripts/
     update-descriptions.js           # Node.js script — reads all description-drafts/*.md and pushes to Supabase via service role key. Run with: node scripts/update-descriptions.js
+  proxy.js                           # Auth middleware (Next.js 16 — replaces deprecated middleware.js); exports proxy() + config; protects /account route; refreshes session cookies via supabase.auth.getUser()
   CLAUDE.md                          # This file
   TASKS.md                           # Migration task checklist
   .env.local                         # Secrets — not in git (see Environment Variables)
@@ -313,7 +386,8 @@ portfoliodb/
 | `getMonthlyReturns(slug)` | Monthly return rows for one portfolio, ordered by date asc      |
 | `getAllPortfolioStrategies()` | All rows from portfolio_strategies (portfolio_slug + strategy_slug) |
 | `getAllSlugs()`         | Slug column only from portfolios table (for generateStaticParams)  |
-| `getPortfolioNames()`  | name + slug from portfolios table, alphabetical (for Navbar search) |
+| `getPortfolioNames()`  | name + slug + kofi_link from portfolios table, alphabetical — kofi_link used by BuilderClient to identify tactical/signal portfolios |
+| `getCurrentSignals()`  | Current month's holdings for all signal-set portfolios (kofi_link IS NOT NULL) from tactical_monthly_holdings — grouped by portfolio, sorted by weight desc. weights stored as decimal fractions (0–1) in DB, multiplied by 100 before returning. Returns: [{ slug, name, date, holdings: [{ ticker, weight }] }] |
 | `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
 | `getSignalPortfolios()` | name + slug for all portfolios where kofi_link IS NOT NULL, alphabetical — used by membership page |
 | `getSignalPortfolioCount()` | Count of portfolios where kofi_link IS NOT NULL — used by homepage banner and membership page H1 |
@@ -336,12 +410,13 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 |-------------------------------|------------------------------|
 | NEXT_PUBLIC_SUPABASE_URL      | lib/supabase.js              |
 | NEXT_PUBLIC_SUPABASE_ANON_KEY | lib/supabase.js              |
-| SUPABASE_SERVICE_ROLE_KEY     | scripts/update-descriptions.js — bypasses RLS for writes; never expose client-side |
+| SUPABASE_SERVICE_ROLE_KEY     | app/api/memberful/route.js + scripts — bypasses RLS for webhook upserts and bulk scripts; never expose client-side; mark as Sensitive in Vercel |
 | ANTHROPIC_API_KEY             | app/api/screener/route.js    |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
 | NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
 | MAILERLITE_API_KEY            | app/api/subscribe/route.js — MailerLite API token (server-side only, never expose client-side) |
 | MAILERLITE_GROUP_ID           | app/api/subscribe/route.js — MailerLite group ID to add subscribers to |
+| MEMBERFUL_WEBHOOK_SECRET      | app/api/memberful/route.js — HMAC-SHA256 secret for verifying Memberful webhook payloads (auto-generated in Memberful → Settings → Webhooks); mark as Sensitive in Vercel |
 | EODHD_API_KEY                 | scripts/auto-returns/stage1_calculate.py — EODHD price data API key (scripts only, not needed in Vercel) |
 | NOTIFY_EMAIL                  | scripts/auto-returns/stage1_calculate.py — recipient address for monthly summary email |
 | SMTP_USER                     | scripts/auto-returns/stage1_calculate.py — Gmail sending address |
@@ -370,7 +445,10 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Blog Index             | `/blog`                  | Complete |
 | Blog Post              | `/blog/[slug]`           | Complete |
 | Portfolio Comparison   | `/compare`               | Complete |
+| Portfolio Builder      | `/builder`               | Complete (Phase 2 save flow pending — Step 5 next) |
 | Monte Carlo Simulation | `/monte-carlo-simulation`| Complete |
+| Login                  | `/login`                 | Complete |
+| Account                | `/account`               | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -408,8 +486,9 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Navbar "Strategies" link added to both desktop (`hidden md:flex`) and mobile row
 
 ### Navbar.jsx
-- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch; second row (`flex md:hidden`) shows Database/Screener/Strategies + `<MobileMoreMenu />` on mobile only
-- Mobile "More ▾" dropdown: Compare and Membership are tucked into `MobileMoreMenu.jsx` (client component) to avoid cramming the mobile row
+- Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch icon + `account_circle` icon; second row (`flex md:hidden`) shows Database/Screener/Strategies + `<MobileMoreMenu />` on mobile only
+- `account_circle` icon (22px) links to `/account` — no auth check needed here; middleware redirects unauthenticated users to `/login?next=/account` automatically
+- Mobile "More ▾" dropdown: Compare, Builder, Monte Carlo, Membership, and Account are in `MobileMoreMenu.jsx` (client component)
 - Stays a server component — all interactivity is in NavSearch.jsx and MobileMoreMenu.jsx (both client)
 - JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx
 - Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
@@ -445,9 +524,10 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 ### NavSearch.jsx
 - Client component — extracted from Navbar so Navbar stays a server component
 - Accepts `portfolios` prop (array of `{ name, slug }`) fetched in layout.tsx
+- Collapsed to a `search` icon (22px) by default; clicking opens a floating panel that drops below the icon without disturbing the navbar layout
+- Panel contains an auto-focused input with a `x` clear button; results list appears below as user types
 - Filters client-side as user types (case-insensitive, up to 8 results shown)
-- Dropdown: click a result navigates to `/portfolios/[slug]`, Enter navigates to first result
-- Escape or click-outside closes the dropdown
+- Click a result or press Enter to navigate to `/portfolios/[slug]`; Escape or click-outside closes the panel and clears the query
 
 ### GrowthChart.jsx
 - Client component using Recharts AreaChart
@@ -503,6 +583,61 @@ All must also be set in Vercel project settings for production (except SUPABASE_
   sortable. CSV export reflects currently visible columns. `ALL_COLUMNS` array in the component
   is the single source of truth for available columns.
 
+### PricingToggle.jsx (Membership Page — /membership)
+
+- Client component embedded in `app/membership/page.js` (server component passes `signalCount` prop)
+- Defaults to `isAnnual = true` (annual toggle active on load)
+- "Save ~25%" badge shown on the Yearly toggle button
+- Each plan card shows: tier name, monthly equivalent price, per-year price, feature list, CTA button
+- CTA logic: `url === '#'` → disabled grey "Coming soon" button; real URL → live `<a>` tag to Memberful checkout
+- "Most Popular" badge rendered on Signals card
+- Memberful checkout URL format: `https://portfoliodb.memberful.com/checkout?plan=ID`
+
+### LoginForm.jsx (Login Page — /login)
+
+- Client component — props: `next = '/account'`, `authError = null`
+- Two auth methods: email magic link (OTP) and Google OAuth
+- Both pass `next` through the redirect URL to `/auth/callback?next=...`
+- After submitting email: shows "Check your email" confirmation panel (replaces form)
+- `authError` prop renders an inline error banner (set from `searchParams.error` in login/page.js)
+- Uses `createBrowserSupabaseClient()` from `lib/supabase.js`
+
+### SignOutButton.jsx
+
+- Client component — single button; calls `supabase.auth.signOut()` then `router.push('/')` and `router.refresh()`
+- Rendered in the top-right of `app/account/page.js`
+
+### SavedMixList.jsx (Account Page — /account)
+
+- Client component — props: `initialMixes` (array), `tier` ('builder' | 'signals'), `allAllocations` (array), `allSignals` (array from getCurrentSignals)
+- `buildLoadUrl(selections)` builds `/builder?mix=${encodeURIComponent(slug:weight,slug:weight)}` URLs — clicking a mix opens it pre-loaded in the Builder
+- Delete: shows inline "Delete? Yes / Cancel" confirmation per row (no `window.confirm`)
+- Empty state: "No saved mixes yet" with "Go to Builder" CTA
+- Builder tier: shows `{mixes.length}/3 mixes used` counter with upgrade link when 3 are saved
+- Delete calls `DELETE /api/portfolios/[id]` and removes the mix from local state on success
+- **Blended holdings** shown inside each mix card below the weight pills — same computation as BuilderClient's `blendedHoldings` useMemo (portfolio weight × holding weight, summed by ticker). Signals tier sees real ticker chips; Builder tier sees blurred chips + "Tactical holdings visible with Signals membership" inline prompt. `allocBySlug`, `signalBySlug`, and `tacticalSlugs` are pre-computed once via useMemo and shared across all mix cards.
+
+### app/account/page.js (Account Page — /account)
+
+- Server component with `export const dynamic = 'force-dynamic'` (no caching — always shows fresh data)
+- Redirects unauthenticated users to `/login?next=/account`
+- Fetches subscription + saved mixes + `getCurrentSignals()` + `getAllAllocations()` in parallel via `Promise.all`
+- Subscription query: `status IN ('active', 'cancelled')`, ordered by `created_at DESC`, `limit(1)` — gets most recent active or cancelled plan
+- Plan card shows: tier badge (`Builder`/`Signals`), billing period, status (cancelled shows red "Cancelled" pill), renewal date ("Renews" for active, "Access until" for cancelled), "Manage subscription" → `https://portfoliodb.memberful.com/account`
+- No plan: upgrade prompt with "View plans →" to `/membership`
+- **Page section order:** Plan → Saved Mixes → Current Signals
+- Saved Mixes section: Builder tier shows `(x/3)` counter; no tier shows locked state with upgrade CTA; passes `allAllocations` + `allSignals` to `SavedMixList` for blended holdings display
+- Current Signals section: `<CurrentSignals context="account" signals={signals} tier={tier} />` — shows all signal portfolios' current month holdings; blurred with lock overlay for non-Signals members
+
+### proxy.js (Auth Middleware — Next.js 16)
+
+- **Important:** `middleware.js` is deprecated in Next.js 16. The file is `proxy.js` and exports `proxy` (not `middleware`). Next.js picks this up automatically.
+- Creates a `@supabase/ssr` server client on every request to refresh session cookies
+- Calls `supabase.auth.getUser()` immediately after creating the client — do not add logic between these two calls
+- `PROTECTED_ROUTES = ['/account']` — route check: `pathname === route || pathname.startsWith(route + '/')` (the `+ '/'` suffix prevents false matches like `/account-settings`)
+- Unauthenticated requests to protected routes get redirected to `/login?next=${pathname}`
+- `config.matcher` excludes `_next/static`, `_next/image`, `favicon.ico`, and image file extensions
+
 ### app/api/screener/route.js (AI Screener)
 - POST endpoint, accepts `{ goal }` in request body
 - Fetches all portfolios from Supabase, sends to Anthropic API
@@ -534,6 +669,34 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - **Inflation:** adjusts the withdrawal amount by `(1.03)^(1/12) - 1` every month, regardless of withdrawal frequency. On a withdrawal month, the current (already-inflated) amount is subtracted.
 - **"Monte Carlo Simulation" button** on every portfolio detail page hero links to `/monte-carlo-simulation?slug=${slug}`, pre-populating the portfolio.
 - Navbar: "Monte Carlo" link added to desktop nav and mobile More dropdown.
+
+### BuilderClient.jsx (Portfolio Builder — /builder)
+
+- `app/builder/page.js` is a server component (static) — fetches `getPortfolioNames()` and passes to `BuilderClient`
+- `app/api/builder-returns/route.js` — GET endpoint, accepts `?slugs=a,b,c` (max 6), queries `monthly_returns` in one Supabase call, returns `{ [slug]: [{date, monthly_return}] }`
+- **Portfolio selection:** search box filters `allPortfolioNames` client-side; selecting a portfolio fetches its returns from the API route and redistributes all weights equally; max 6 portfolios
+- **Weight management:** each portfolio has a text input with `inputMode="decimal"`; a "↑N%" shortcut button appears when a portfolio's weight doesn't match the remaining allocation; total weight indicator turns green with a check icon when weights sum to exactly 100%
+- **Equal weight distribution:** `equalWeights(n)` — floor(100/n) per slot, last slot absorbs rounding. Redistribution fires on add and remove.
+- **Computation triggers:** stats are computed (via `useMemo`) only when 2+ portfolios are selected, all weights sum to 100%, all return data is loaded, and no fetches are in progress
+- **Blended return series:** `buildBlendedReturns()` — finds the intersection of all portfolios' date sets, computes weighted monthly return for each common month. Only common months are used.
+- **Stats computed client-side** (mirrors `portfolio_stats` view math):
+  - CAGR: compound growth from running portfolio value, annualised over total months
+  - Max Drawdown: peak-to-trough from running $10K value (stored as negative %)
+  - Sharpe: `(mean_monthly - 0.375%) / stdDev * sqrt(12)` (4.5% annual RF rate)
+  - Sortino: downside deviation uses `min(0, r - RF)^2` averaged over all months
+  - Best/Worst Year: full 12-month years only; partial first/last years excluded
+- **Results display:** 6-stat grid (CAGR, Max Drawdown, Sharpe, Sortino, Best Year, Worst Year) + date range + total months + colour-coded weight pills + Growth of $10K chart (reuses `GrowthChart.jsx`) with Log/Linear toggle
+- **Free stats grid:** 3 stats always visible — CAGR, Max Drawdown, Sharpe Ratio (`grid-cols-3`)
+- **Performance Snapshot (blurred):** 8 additional stats shown blurred for non-members — Sortino Ratio, Best Year, YTD Return, Ulcer Index, GFC CAGR (left column); Worst Year, 10-Year CAGR, Ulcer Perf. Index, Dot-com CAGR (right column). Lock overlay with "See plans →" CTA to `/membership`. Unlocks when `isMember = true`.
+- **Auth props** — `userId`, `tier`, `savedCount` passed from `app/builder/page.js` server-side. `tier` is the active subscription plan ('builder' or 'signals'), null if no active plan. Performance Snapshot unlocks when `tier !== null`.
+- **`parseMixParam(mixParam, allPortfolios)`** — parses `?mix=slug:weight,slug:weight` URL param into selections array; looks up names from `allPortfolios`; max `MAX_PORTFOLIOS` entries; invalid slugs filtered out
+- **`mixParam` prop** — passed from `app/builder/page.js` via `searchParams.mix`; triggers `useEffect` on mount to fetch return data for pre-populated selections
+- **Save CTA — four states driven by props:** (a) `!userId` → "Sign in to save" + link to `/login?next=/builder`; (b) `userId && !tier` → upgrade prompt + "See plans →"; (c) `tier === 'builder' && localSavedCount >= 3` → "3/3 mixes saved" + links to `/account` and `/membership`; (d) can save → "Like this mix?" teaser → click expands to optional name input + Save button → POSTs to `/api/builder-save` → "Mix saved" success + link to `/account`. Save UI state resets when portfolios are added or removed (tracked via `selectionSlugs` derived value).
+- **`localSavedCount`** — local state initialised from `savedCount` prop; incremented after each successful save so the 3/3 limit UI shows immediately without a page reload.
+- **`tacticalSlugs`** — useMemo-derived Set of slugs where `kofi_link` is non-null (from `allPortfolios` prop); used to classify selected portfolios as tactical vs. Buy & Hold.
+- **`blendedHoldings`** — useMemo combining all selected portfolios' holdings weighted by mix weights: Buy & Hold use static allocations (`allAllocations` prop), tactical use current holdings (`allSignals` prop, weights already in % 0–100). Returns `{ hasTactical, holdings: [{ ticker, weight }] }` or null. Passed to `<CurrentSignals context="builder" />`. If any tactical portfolio is included and user is not Signals tier, the list is blurred with an upgrade prompt.
+- **PORTFOLIO_COLORS:** `['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b']` — one per slot, used for colour dots and weight pills
+- Navbar: "Builder" link added between Compare and Monte Carlo (desktop + mobile More dropdown). `/builder` added to sitemap.
 
 ### OG Images (app/opengraph-image.js + app/portfolios/[slug]/opengraph-image.js)
 - Built with `next/og` (`ImageResponse`) — no extra package needed
@@ -724,7 +887,7 @@ DISVX EODHD data starts Jul 1995 — practical floor for any portfolio with an A
 **Data model — Supabase table `tactical_monthly_holdings`:**
 ```sql
 tactical_monthly_holdings (
-  portfolio_slug, date, ticker, weight
+  portfolio_slug, date, ticker, weight  -- weight is a decimal fraction 0–1 (e.g. 0.333 = 33.3%)
 )
 ```
 - `date` = first day of the month the holdings are IN EFFECT
@@ -773,7 +936,7 @@ python3 stage0_signals.py --month 2026-06 --force
 - **Simple avg** (GPM ri): `(R1 + R3 + R6 + R12) / 4` — equal-weight
 
 **Keller universe reference:**
-- PAA / GPM risky (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, GSG, GLD, TLT, HYG, LQD
+- PAA / GPM risky (N=12): SPY, QQQ, IWM, VGK, EWJ, EEM, IYR, DBC, GLD, TLT, HYG, LQD
 - VAA G12 / DAA risky (N=12): SPY, IWM, QQQ, VGK, EWJ, EEM, VNQ, DBC, GLD, TLT, LQD, HYG
 - VAA G4 risky (N=4): SPY, EFA, EEM, AGG
 - KDA / AAA investment (N=10): SPY, VGK, EWJ, EEM, VNQ, RWX, IEF, TLT, DBC, GLD
@@ -797,6 +960,16 @@ python3 stage0_signals.py --month 2026-06 --force
 | Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
 | Keller et al. | PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA | Complete (May 2026) |
 | Other | The Trend is Our Friend - Global | Complete (May 2026) |
+
+**GSG → DBC (May 2026):**
+PAA and GPM previously used GSG (iShares S&P GSCI Commodity) as the commodities asset in their 12-asset risky universe. Updated to DBC (Invesco DB Commodity Index) to match the VAA/DAA family. Change made in `tactical/keller.py` (`ALL_TICKERS`, `_PAA_RISKY`, and comments). `allocations`, `asset_classes`, and `tactical_monthly_holdings` tables also need the same substitution via SQL UPDATE.
+
+**Known backtest discrepancy sources vs. other platforms (May 2026):**
+When comparing signal outputs against Portfolio Visualizer or similar tools, the most common causes of differences are:
+- **Execution timing** — scripts signal on last calendar day of month M-1 and apply to month M. Some platforms use next-day open prices, shifting effective returns by one day.
+- **Adjusted close** — EODHD `adjusted_close` accounts for dividends and splits. Different adjustment methods cause persistent drift over long backtests.
+- **SMA month inclusion** — `_above_sma` includes the current month-end close in the N-month average. Some platforms use N prior months (excluding current), which can flip signals in borderline months.
+- **Vol formula** — The Trend is Our Friend uses population std dev (`/ n`); Tactical Permanent uses sample variance (`/ n-1`). Minor on 12–21 observations but can produce different rank orders when assets have similar volatility.
 
 **Tactical Permanent Portfolio rules (corrected May 2026):**
 Original implementation used TLT (not IEF) and a 10-month SMA with equal 25% weights — incorrect.
@@ -829,6 +1002,39 @@ Correct rules (GestaltU implementation):
 - Mock email card in "What a signal looks like" section shows ticker/allocation pill badge format (not a generic table) — reflects actual signal email structure
 - Monthly signal email format: portfolio name as heading, tickers as `TICKER — XX%` lines. Formatted via Claude prompt (see Fix #11 in TASKS.md)
 
+## Paid Tiers — Pricing & Memberful (May 2026)
+
+Membership is now handled via Memberful (replacing Ko-fi). Two tiers, each with monthly and annual billing:
+
+| Tier    | Monthly | Annual (per year) | Annual (per mo equiv) | Save   |
+|---------|---------|-------------------|-----------------------|--------|
+| Builder | $12/mo  | $108/yr           | $9/mo                 | ~25%   |
+| Signals | $25/mo  | $228/yr           | $19/mo                | ~24%   |
+
+Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/checkout?plan=ID`):
+- Builder Monthly: 147939
+- Builder Annual: 147940
+- Signals Monthly: 147941
+- Signals Annual: 147942
+
+**What each tier unlocks:**
+- **Builder:** Save up to 3 custom mixes permanently + Performance Snapshot in the Builder (8 additional stats beyond free CAGR/MaxDD/Sharpe)
+- **Signals:** All Builder features + unlimited saved mixes + monthly trade signals for all covered portfolios
+
+**PricingToggle.jsx** is a client component embedded in `app/membership/page.js` (server). The toggle defaults to annual. `signalCount` prop is passed from the server for a dynamic feature bullet.
+
+**Webhook URL:** `https://www.portfoliodb.com/api/memberful` — configure in Memberful → Settings → Webhooks. Webhook Secret auto-generated there; store as `MEMBERFUL_WEBHOOK_SECRET` in Vercel (Sensitive).
+
+**Account management:** Members click "Manage subscription" → `https://portfoliodb.memberful.com/account` (Memberful-hosted portal).
+
+**Auth flow:**
+1. User visits `/login` (or gets redirected from a protected route with `?next=` param)
+2. Email magic link or Google OAuth → Next.js `/auth/callback` route
+3. Callback calls `supabase.auth.exchangeCodeForSession()`, then links subscription: updates `user_subscriptions` where `email = user.email AND user_id IS NULL` → sets `user_id`
+4. Redirects to `next` param (default `/account`)
+
+**Protecting routes:** `proxy.js` (Next.js 16, replaces deprecated `middleware.js`) wraps all routes except static assets. It creates a server Supabase client, calls `supabase.auth.getUser()`, and redirects unauthenticated users away from `PROTECTED_ROUTES = ['/account']`. The route check uses `pathname === route || pathname.startsWith(route + '/')` to avoid false matches (e.g. `/account-settings` would not have been caught by a bare `startsWith('/account')`).
+
 ## Membership CTA
 
 Portfolio detail pages show membership touchpoints in the hero right column:
@@ -843,13 +1049,64 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 
 ## Membership Page (`/membership`)
 
-- Price: `$19/mo` — stored as `MEMBERSHIP_PRICE` constant at top of `app/membership/page.js`; update there when price changes
-- Ko-fi URL: `KOFI_MEMBERSHIP_URL` constant at top of the same file — currently `https://ko-fi.com/portfoliodb`
+- Pricing is now handled by `PricingToggle.jsx` (client component); `MEMBERSHIP_PRICE` and `KOFI_MEMBERSHIP_URL` constants have been removed
+- Metadata descriptions updated to "from $9/mo" (Builder annual) / "from $19/mo" (Signals annual)
 - Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and Premium section headline on homepage both show live count
 - "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
 - "What a signal looks like" mock email shows 3 hardcoded portfolios; "+ N more" count is dynamic: `{signalCount - 3}` — updates automatically as portfolios are added
-- Main CTA button copy: "Subscribe on Ko-fi" — links directly to Ko-fi via `KOFI_MEMBERSHIP_URL`
+- All pricing CTAs now link directly to Memberful checkout URLs (see Paid Tiers section above)
 - Homepage has one membership touchpoint: the Premium section (below Top Strategies), with headline "Monthly Signals for {signalCount} Portfolios" (live count). The compact callout banner was removed May 2026.
+
+---
+
+## Supabase Auth Email (Resend)
+
+Magic link sign-in emails are sent via **Resend** (not Supabase's built-in mailer). Configured in Supabase → Authentication → SMTP Settings:
+
+| Field | Value |
+|-------|-------|
+| Sender name | PortfolioDB |
+| Sender email | `noreply@portfoliodb.com` |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | Resend API key (stored in Resend dashboard, not in Vercel env vars) |
+
+**Why Resend instead of Supabase default:** Supabase's built-in mailer sends from a `@mail.supabase.io` address, has a 3 emails/hour rate limit on the free plan, and has poor deliverability. Resend sends from `noreply@portfoliodb.com` with no rate limit on the free tier (3,000 emails/month).
+
+**Domain verification:** `portfoliodb.com` is verified in Resend with DNS records (TXT + CNAME for DKIM) added via Vercel's DNS management (the domain nameservers point to Vercel, not Namecheap — so DNS is managed in Vercel → Settings → Domains, not Namecheap Advanced DNS).
+
+**Email template:** Customised in Supabase → Authentication → Email Templates → Magic Link:
+- Subject: `Sign in to PortfolioDB`
+- Body: branded HTML with primary green (#074a34) button, expiry note, plain-text link fallback
+- Variable: `{{ .ConfirmationURL }}` — Supabase injects the actual magic link URL
+
+---
+
+## Local Testing as a Member
+
+To test the paid-tier experience on `localhost:3000` before pushing to production:
+
+**One-time setup (do once, leave in place):**
+1. Supabase Dashboard → Authentication → URL Configuration → add `http://localhost:3000/**` to Redirect URLs (keep the production URL too)
+2. Set `NEXT_PUBLIC_SITE_URL=http://localhost:3000` in `.env.local` (change back before pushing)
+
+**Per-session workflow:**
+1. Sign in at `localhost:3000/login` — magic link will redirect back to localhost
+2. Get your user ID: `SELECT id FROM auth.users WHERE email = 'your@email.com';`
+3. Insert a test subscription (use `'signals'` for full access, `'builder'` to test the 3-mix limit):
+```sql
+INSERT INTO user_subscriptions (user_id, email, memberful_id, plan, billing_period, status, current_period_end)
+VALUES ('your-user-id', 'your@email.com', 'test-member-001', 'signals', 'monthly', 'active', '2027-01-01T00:00:00Z');
+```
+4. Test `/account` (plan badge, saved mixes) and `/builder` (Performance Snapshot unlocked, save flow)
+5. Clean up when done:
+```sql
+DELETE FROM user_subscriptions WHERE memberful_id = 'test-member-001';
+DELETE FROM user_portfolios WHERE user_id = 'your-user-id';
+```
+
+**Remember:** revert `NEXT_PUBLIC_SITE_URL` back to the production URL in `.env.local` before pushing.
 
 ---
 

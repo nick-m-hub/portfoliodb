@@ -5,18 +5,24 @@ import { useRouter } from 'next/navigation';
 
 export default function NavSearch({ portfolios }) {
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const router = useRouter();
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
   const results = query.trim().length === 0 ? [] : portfolios
     .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 8);
 
   useEffect(() => {
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
+
+  useEffect(() => {
     function handleClickOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
+        setExpanded(false);
+        setQuery('');
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -25,8 +31,8 @@ export default function NavSearch({ portfolios }) {
 
   function handleKeyDown(e) {
     if (e.key === 'Escape') {
-      setOpen(false);
-      e.target.blur();
+      setExpanded(false);
+      setQuery('');
     }
     if (e.key === 'Enter' && results.length > 0) {
       navigate(results[0].slug);
@@ -35,35 +41,60 @@ export default function NavSearch({ portfolios }) {
 
   function navigate(slug) {
     setQuery('');
-    setOpen(false);
+    setExpanded(false);
     router.push(`/portfolios/${slug}`);
   }
 
   return (
-    <div ref={containerRef} className="relative flex items-center">
-      <span className="material-symbols-outlined absolute left-3 text-on-surface-variant text-[18px] pointer-events-none">
-        search
-      </span>
-      <input
-        className="bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-4 py-1.5 text-sm w-48 md:w-64 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all font-inter placeholder:text-on-surface-variant/60"
-        placeholder="Search strategies..."
-        type="text"
-        value={query}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => { if (query.trim()) setOpen(true); }}
-        onKeyDown={handleKeyDown}
-      />
-      {open && results.length > 0 && (
-        <div className="absolute top-full mt-1 right-0 w-72 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg z-50 overflow-hidden">
-          {results.map((p) => (
-            <button
-              key={p.slug}
-              onMouseDown={(e) => { e.preventDefault(); navigate(p.slug); }}
-              className="w-full text-left px-4 py-2.5 font-inter text-[13px] text-on-surface hover:bg-surface-container-low transition-colors"
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setExpanded(true)}
+        aria-label="Search portfolios"
+        className="text-on-surface-variant hover:text-primary transition-colors flex items-center"
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>search</span>
+      </button>
+
+      {expanded && (
+        <div className="absolute right-0 top-full mt-2 w-72 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg z-50 p-2">
+          <div className="flex items-center gap-2 bg-surface-container rounded-lg px-3 py-2">
+            <span
+              className="material-symbols-outlined text-on-surface-variant flex-shrink-0"
+              style={{ fontSize: '16px' }}
             >
-              {p.name}
-            </button>
-          ))}
+              search
+            </span>
+            <input
+              ref={inputRef}
+              className="flex-1 min-w-0 bg-transparent text-sm font-inter text-on-surface placeholder:text-on-surface-variant/60 outline-none"
+              placeholder="Search portfolios…"
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="text-on-surface-variant hover:text-on-surface transition-colors flex-shrink-0"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+              </button>
+            )}
+          </div>
+          {results.length > 0 && (
+            <div className="mt-1">
+              {results.map((p) => (
+                <button
+                  key={p.slug}
+                  onMouseDown={(e) => { e.preventDefault(); navigate(p.slug); }}
+                  className="w-full text-left px-3 py-2 font-inter text-[13px] text-on-surface hover:bg-surface-container-low transition-colors rounded-lg"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

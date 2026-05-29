@@ -46,6 +46,12 @@ export default function Navbar({ portfolios = [] }) {
                 Compare
               </Link>
               <Link
+                href="/builder"
+                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
+              >
+                Builder
+              </Link>
+              <Link
                 href="/monte-carlo-simulation"
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
@@ -60,8 +66,17 @@ export default function Navbar({ portfolios = [] }) {
             </div>
           </div>
 
-          {/* Search */}
-          <NavSearch portfolios={portfolios} />
+          {/* Search + Account */}
+          <div className="flex items-center gap-3">
+            <NavSearch portfolios={portfolios} />
+            <Link
+              href="/account"
+              aria-label="Account"
+              className="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>account_circle</span>
+            </Link>
+          </div>
 
         </div>
 

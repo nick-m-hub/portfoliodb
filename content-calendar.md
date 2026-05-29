@@ -50,7 +50,7 @@ I'll paste the content into Supabase as a new blog_posts row.
 | # | Title | Tier | Primary Keyword | Portfolios Referenced |
 |---|-------|------|-----------------|----------------------|
 | 1 | What Is the Ulcer Index? | Easy | ulcer index investing | all-weather, vigilant-g4, permanent | ✓ Published 2026-05-16 |
-| 2 | Permanent Portfolio Review | Easy | permanent portfolio review | permanent, 60/40, golden butterfly |
+| 2 | Permanent Portfolio Review | Easy | permanent portfolio review | permanent, 60/40, golden butterfly | ✓ Published 2026-05-25 |
 | 3 | All-Weather Portfolio Review | Easy | all weather portfolio review | all-weather, 60/40, permanent |
 | 4 | Bogleheads 3-Fund vs 4-Fund | Easy | bogleheads three fund vs four fund | 3-fund, 4-fund, 60/40 |
 | 5 | What Is the Sharpe Ratio? | Easy | sharpe ratio portfolio comparison | top Sharpe portfolios from live data |

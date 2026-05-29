@@ -34,6 +34,13 @@ export default function MobileMoreMenu() {
             Compare
           </Link>
           <Link
+            href="/builder"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
+          >
+            Builder
+          </Link>
+          <Link
             href="/monte-carlo-simulation"
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
@@ -46,6 +53,13 @@ export default function MobileMoreMenu() {
             className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
           >
             Membership
+          </Link>
+          <Link
+            href="/account"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
+          >
+            Account
           </Link>
         </div>
       )}
