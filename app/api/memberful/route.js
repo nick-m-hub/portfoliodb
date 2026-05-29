@@ -62,47 +62,35 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { event, member } = payload;
+  const { event, subscription } = payload;
 
-  // TEMP DEBUG — remove after confirming payload structure
-  console.log('[memberful] event:', event, '| keys:', Object.keys(payload));
-  console.log('[memberful] member:', JSON.stringify(member)?.slice(0, 200));
+  // Memberful payload structure: { event, subscription: { id, member: { id, email }, plan: { name }, expires_at, active } }
+  const member   = subscription?.member;
+  const memberId = member?.id ? String(member.id) : null;
 
-  if (!member?.id || !member?.email) {
-    console.warn('[memberful] Missing member id/email — payload keys:', Object.keys(payload));
+  if (!memberId || !member?.email) {
+    console.warn('[memberful] Missing member data — event:', event);
     return NextResponse.json({ ok: true });
   }
 
   const supabase = getAdminClient();
-  const memberId = String(member.id);
 
   // ── Subscription activated / created / renewed / updated ───────────────────
-  // Memberful sends the triggering subscription as payload.subscription,
-  // falling back to the first active one in member.subscriptions.
   if (
     event === 'subscription.activated' ||
     event === 'subscription.created'   ||
     event === 'subscription.renewed'   ||
     event === 'subscription.updated'
   ) {
-    const sub = payload.subscription
-      ?? member.subscriptions?.find((s) => s.active)
-      ?? member.subscriptions?.[0];
-
-    if (!sub) {
-      console.warn('[memberful] No subscription on event:', event, memberId);
-      return NextResponse.json({ ok: true });
-    }
-
-    const plan = mapPlan(sub.plan?.name);
+    const plan = mapPlan(subscription.plan?.name);
     if (!plan) {
-      console.warn('[memberful] Unknown plan name:', sub.plan?.name, '— skipping');
+      console.warn('[memberful] Unknown plan name:', subscription.plan?.name, '— skipping');
       return NextResponse.json({ ok: true });
     }
 
-    const billingPeriod    = mapBillingPeriod(sub.plan?.name);
-    const currentPeriodEnd = sub.expires_at
-      ? new Date(sub.expires_at * 1000).toISOString()
+    const billingPeriod    = mapBillingPeriod(subscription.plan?.name);
+    const currentPeriodEnd = subscription.expires_at
+      ? new Date(subscription.expires_at * 1000).toISOString()
       : null;
 
     const { error } = await supabase
@@ -137,7 +125,6 @@ export async function POST(request) {
 
     if (error) {
       console.error('[memberful] Deactivate error:', error);
-      // Return 500 so Memberful retries — a silent 200 would leave the row 'active' forever
       return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
     console.log(`[memberful] subscription.deactivated — ${member.email}`);
