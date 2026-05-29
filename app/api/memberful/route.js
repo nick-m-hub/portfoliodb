@@ -64,7 +64,12 @@ export async function POST(request) {
 
   const { event, member } = payload;
 
+  // TEMP DEBUG — remove after confirming payload structure
+  console.log('[memberful] event:', event, '| keys:', Object.keys(payload));
+  console.log('[memberful] member:', JSON.stringify(member)?.slice(0, 200));
+
   if (!member?.id || !member?.email) {
+    console.warn('[memberful] Missing member id/email — payload keys:', Object.keys(payload));
     return NextResponse.json({ ok: true });
   }
 
