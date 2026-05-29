@@ -65,11 +65,8 @@ export async function POST(request) {
   const { event, subscription } = payload;
 
   // Memberful payload structure: { event, subscription: { id, member: { id, email }, plan: { name }, expires_at, active } }
-  console.log('[memberful] subscription keys:', JSON.stringify(Object.keys(subscription || {})));
-  console.log('[memberful] subscription sample:', JSON.stringify(subscription)?.slice(0, 500));
-
   const member   = subscription?.member;
-  const memberId = member?.id ? String(member.id) : null;
+  const memberId = member?.id != null ? String(member.id) : null;
 
   if (!memberId || !member?.email) {
     console.warn('[memberful] Missing member data — event:', event);
@@ -85,13 +82,13 @@ export async function POST(request) {
     event === 'subscription.renewed'   ||
     event === 'subscription.updated'
   ) {
-    const plan = mapPlan(subscription.plan?.name);
+    const plan = mapPlan(subscription.subscription_plan?.name);
     if (!plan) {
       console.warn('[memberful] Unknown plan name:', subscription.plan?.name, '— skipping');
       return NextResponse.json({ ok: true });
     }
 
-    const billingPeriod    = mapBillingPeriod(subscription.plan?.name);
+    const billingPeriod    = mapBillingPeriod(subscription.subscription_plan?.name);
     const currentPeriodEnd = subscription.expires_at
       ? new Date(subscription.expires_at * 1000).toISOString()
       : null;
