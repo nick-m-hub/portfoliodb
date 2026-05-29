@@ -90,7 +90,11 @@ export async function POST(request) {
 
     const billingPeriod    = mapBillingPeriod(subscription.subscription_plan?.name);
     const currentPeriodEnd = subscription.expires_at
-      ? new Date(subscription.expires_at * 1000).toISOString()
+      ? new Date(
+          typeof subscription.expires_at === 'number'
+            ? subscription.expires_at * 1000
+            : subscription.expires_at
+        ).toISOString()
       : null;
 
     const { error } = await supabase
