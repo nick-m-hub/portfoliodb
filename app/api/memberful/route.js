@@ -82,7 +82,6 @@ export async function POST(request) {
     event === 'subscription.renewed'   ||
     event === 'subscription.updated'
   ) {
-    console.log('[memberful] subscription_plan:', JSON.stringify(subscription.subscription_plan));
     const plan = mapPlan(subscription.subscription_plan?.name);
     if (!plan) {
       console.warn('[memberful] Unknown plan name:', subscription.plan?.name, '— skipping');
