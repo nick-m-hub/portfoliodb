@@ -65,6 +65,9 @@ export async function POST(request) {
   const { event, subscription } = payload;
 
   // Memberful payload structure: { event, subscription: { id, member: { id, email }, plan: { name }, expires_at, active } }
+  console.log('[memberful] subscription keys:', JSON.stringify(Object.keys(subscription || {})));
+  console.log('[memberful] subscription sample:', JSON.stringify(subscription)?.slice(0, 500));
+
   const member   = subscription?.member;
   const memberId = member?.id ? String(member.id) : null;
 
