@@ -20,8 +20,6 @@ const PLANS = {
 
 const BUILDER_FEATURES = [
   'Save up to 3 custom portfolio mixes',
-  'Export a professional PDF for any saved mix',
-  'Full stat table, Growth of $10K chart, and drawdown chart in every PDF',
   'Unlimited session-based mixing (already free)',
   'Full database, screener, and comparison tools',
 ];
@@ -30,7 +28,6 @@ const getSignalsFeatures = (signalCount) => [
   `Monthly trade signals for ${signalCount} tactical portfolios`,
   'Signal archive — full history of past signals',
   'Unlimited saved mixes in the Portfolio Builder',
-  'PDF export for all saved mixes',
   'Everything in Builder, plus all free features',
 ];
 
