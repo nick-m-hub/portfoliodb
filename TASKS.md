@@ -26,11 +26,11 @@
 
 ## Reminders
 
-- [ ] **Email funnel review (check ~2026-06-01)** — Welcome sequence went live 2026-05-16. Review in MailerLite:
+- [ ] **Email funnel review (check ~2026-06-01)** — Welcome sequence went live 2026-05-16. Email 4 updated May 2026 to reflect Memberful tiers (Builder + Signals) and link to `/membership` instead of Ko-fi. Review in MailerLite:
   - Open rates (benchmark: 25–30% for finance)
   - Click rate on Email 2 (signals database interest)
   - Drop-off between Email 3 and Email 4 (high unsubscribes = Email 3 needs tightening)
-  - Ko-fi conversion on Email 4 (good open rate but low clicks = offer framing needs work)
+  - Membership conversion on Email 4 (good open rate but low clicks = offer framing needs work)
 
 ---
 
@@ -54,7 +54,7 @@
 
 - [x] **Phase 2 Step 6 — Launch** — Deployed May 2026. Webhook confirmed working end-to-end (test purchase inserted row in user_subscriptions correctly). Three payload structure bugs fixed post-deploy: member nested inside subscription (not top-level), plan field is subscription_plan (not plan), expires_at can be ISO string or Unix timestamp. Checkout buttons temporarily set to "Coming soon" while Memberful post-purchase redirect is configured.
 
-- [ ] **Memberful post-purchase redirect** — After a purchase, Memberful redirects to a default page. Configure it to redirect to `https://www.portfoliodb.com/login` so new members can immediately sign in and access their plan. In Memberful: Settings → Checkout → After Purchase URL (or similar). Once confirmed working, restore the 4 checkout URLs in `components/PricingToggle.jsx` (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942) and remove the "Coming soon" buttons.
+- [x] **Memberful post-purchase redirect + checkout launch (May 2026)** — Post-purchase redirect configured in Memberful to `https://www.portfoliodb.com/login`. Memberful branding updated (primary green #074a34 buttons, PortfolioDB logo, background #f8faf8). Supabase auth email templates updated (Confirm Signup + Change Email Address) to match Magic Link branding. 4 checkout URLs restored in `PricingToggle.jsx` — "Coming soon" buttons replaced with live "Get Builder" / "Get Signals" links. Full end-to-end test passed: checkout → redirect → login → account page shows correct plan → webhook inserted row in user_subscriptions → Builder Performance Snapshot unlocked.
 
 - [x] **Resend SMTP for Supabase auth emails (May 2026)** — Replaced Supabase's default mailer with Resend. Domain `portfoliodb.com` verified in Resend with DNS records added via Vercel DNS management (domain nameservers point to Vercel, not Namecheap). Supabase → Authentication → SMTP Settings configured: host `smtp.resend.com`, port 465, username `resend`, password = Resend API key, sender `noreply@portfoliodb.com`. Magic link email template customised in Supabase → Authentication → Email Templates with PortfolioDB branding and primary green button. See CLAUDE.md → Supabase Auth Email section.
 

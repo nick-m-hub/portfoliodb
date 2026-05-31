@@ -992,7 +992,7 @@ Correct rules (GestaltU implementation):
   - Email 1 (immediate): PDF delivery
   - Email 2 (Day 3): What PortfolioDB is, data insight
   - Email 3 (Day 6): Why tactical signals differ from financial news (weather forecast analogy)
-  - Email 4 (Day 10): Soft pitch to Ko-fi membership ($19/mo)
+  - Email 4 (Day 10): Membership pitch — explains Builder ($9/mo annual) and Signals ($19/mo annual) tiers, sample signal format, links to `https://www.portfoliodb.com/membership`. Updated May 2026 from Ko-fi to Memberful.
 - Sequence went live: 2026-05-16
 
 ---
