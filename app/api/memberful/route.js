@@ -75,16 +75,15 @@ export async function POST(request) {
 
   const supabase = getAdminClient();
 
-  // ── Subscription activated / created / renewed / updated ───────────────────
+  // ── Subscription activated / created / renewed ────────────────────────────
   if (
     event === 'subscription.activated' ||
     event === 'subscription.created'   ||
-    event === 'subscription.renewed'   ||
-    event === 'subscription.updated'
+    event === 'subscription.renewed'
   ) {
     const plan = mapPlan(subscription.subscription_plan?.name);
     if (!plan) {
-      console.warn('[memberful] Unknown plan name:', subscription.plan?.name, '— skipping');
+      console.warn('[memberful] Unknown plan name:', subscription.subscription_plan?.name, '— skipping');
       return NextResponse.json({ ok: true });
     }
 
@@ -97,9 +96,6 @@ export async function POST(request) {
         ).toISOString()
       : null;
 
-    // Use subscription.active to detect cancellations fired via subscription.updated
-    const status = subscription.active === false ? 'cancelled' : 'active';
-
     const { error } = await supabase
       .from('user_subscriptions')
       .upsert(
@@ -108,7 +104,7 @@ export async function POST(request) {
           email:               member.email,
           plan,
           billing_period:      billingPeriod,
-          status,
+          status:              'active',
           current_period_end:  currentPeriodEnd,
           updated_at:          new Date().toISOString(),
         },
@@ -121,6 +117,60 @@ export async function POST(request) {
     }
 
     console.log(`[memberful] ${event} — ${member.email} → ${plan} (${billingPeriod})`);
+  }
+
+  // ── Subscription updated (plan change, autorenew toggle, period-end change) ──
+  // When a member cancels, Memberful fires this event with autorenew toggled to
+  // false in the `changed` object — but `active` remains true until period end.
+  // subscription.deactivated only fires when the period actually expires.
+  // So we detect cancellation here via changed.autorenew.new === false.
+  else if (event === 'subscription.updated') {
+    const plan = mapPlan(subscription.subscription_plan?.name);
+    if (!plan) {
+      console.warn('[memberful] Unknown plan name:', subscription.subscription_plan?.name, '— skipping');
+      return NextResponse.json({ ok: true });
+    }
+
+    const billingPeriod    = mapBillingPeriod(subscription.subscription_plan?.name);
+    const currentPeriodEnd = subscription.expires_at
+      ? new Date(
+          typeof subscription.expires_at === 'number'
+            ? subscription.expires_at * 1000
+            : subscription.expires_at
+        ).toISOString()
+      : null;
+
+    const { changed } = payload;
+    const updateFields = {
+      email:              member.email,
+      plan,
+      billing_period:     billingPeriod,
+      current_period_end: currentPeriodEnd,
+      updated_at:         new Date().toISOString(),
+    };
+
+    if (changed?.autorenew?.new === false) {
+      // Member cancelled — autorenew turned off
+      updateFields.status = 'cancelled';
+    } else if (changed?.autorenew?.new === true) {
+      // Member reactivated — autorenew turned back on
+      updateFields.status = 'active';
+    }
+    // Otherwise leave status untouched (plan change, period-end update, etc.)
+
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .upsert(
+        { memberful_member_id: memberId, ...updateFields },
+        { onConflict: 'memberful_member_id' }
+      );
+
+    if (error) {
+      console.error('[memberful] Update error:', error);
+      return NextResponse.json({ error: 'DB error' }, { status: 500 });
+    }
+
+    console.log(`[memberful] ${event} — ${member.email} → ${plan} (${billingPeriod}), autorenew changed: ${JSON.stringify(changed?.autorenew)}`);
   }
 
   // ── Subscription deactivated (cancelled but may still have access until period end) ──

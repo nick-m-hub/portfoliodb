@@ -105,7 +105,7 @@ export default async function AccountPage() {
                 rel="noopener noreferrer"
                 className="font-inter text-[13px] text-primary hover:underline flex items-center gap-1"
               >
-                Manage subscription
+                {subscription.status === 'cancelled' ? 'Reactivate' : 'Manage subscription'}
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
               </a>
             </div>
