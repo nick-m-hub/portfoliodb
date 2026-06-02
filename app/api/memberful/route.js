@@ -97,6 +97,9 @@ export async function POST(request) {
         ).toISOString()
       : null;
 
+    // Use subscription.active to detect cancellations fired via subscription.updated
+    const status = subscription.active === false ? 'cancelled' : 'active';
+
     const { error } = await supabase
       .from('user_subscriptions')
       .upsert(
@@ -105,7 +108,7 @@ export async function POST(request) {
           email:               member.email,
           plan,
           billing_period:      billingPeriod,
-          status:              'active',
+          status,
           current_period_end:  currentPeriodEnd,
           updated_at:          new Date().toISOString(),
         },
