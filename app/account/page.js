@@ -112,8 +112,7 @@ export default async function AccountPage() {
 
             {subscription.current_period_end && (
               <p className="font-inter text-[12px] text-on-surface-variant mt-3">
-                {subscription.status === 'cancelled' ? 'Access until' : 'Renews'}{' '}
-                {formatDate(subscription.current_period_end)}
+                Access until {formatDate(subscription.current_period_end)}
               </p>
             )}
           </div>
