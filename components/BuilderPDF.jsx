@@ -554,17 +554,19 @@ export function BuilderPDFDocument({
           <Text style={{ fontSize: 7, color: C.gray, marginBottom: 8 }}>* Partial year (data starts or ends mid-year)</Text>
         )}
 
-        {/* Drawdown chart */}
-        <Text style={s.heading}>Historical Drawdown</Text>
-        <View style={s.card}>
-          <SvgLineChart
-            series={benchSeries(ddPort, dd60, ddUS_)}
-            width={CW - 20}
-            height={DD_H}
-            yFormat={(v) => `${v.toFixed(0)}%`}
-            zeroLine={true}
-          />
-          <ChartLegend items={legendItems} />
+        {/* Drawdown chart — wrap={false} keeps heading + chart on the same page */}
+        <View wrap={false}>
+          <Text style={s.heading}>Historical Drawdown</Text>
+          <View style={s.card}>
+            <SvgLineChart
+              series={benchSeries(ddPort, dd60, ddUS_)}
+              width={CW - 20}
+              height={DD_H}
+              yFormat={(v) => `${v.toFixed(0)}%`}
+              zeroLine={true}
+            />
+            <ChartLegend items={legendItems} />
+          </View>
         </View>
 
         <PageFooter />
