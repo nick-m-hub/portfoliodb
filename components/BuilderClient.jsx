@@ -133,6 +133,16 @@ function computeStats(blended) {
   const gfcCagr     = crisisCagr('2007-10-01', '2009-03-31'); // GFC peak-to-trough
   const dotcomCagr  = crisisCagr('2000-03-01', '2002-10-31'); // Dot-com peak-to-trough
 
+  // Annual returns and year-end portfolio values (for PDF table)
+  const annualReturns = Object.entries(yearFactors)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([year, f]) => ({
+      year,
+      return: (f - 1) * 100,
+      fullYear: yearCounts[year] === 12,
+      endValue: byYear[year],
+    }));
+
   return {
     cagr,
     maxDrawdown,
@@ -147,6 +157,7 @@ function computeStats(blended) {
     gfcCagr,
     dotcomCagr,
     growthData,
+    annualReturns,
     totalMonths: n,
     startDate: blended[0].date,
     endDate: blended[blended.length - 1].date,
@@ -257,6 +268,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   const [saveName, setSaveName] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
   const [logScale, setLogScale] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const searchRef = useRef(null);
 
   // Filter portfolio list for the search dropdown
@@ -454,6 +466,45 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
       setSaveStatus('error');
     }
   }, [saveName, selections]);
+
+  const handleDownloadPDF = useCallback(async () => {
+    if (!stats) return;
+    setPdfLoading(true);
+    try {
+      // Compute blended returns from current portfolio selections
+      const blendedReturns = buildBlendedReturns(portfolioReturns, selections);
+
+      // Fetch benchmark returns in parallel with library imports
+      const [{ pdf }, { BuilderPDFDocument }, benchRes] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('@/components/BuilderPDF'),
+        fetch('/api/builder-returns?slugs=united-states-60-40-portfolio,us-stock-market'),
+      ]);
+      const benchData  = benchRes.ok ? await benchRes.json() : {};
+      const returns6040 = benchData['united-states-60-40-portfolio'] ?? [];
+      const returnsUS   = benchData['us-stock-market'] ?? [];
+
+      const blob = await pdf(
+        <BuilderPDFDocument
+          selections={selections}
+          stats={stats}
+          mixName={saveName.trim() || null}
+          blendedReturns={blendedReturns}
+          returns6040={returns6040}
+          returnsUS={returnsUS}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'portfolio-mix-analysis.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [stats, selections, saveName, portfolioReturns]);
 
   // Weight display — show integer if whole number, one decimal otherwise
   const weightDisplay =
@@ -726,6 +777,20 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                       {stats.totalMonths} months
                     </p>
                   </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                  {tier && (
+                    <button
+                      onClick={handleDownloadPDF}
+                      disabled={pdfLoading}
+                      title="Download PDF report"
+                      className="flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                        {pdfLoading ? 'progress_activity' : 'download'}
+                      </span>
+                      {pdfLoading ? 'Generating…' : 'Download PDF'}
+                    </button>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {selections.map((s, i) => (
                       <span
@@ -736,6 +801,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                         {s.weight}%&nbsp;{s.name}
                       </span>
                     ))}
+                  </div>
                   </div>
                 </div>
 
@@ -933,6 +999,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                           {[
                             'Save up to 3 custom mixes permanently',
                             'Unlock the Performance Snapshot with 8 additional stats',
+                            'Download a full PDF report for any mix',
                           ].map((item) => (
                             <li key={item} className="flex items-start gap-2 font-inter text-[13px] text-on-surface-variant">
                               <span className="material-symbols-outlined text-primary flex-shrink-0" style={{ fontSize: '15px' }}>check</span>
