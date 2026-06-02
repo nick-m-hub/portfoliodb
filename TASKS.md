@@ -6,6 +6,10 @@
 
 ## In Progress / Next Up
 
+- [x] **Portfolio Builder — PDF export (June 2026)** — `components/BuilderPDF.jsx` added: 3-page landscape A4 PDF using `@react-pdf/renderer`. Page 1: mix composition + 12-stat grid + Growth of $10K log-scale chart. Page 2: annual returns table (portfolio vs US 60/40 vs US Market) + drawdown chart. Page 3: rolling 1/3/5yr return charts. All charts are custom SVG primitives — no Recharts. "Download PDF" button in BuilderClient stats card header, visible to Builder/Signals tier only. Benchmark returns (60/40 + US Market) fetched via `/api/builder-returns` on click. Library dynamically imported on demand (~200KB). `app/api/builder-returns/route.js` updated with `.range()` pagination to bypass Supabase PostgREST's 1,000-row server cap (was silently truncating benchmark data around 2016-2017). PDF feature listed on membership page (PricingToggle.jsx) for both Builder and Signals tiers.
+
+- [ ] **Test cancellation display fix** — Cancel a test subscription on Memberful and confirm the account page shows "Cancelled" badge + "Access until [date]" instead of "Renews." Bug was `subscription.updated` overwriting `cancelled` status back to `active` — fixed June 2026 in `app/api/memberful/route.js`.
+
 - [x] **Tactical portfolio automation — Keller et al. family** — `tactical/keller.py` implements PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA. All 7 registered in SIGNAL_REGISTRY. numpy + scipy added to requirements.txt. 28 total automated tactical portfolios. Only remaining: "The Trend is Our Friend - Global" (no source docs available yet).
 
 - [x] **Tactical portfolio automation — "The Trend is Our Friend - Global"** — Implemented in `tactical/rules_based.py`. Risk-parity (inverse-volatility) weighting across 7 global asset classes (SPY, EEM, IEF, BWX, DBC, VNQ, RWO); 10-month SMA filter redirects failing assets to BIL. 29 tactical portfolios now fully automated. (May 2026)
@@ -14,7 +18,7 @@
 
 - [x] **Portfolio Builder — Phase 2 (Memberful migration)** — All steps complete. Code ready to deploy — commit and push pending. See details in Backlog.
 
-- [ ] **Blog content** — Post 1 published 2026-05-16. Post 2 published 2026-05-25. Next recommended: Post 3 (All-Weather Portfolio Review) — high search volume, easy to produce. See `content-calendar.md` for full outlines and SQL queries to pull fresh stats before writing.
+- [ ] **Blog content** — Post 1 published 2026-05-16. Post 2 published 2026-05-25. Post 3 (All-Weather Portfolio Review) published 2026-06-01 (slug: `ray-dalios-all-weather-portfolio-review`). Next: Post 4 (Bogleheads Three-Fund vs Four-Fund).
 
 - [x] **Shrink hero stat cards (May 2026)** — Switched from `flex flex-wrap` to `grid grid-cols-2 lg:grid-cols-4` so 4 tiles always stay in one row on desktop and max 2 rows on mobile. Reduced padding (`px-6 py-4` → `px-4 py-3`) and number font size (`text-[36px]` → `text-[26px]`). Empty `hidden lg:block` div fills the 4th slot when YTD Return is null.
 
@@ -31,6 +35,8 @@
   - Click rate on Email 2 (signals database interest)
   - Drop-off between Email 3 and Email 4 (high unsubscribes = Email 3 needs tightening)
   - Membership conversion on Email 4 (good open rate but low clicks = offer framing needs work)
+
+- [x] **MailerLite sender domain authentication** — portfoliodb.com verified June 2026 (DKIM CNAME added in Cloudflare). All automation emails now send from `support@portfoliodb.com`.
 
 ---
 
@@ -111,6 +117,8 @@
 ---
 
 ## Completed
+
+- [x] **Cloudflare migration (June 2026)** — Moved DNS from Vercel to Cloudflare. Cloudflare now proxies all traffic before it hits Vercel, eliminating bot-driven ISR quota consumption. WAF custom rule: Singapore OR China → Managed Challenge (targeting observed low-engagement bot traffic). Bot Fight Mode turned OFF — it was blocking Memberful webhook requests on the free plan and cannot be selectively bypassed per path. WAF skip rule added for `/api/memberful` (placed First). All DNS records migrated: ImprovMX MX, Resend DKIM, SPF, DMARC, Google verification, MailerLite DKIM CNAME. CAA records deleted (Cloudflare handles SSL). Resend API key rotated and updated in Gmail send-as + Supabase SMTP. MailerLite sender domain verified. All email flows confirmed working. Memberful webhook confirmed working end-to-end (subscription activated + cancelled both update Supabase correctly). Memberful custom domain `members.portfoliodb.com` CNAME added (DNS Only → domains.memberful.com).
 
 - [x] Tailwind CSS v4 design tokens (globals.css)
 - [x] Root layout — Manrope/Inter fonts, Material Symbols, Navbar

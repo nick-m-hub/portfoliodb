@@ -23,6 +23,7 @@ English alongside any technical output.
 | Fonts       | Manrope (headings) + Inter (body), via next/font   |
 | Icons       | Material Symbols Outlined (Google CDN, axes fixed: opsz=24,wght=400,FILL=0,GRAD=0) |
 | Charts      | Recharts (client) + custom SVG donut (server)      |
+| PDF Export  | @react-pdf/renderer v4 — Portfolio Builder PDF report |
 | Database    | Supabase (PostgreSQL)                              |
 | AI          | Anthropic API — claude-haiku-4-5 for screener      |
 | Hosting     | Vercel (auto-deploy from GitHub)                   |
@@ -36,6 +37,22 @@ English alongside any technical output.
 - GitHub repo: `portfoliodb`
 - Vercel: connected to GitHub, auto-deploys on every push
 - Git push: works directly from Claude Code. SSH key (`~/.ssh/id_ed25519`) is stored in the macOS Keychain with `~/.ssh/config` set to `UseKeychain yes` + `AddKeysToAgent yes`, so all subprocesses can push without an interactive terminal session.
+
+---
+
+## Cloudflare (June 2026)
+
+Cloudflare is now the DNS provider and sits in front of Vercel as a proxy. All traffic hits Cloudflare first — bots are filtered there before reaching Vercel, which prevents them from burning Vercel function/ISR quotas.
+
+- **Nameservers:** Cloudflare (changed from Vercel at Namecheap, June 2026)
+- **DNS management:** All DNS records now live in Cloudflare dashboard, not Vercel. Vercel DNS panel is no longer used.
+- **Proxied records:** `portfoliodb.com` (root CNAME flattened) and `www` — both orange cloud (Proxied). All email records are DNS Only (grey cloud).
+- **SSL:** Cloudflare Universal SSL (Google Trust Services CA) handles browser-facing certificates. Vercel's backend cert handles the Cloudflare → Vercel leg.
+- **Bot Fight Mode:** Off — was blocking Memberful webhook requests from reaching `/api/memberful`. The Singapore WAF rule provides sufficient bot protection without it.
+- **WAF Custom Rule:** Country = Singapore OR China → Managed Challenge (blocks the high-volume low-engagement bot traffic identified June 2026)
+- **WAF Skip Rule:** URI Path = `/api/memberful` → Skip all rules, placed First (added to allow Memberful webhooks through — note: only effective once Bot Fight Mode is off on free plan)
+- **CAA records:** Deleted — Cloudflare manages SSL issuance now, CAA restrictions are no longer needed.
+- **Resend API key:** Stored in `.env.local` as `RESEND_API_KEY` for reference. The actual key is used in Gmail send-as SMTP settings and Supabase Authentication SMTP settings — if rotated, update both places.
 
 ---
 
@@ -311,7 +328,7 @@ portfoliodb/
       monte-carlo-returns/
         route.js                     # GET — returns monthly_returns + portfolio stats for a given slug; used by MonteCarloClient when user changes portfolio
       builder-returns/
-        route.js                     # GET — takes ?slugs=a,b,c (max 6), returns monthly_returns grouped by slug; used by BuilderClient when portfolios are added
+        route.js                     # GET — takes ?slugs=a,b,c (max 6), returns monthly_returns grouped by slug; used by BuilderClient when portfolios are added and by handleDownloadPDF to fetch benchmark returns (60/40 + US Market). Uses .range() pagination to bypass Supabase PostgREST's 1,000-row server cap — without this, benchmark data silently truncates around 2016-2017.
       builder-save/
         route.js                     # POST — verifies auth (401), active subscription (403), builder 3-mix limit (429); inserts to user_portfolios; returns { id }
       memberful/
@@ -354,7 +371,8 @@ portfoliodb/
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
     MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards
-    BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session
+    BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session; "Download PDF" button (Builder/Signals tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click
+    BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
   lib/
     supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
     db.js                            # All database query functions (see below)
@@ -696,6 +714,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - **`tacticalSlugs`** — useMemo-derived Set of slugs where `kofi_link` is non-null (from `allPortfolios` prop); used to classify selected portfolios as tactical vs. Buy & Hold.
 - **`blendedHoldings`** — useMemo combining all selected portfolios' holdings weighted by mix weights: Buy & Hold use static allocations (`allAllocations` prop), tactical use current holdings (`allSignals` prop, weights already in % 0–100). Returns `{ hasTactical, holdings: [{ ticker, weight }] }` or null. Passed to `<CurrentSignals context="builder" />`. If any tactical portfolio is included and user is not Signals tier, the list is blurred with an upgrade prompt.
 - **PORTFOLIO_COLORS:** `['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b']` — one per slot, used for colour dots and weight pills
+- **PDF download** — `handleDownloadPDF` is only active when `tier !== null` (Builder or Signals). On click: computes `blendedReturns` from current state, fetches US 60/40 + US Market returns via `/api/builder-returns`, dynamically imports `@react-pdf/renderer` and `BuilderPDF`, generates blob client-side, triggers download as `portfolio-mix-analysis.pdf`. Dynamic import means the ~200KB library only loads on demand. `annualReturns` array added to `computeStats()` return value (used by PDF table).
 - Navbar: "Builder" link added between Compare and Monte Carlo (desktop + mobile More dropdown). `/builder` added to sitemap.
 
 ### OG Images (app/opengraph-image.js + app/portfolios/[slug]/opengraph-image.js)
@@ -982,7 +1001,18 @@ Correct rules (GestaltU implementation):
 
 ---
 
-## Email / MailerLite (May 2026)
+## Email Infrastructure (May 2026)
+
+### Custom Email Addresses
+
+`support@portfoliodb.com` is set up for forwarding + Gmail send-as:
+
+- **Forwarding:** ImprovMX (free) — MX records in Cloudflare DNS (`mx1.improvmx.com` priority 10, `mx2.improvmx.com` priority 20). Emails to `support@` forward to Nick's personal Gmail.
+- **Send-as in Gmail:** Gmail → Settings → Accounts and Import → "Send mail as" → uses Resend SMTP (smtp.resend.com, port 465, user=resend, password=Resend API key). Set to "Treat as an alias." Resend API key also stored in `.env.local` as `RESEND_API_KEY` and in Supabase → Authentication → SMTP Settings.
+- **DNS note:** Two separate SPF TXT records in Cloudflare DNS — `send` record (`v=spf1 include:amazonses.com ~all`) is for Resend's transactional subdomain; `@` record includes both ImprovMX (`include:spf.improvmx.com`) and MailerLite (`include:_spf.mlsend.com`). Do NOT merge the `send` and `@` records — they are on different names and serve different purposes.
+- **MailerLite sender domain:** `portfoliodb.com` verified in MailerLite (June 2026). All automation emails send from `support@portfoliodb.com`.
+
+### MailerLite
 
 - Email provider: **MailerLite** (migrated from Kit May 2026 — Kit lacks email sequences on free plans)
 - Subscriber group: "General Email List" (ID: 187575433316795808)
@@ -1025,7 +1055,7 @@ Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/che
 
 **Webhook URL:** `https://www.portfoliodb.com/api/memberful` — configure in Memberful → Settings → Webhooks. Webhook Secret auto-generated there; store as `MEMBERFUL_WEBHOOK_SECRET` in Vercel (Sensitive).
 
-**Memberful webhook payload structure (confirmed May 2026):** The actual payload is `{ event, subscription: { id, member: { id, email, ... }, subscription_plan: { name, ... }, expires_at, active, ... } }`. Key differences from initial assumptions: (1) `member` is nested inside `subscription`, not top-level; (2) plan is at `subscription.subscription_plan`, not `subscription.plan`; (3) `expires_at` can be either a Unix timestamp (number) or ISO string depending on context — handler checks `typeof` before multiplying by 1000.
+**Memberful webhook payload structure (confirmed May 2026):** The actual payload is `{ event, subscription: { id, member: { id, email, ... }, subscription_plan: { name, ... }, expires_at, active, ... } }`. Key differences from initial assumptions: (1) `member` is nested inside `subscription`, not top-level; (2) plan is at `subscription.subscription_plan`, not `subscription.plan`; (3) `expires_at` can be either a Unix timestamp (number) or ISO string depending on context — handler checks `typeof` before multiplying by 1000; (4) Memberful fires `subscription.updated` after `subscription.deactivated` on cancellation — handler checks `subscription.active === false` on the updated event to avoid overwriting `cancelled` status back to `active`.
 
 **Account management:** Members click "Manage subscription" → `https://portfoliodb.memberful.com/account` (Memberful-hosted portal).
 
