@@ -31,7 +31,7 @@ export default function SignalTeaserWrapper({ slug }) {
   }
 
   const displayDate = date
-    ? new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    ? new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
     : null;
 
   return (
