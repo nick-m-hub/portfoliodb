@@ -367,6 +367,7 @@ portfoliodb/
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
     SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side.
     MaterialSymbolsActivator.jsx     # Client component — renders null; useEffect flips the Material Symbols <link media="print"> to media="all" after hydration, making the icon font load non-blocking (Fix #13, June 2026)
+    HoldingPeriodHeatmap.jsx         # Client component — triangular CAGR heatmap (start year × holding period), color-coded 8-band scale, hover tooltip with reserved height. Rendered full-width on portfolio detail pages.
     ToolsMenu.jsx                    # Client component — desktop "Tools ▾" dropdown in Navbar; contains Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo with label + one-line description per item; click-outside to close
     PricingToggle.jsx                # Client component — monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge; 4 Memberful checkout URLs hardcoded (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
     LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
@@ -599,7 +600,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 ### ChartsSection.jsx
 - Client component — owns `selectedBenchmark`, `show10yr`, and `logScale` toggle state
 - `logScale` defaults to `true` (log scale is the default view for Growth of $10K)
-- Renders Growth of $10K, Historical Drawdown, and Rolling Returns sections
+- Accepts `section` prop: `'all'` (default) renders all three charts; `'growth'` renders only the benchmark bar + Growth of $10K; `'charts'` renders only Historical Drawdown + Rolling Returns. Used on portfolio detail pages to split layout (Growth at 8-col width alongside sidebar, Drawdown/Rolling at full width).
 - "Compare to" bar shows up to 3 benchmarks (None / US 60/40 / US Stocks / Global Stocks); each page's own slug is filtered out so a portfolio never compares to itself
 - "Full / Last 10Y" toggle and "Log / Linear" toggle both appear under the Growth of $10K heading
 - `mergeWithBenchmark()` merges benchmark data into chart data by label
@@ -704,14 +705,18 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 ### MonteCarloClient.jsx (Monte Carlo Simulation — /monte-carlo-simulation)
 
-- `app/monte-carlo-simulation/page.js` is a server component (dynamic) — reads `?slug=` from URL, pre-fetches `getMonthlyReturns(slug)` and `getPortfolio(slug)` server-side so the page loads with data already populated
-- When the user changes the portfolio dropdown client-side, `MonteCarloClient` fetches fresh data from `GET /api/monte-carlo-returns?slug=...` (returns `{ returns, portfolio }`)
-- **Simulation inputs:** portfolio selector, initial value (formatted with commas), withdrawal amount (formatted with commas), withdrawal frequency (monthly/quarterly/annually), inflation adjustment (3%/yr hardcoded, yes/no), simulation period (1–50 years), return method (historical/statistical), sequence of returns risk (None or Worst 1–10 years first)
+- `app/monte-carlo-simulation/page.js` is a server component (`force-dynamic`) — reads `?slug=` from URL, pre-fetches `getMonthlyReturns(slug)` and `getPortfolio(slug)` server-side. Also checks auth and fetches `user_portfolios` for logged-in users to populate saved mixes in the selector.
+- When the user changes the portfolio dropdown client-side, `MonteCarloClient` fetches fresh data from `GET /api/monte-carlo-returns?slug=...` (returns `{ returns, portfolio }`). When a saved mix is selected (value starts with `mix:`), fetches blended returns via `GET /api/builder-returns?slugs=...` and blends them client-side using `buildBlendedReturns()`.
+- **Portfolio selector:** shows a "Custom Mixes" `<optgroup>` at the top (logged-in users with saved mixes only), followed by "All Portfolios". Mix values are prefixed `mix:<uuid>` to distinguish from portfolio slugs.
+- **Simulation inputs:** portfolio selector, initial value, monthly contribution (optional), contribution duration (optional, blank = full period), withdrawal amount, withdrawal frequency (monthly/quarterly/annually), delay withdrawals (optional, years before withdrawals begin), inflation adjustment (3%/yr, yes/no), simulation period (1–50 years), return method (historical/statistical), sequence of returns risk (None or Worst 1–10 years first)
 - **Return methods:**
   - *Historical (bootstrap):* randomly resamples full calendar years from the portfolio's actual monthly return history; maintains return autocorrelation within a year
   - *Statistical:* draws random monthly returns from a normal distribution fitted to the portfolio's historical mean and std dev (Box-Muller transform)
 - **Sequence of returns risk:** groups monthly returns by calendar year, sorts years worst-to-best by annual return, prepends the N worst calendar years to the front of every simulation's return sequence; remaining period is bootstrapped or statistical as selected. All 1,000 simulations share the same forced-bad prefix.
-- **Output:** 5-line Recharts `LineChart` showing 10th/25th/50th/75th/90th percentile portfolio values at each year-end. 90th and 75th are solid lines; 50th (median) is bold primary green; 25th and 10th are dashed. Plus 4 stat cards: success rate (% of simulations where portfolio > $0 at end), median ending balance, 90th percentile, 10th percentile.
+- **Contributions:** applied every month after withdrawals. `contributionEndYear = 0` means contribute for the full period; any positive integer stops contributions after that year.
+- **Withdrawal delay:** `withdrawalDelay = 0` means withdrawals start immediately. `currentYear = Math.floor(m / 12) + 1`; withdrawals only apply when `currentYear > withdrawalDelay`. Inflation adjusts the withdrawal amount from month 0 (even during the delay), so the amount is already inflation-adjusted when withdrawals begin.
+- **Output:** Safe Withdrawal Rate card (green highlight, computed via 12-step binary search using `N_SIMS_SWR = 300` sims per step — the rate at which 90% of simulations survive). Plus 5-line Recharts `LineChart` + 4 stat cards (success rate, median ending balance, 90th percentile, 10th percentile).
+- **SWR binary search:** `computeSWR()` searches monthly withdrawal between $0 and 25% of initial portfolio annually. Uses `nSims` param in `runMonteCarlo` so the reduced sim count divides correctly — **do not use `N_SIMS` constant** in the success rate denominator; use `nSims` (the parameter).
 - **Inflation:** adjusts the withdrawal amount by `(1.03)^(1/12) - 1` every month, regardless of withdrawal frequency. On a withdrawal month, the current (already-inflated) amount is subtracted.
 - **"Monte Carlo Simulation" button** on every portfolio detail page hero links to `/monte-carlo-simulation?slug=${slug}`, pre-populating the portfolio.
 - Navbar: "Monte Carlo" link added to desktop nav and mobile More dropdown.
@@ -769,6 +774,27 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - `PORTFOLIO_COLORS` = `['#074a34', '#1565c0', '#b71c1c', '#e67e22']` — one per portfolio slot, used consistently across pills, header card borders, chart lines, and table column headers
 - **Growth chart normalization:** `mergeGrowthData()` finds the latest start year across all selected portfolios (shortest lookback), re-indexes every portfolio's growth data to $10,000 at that year, then merges into a single array keyed by `{year, p0, p1, p2, p3}`. This ensures a fair visual comparison when portfolios have different history lengths.
 - `CompareGrowthChart` uses Recharts `LineChart` (not `AreaChart`) with `connectNulls={false}` — portfolios with shorter histories simply start later on the chart
+- **Stats table rows (June 2026):** includes `cagr_1yr` (1-Year CAGR) and `cagr_3yr` (3-Year CAGR) alongside the existing CAGR/MaxDD/Sharpe/etc rows. Shows `—` when null (short-history portfolios).
+
+### HoldingPeriodHeatmap.jsx (June 2026)
+- Client component — rendered on every portfolio detail page below the charts section, full width (`lg:col-span-12` inside the body grid)
+- Input: `heatmapData` prop computed server-side by `buildHeatmapData(monthlyReturns)` in `portfolios/[slug]/page.js`
+- **Data shape:** `{ startYears: number[], holdingPeriods: number[], data: (number|null)[][] }` — `data[i][j]` = annualised CAGR % for `startYears[i]` held `holdingPeriods[j]` years, or null for incomplete data. Max 30 columns.
+- **`buildHeatmapData()`** uses a `Map` keyed by `"YYYY-MM"` for O(1) lookup. Returns null if monthlyReturns is empty.
+- **Color scale:** 8 discrete bands from `<-10%` (dark red `#b71c1c`) to `≥20%` (darkest green `#0d3d26`).
+- Rows render newest start year at top (reversed). Grid scrolls horizontally on mobile via `-mx-6 px-6 md:-mx-8 md:px-8` bleed pattern on the scroll container.
+- Hover tooltip uses reserved `h-5` fixed-height div so the grid never shifts on hover/unhover.
+
+### Portfolio Detail Page Layout (June 2026)
+- **Two-column grid** (`grid grid-cols-12`): col-span-8 (left) contains Allocation, Performance Snapshot, Rolling Returns summary, Growth of $10K chart (`section="growth"`); col-span-4 (right) is the sidebar (Implementation, At a Glance, Membership CTA).
+- **Full-width row** (`col-span-12`, inside the same grid so it appears right after both columns close — no gap): contains Historical Drawdown + Rolling Returns charts (`section="charts"`), HoldingPeriodHeatmap, and Description. Using `col-span-12` inside the same grid avoids the gap problem that occurs when the sidebar is taller than the left column (tactical portfolios with many tickers).
+- The `section` prop on ChartsSection splits the single "Compare to" benchmark bar: it appears above the Growth chart (col-span-8), and the Drawdown + Rolling charts use their own independent benchmark state in the full-width section.
+
+---
+
+## Changelog Guidelines
+
+When updating `app/changelog/page.js`, only include entries that are meaningful to end users — new features, data additions, and UX improvements they will notice. Do NOT include internal fixes, mobile nav label corrections, scrolling fixes, or code refactors unless the user would directly notice or benefit from them.
 
 ---
 

@@ -54,6 +54,8 @@
 
 ## Reminders
 
+- [ ] **Changelog entries — end-user relevance only** — Only add entries a user would notice: new features, new portfolios, data additions, UX improvements. Do NOT add internal fixes, mobile label corrections, scrolling fixes, layout refactors, or code changes that aren't visible to users.
+
 - [ ] **Email funnel review (check ~2026-06-01)** — Welcome sequence went live 2026-05-16. Email 4 updated May 2026 to reflect Memberful tiers (Builder + Signals) and link to `/membership` instead of Ko-fi. Review in MailerLite:
   - Open rates (benchmark: 25–30% for finance)
   - Click rate on Email 2 (signals database interest)
@@ -82,9 +84,9 @@
 
 - [ ] **Inflation-Adjusted Returns Toggle on Growth Chart** *(Portfolio Visualizer — Medium priority, Low-Medium effort)* — Add a "Nominal / Real" toggle next to the existing "Log / Linear" toggle under the Growth of $10K chart in `ChartsSection.jsx`. CPI data available free from the St. Louis Fed FRED API (no key required). Fetch CPI data once and store in Supabase, or fetch client-side on load. Adjust each monthly return by dividing by the CPI change for that month before compounding the growth series. Useful for retirement-focused users who care about purchasing power.
 
-- [ ] **Safe Withdrawal Rate (SWR) output on Monte Carlo** *(Portfolio Visualizer + Portfolio Charts — Medium priority, Medium effort; two sources = strong signal)* — Extend the Monte Carlo simulator to output a Safe Withdrawal Rate: the annual withdrawal percentage at which the 10th-percentile simulation scenario just reaches $0 at end of the chosen time horizon. Binary-search over withdrawal rate on top of the existing simulation engine. Output as a new stat card in the results section: "Safe withdrawal rate: 4.1%". Transforms Monte Carlo from an abstract probability tool into a concrete retirement planning answer people remember and share. Both major competitors surface this prominently.
+- [x] **Safe Withdrawal Rate (SWR) output on Monte Carlo (June 2026)** — Binary search (12 steps × 300 sims) finds the highest annual withdrawal rate at 90% success. Displayed as a prominent green card above the 4 stat cards. Respects all current simulation settings (years, inflation, sequence risk, contributions, withdrawal delay).
 
-- [ ] **Contribution / Withdrawal Modeling in Monte Carlo** *(Portfolio Visualizer — Medium priority, Medium effort)* — Add optional input fields to `MonteCarloClient.jsx` for monthly contribution amount (accumulation phase) and monthly withdrawal amount (decumulation phase), with an inflation adjustment toggle. Default to $0 so existing behavior is unchanged. Makes the tool personal rather than academic — users can model their actual saving or spending situation. Already have the withdrawal/inflation logic partially in place; contributions are the new piece.
+- [x] **Contribution / Withdrawal Modeling in Monte Carlo (June 2026)** — Monthly contribution (optional, $0 default), contribution duration (optional, blank = full period), and withdrawal delay (optional, years before withdrawals begin). All three feed into `runMonteCarlo()` and the SWR binary search. Saved mixes from the Portfolio Builder now appear in the portfolio selector for logged-in members.
 
 - [ ] **Start Date Sensitivity stat** *(Portfolio Charts — Medium priority, Low effort)* — A single stat capturing how much a portfolio's returns depended on when the investor happened to start. Calculated by comparing the 10-year backward CAGR vs. 10-year forward CAGR for every year in history, then reporting the spread between the best and worst differences. Small number = reliable regardless of entry timing; large number = required lucky timing. Genuinely novel — no other stat on the site currently captures timing luck, and it's highly communicable to a non-technical audience. Implementation: add CTE to `portfolio_stats` view, add to `StatTooltip` definitions in `lib/statDefinitions.js`, surface as a new stat card on portfolio detail pages. Entirely computable from existing `monthly_returns`.
 
