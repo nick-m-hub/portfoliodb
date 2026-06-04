@@ -68,6 +68,8 @@
 
 ## Backlog
 
+- [ ] **Add 1-Year and 3-Year CAGR to Portfolio Comparison tool** — `portfolio_stats` already has `cagr_1yr` and `cagr_3yr` columns. Add them to the stats table in `CompareClient.jsx` alongside the existing CAGR/MaxDD/Sharpe/etc rows. `app/compare/page.js` fetches from `portfolio_stats` — check that `cagr_1yr` and `cagr_3yr` are included in the `.select()` call. Show `—` when null (short-history portfolios won't have a 3yr value).
+
 - [x] **Strategy Leaderboard page (`/leaderboard`)** — Dedicated page ranking all portfolios by trailing 1Y, 3Y, 10Y return, and Sharpe ratio. User can toggle between metrics. Strong standalone SEO page ("best performing portfolio strategies") and a natural re-engagement hook for the email sequence ("see how this month's top performers changed"). Low infrastructure cost — all data already exists in `portfolio_stats`. Implementation: server component, SSG with revalidation, pre-sorted table similar to the Screener but with metric toggle tabs instead of sliders. Add to sitemap and navbar/footer.
 
 - [ ] **"Why We Exclude Certain Strategies" page or blog post (Rejection Log concept)** — Publicly explain which popular strategy types are not included in the database and why, with data (e.g. leveraged portfolios, strategies with extreme complexity or survivorship bias). Inspired by BestFolio's /leaderboard credibility play. A blog post is the lowest-lift version; a dedicated `/methodology/exclusions` sub-page would be more linkable. Signals intellectual honesty to the finance audience and earns editorial links. Draft in `content-calendar.md` first.
