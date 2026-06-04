@@ -11,7 +11,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
 export const metadata = {
   title: 'My Account — PortfolioDB',
+  description: 'Manage your PortfolioDB membership, saved portfolio mixes, and monthly trading signals.',
   alternates: { canonical: `${siteUrl}/account` },
+  robots: { index: false, follow: false },
 };
 
 // Don't cache — always show fresh subscription + mix data

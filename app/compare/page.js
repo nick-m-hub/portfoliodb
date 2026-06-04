@@ -9,12 +9,16 @@ export const metadata = {
   alternates: { canonical: `${siteUrl}/compare` },
   openGraph: {
     title: 'Compare Portfolios - PortfolioDB',
-    description: 'Compare up to 4 portfolio strategies side-by-side.',
+    description: 'Compare up to 4 index fund portfolio strategies side-by-side. Analyze CAGR, max drawdown, Sharpe ratio, allocations, and growth of $10,000.',
     url: `${siteUrl}/compare`,
     siteName: 'PortfolioDB',
     type: 'website',
   },
-  twitter: { card: 'summary', title: 'Compare Portfolios - PortfolioDB' },
+  twitter: {
+    card: 'summary',
+    title: 'Compare Portfolios - PortfolioDB',
+    description: 'Compare up to 4 index fund portfolio strategies side-by-side. Analyze CAGR, max drawdown, Sharpe ratio, and growth of $10,000.',
+  },
 };
 
 function buildGrowthData(monthlyReturns) {

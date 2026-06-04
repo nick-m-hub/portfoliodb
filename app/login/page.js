@@ -7,6 +7,7 @@ export const metadata = {
   title: 'Sign In — PortfolioDB',
   description: 'Sign in to your PortfolioDB account to access saved portfolio mixes and trading signals.',
   alternates: { canonical: `${siteUrl}/login` },
+  robots: { index: false, follow: false },
 };
 
 export default async function LoginPage({ searchParams }) {

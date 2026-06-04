@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
       publishedTime: post.published_at,
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: `${post.title} | PortfolioDB`,
       description: post.excerpt ?? undefined,
     },

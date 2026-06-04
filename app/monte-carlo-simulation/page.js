@@ -9,12 +9,16 @@ export const metadata = {
   alternates: { canonical: `${siteUrl}/monte-carlo-simulation` },
   openGraph: {
     title: 'Monte Carlo Simulation - PortfolioDB',
-    description: 'Project retirement outcomes across 1,000 simulated market scenarios.',
+    description: 'Run a Monte Carlo simulation on any portfolio strategy. Project retirement outcomes, test withdrawal sustainability, and analyze sequence of returns risk across 1,000 scenarios.',
     url: `${siteUrl}/monte-carlo-simulation`,
     siteName: 'PortfolioDB',
     type: 'website',
   },
-  twitter: { card: 'summary', title: 'Monte Carlo Simulation - PortfolioDB' },
+  twitter: {
+    card: 'summary',
+    title: 'Monte Carlo Simulation - PortfolioDB',
+    description: 'Run a Monte Carlo simulation on any portfolio strategy. Project retirement outcomes and sequence of returns risk across 1,000 scenarios.',
+  },
 };
 
 export default async function MonteCarloPage({ searchParams }) {

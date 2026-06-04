@@ -13,6 +13,13 @@ export const metadata = {
     title: 'Portfolio Strategy Leaderboard | PortfolioDB',
     description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — updated monthly.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/leaderboard`,
+    siteName: 'PortfolioDB',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Portfolio Strategy Leaderboard | PortfolioDB',
+    description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — updated monthly.',
   },
 };
 

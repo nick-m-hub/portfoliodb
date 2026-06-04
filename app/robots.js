@@ -3,7 +3,7 @@ export default function robots() {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: '/api/',
+      disallow: ['/api/', '/account', '/login'],
     },
     sitemap: 'https://www.portfoliodb.com/sitemap.xml',
   };

@@ -8,6 +8,13 @@ export const metadata = {
     title: 'Changelog | PortfolioDB',
     description: 'What\'s new on PortfolioDB — new portfolios, tools, data updates, and fixes.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/changelog`,
+    siteName: 'PortfolioDB',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Changelog | PortfolioDB',
+    description: 'What\'s new on PortfolioDB — new portfolios, tools, data updates, and fixes.',
   },
 };
 

@@ -10,6 +10,13 @@ export const metadata = {
     title: 'Drawdown Analyzer | PortfolioDB',
     description: 'See how all 70+ portfolio strategies held up during major market crashes — dot-com, 2008 financial crisis, COVID, and more.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/tools/drawdown-analyzer`,
+    siteName: 'PortfolioDB',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Drawdown Analyzer | PortfolioDB',
+    description: 'See how all 70+ portfolio strategies held up during major market crashes — dot-com, 2008 financial crisis, COVID, and more.',
   },
 };
 
