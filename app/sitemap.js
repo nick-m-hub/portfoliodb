@@ -13,6 +13,9 @@ const staticPages = [
   '/methodology',
   '/membership',
   '/strategies',
+  '/changelog',
+  '/leaderboard',
+  '/tools/drawdown-analyzer',
 ];
 
 export default async function sitemap() {

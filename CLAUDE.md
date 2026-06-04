@@ -223,11 +223,13 @@ for display purposes.
 Columns returned: slug, name, category, trade_frequency, min_timeline_years,
 risk_level, description, m1_link, kofi_link, cagr, current_value, max_drawdown,
 sharpe_ratio, sortino_ratio, best_year, worst_year, ytd_return, total_months, last_updated,
-cagr_10yr, ulcer_index, ulcer_performance_index, cagr_gfc, cagr_dotcom,
+cagr_1yr, cagr_3yr, cagr_10yr, ulcer_index, ulcer_performance_index, cagr_gfc, cagr_dotcom,
 rolling_1yr_low, rolling_1yr_avg, rolling_1yr_high,
 rolling_3yr_low, rolling_3yr_avg, rolling_3yr_high,
 rolling_5yr_low, rolling_5yr_avg, rolling_5yr_high,
 rolling_10yr_low, rolling_10yr_avg, rolling_10yr_high.
+
+`cagr_1yr` — trailing 12-month total return (requires ≥12 months in window). `cagr_3yr` — trailing 3-year annualized return (requires ≥36 months). Both added June 2026 for the Strategy Leaderboard.
 
 Source of truth for the view definition: `scripts/portfolio_stats_view.sql`.
 To add a column: edit that file, then paste the full DROP + CREATE into the Supabase SQL Editor and run it.
@@ -363,6 +365,9 @@ portfoliodb/
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
+    SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side.
+    MaterialSymbolsActivator.jsx     # Client component — renders null; useEffect flips the Material Symbols <link media="print"> to media="all" after hydration, making the icon font load non-blocking (Fix #13, June 2026)
+    ToolsMenu.jsx                    # Client component — desktop "Tools ▾" dropdown in Navbar; contains Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo with label + one-line description per item; click-outside to close
     PricingToggle.jsx                # Client component — monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge; 4 Memberful checkout URLs hardcoded (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
     LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
     SignOutButton.jsx                # Client component — calls supabase.auth.signOut(), router.push('/'), router.refresh()
@@ -373,6 +378,22 @@ portfoliodb/
     MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards
     BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session; "Download PDF" button (Builder/Signals tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click
     BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
+  app/
+    leaderboard/
+      page.js                        # Strategy Leaderboard (server, revalidate 86400) — fetches portfolio_stats selecting cagr_1yr/cagr_3yr/cagr_10yr/ytd_return/sharpe_ratio; passes to LeaderboardClient
+      LeaderboardClient.jsx          # Client component — 5 tabs (YTD, 1-Year, 3-Year, 10-Year, Sharpe); sorts portfolios by active tab; medals for top 3; category badges; links to portfolio detail pages
+    changelog/
+      page.js                        # Changelog (static server component) — hardcoded CHANGELOG array of { month, entries: [{ type, text }] }; type = 'new' | 'improvement' | 'fix'; color-coded badges. Update this file each month before pushing.
+    tools/
+      drawdown-analyzer/
+        page.js                      # Drawdown Analyzer page shell (server, static metadata)
+        DrawdownAnalyzerClient.jsx   # Client component — 4 crash presets (dot-com, 2008, COVID, 2022) + custom month range inputs; fetches /api/drawdown-analysis?from=YYYY-MM&to=YYYY-MM; results table sorted by total return or max drawdown; vs US 60/40 delta on every row; medals for top 3
+    api/
+      current-holdings/
+        [slug]/
+          route.js                   # GET — verifies auth + active Signals subscription; returns current month holdings from tactical_monthly_holdings for one portfolio slug; used by SignalTeaserWrapper
+      drawdown-analysis/
+        route.js                     # GET ?from=YYYY-MM&to=YYYY-MM — fetches all monthly_returns in date window, computes total return + max drawdown per portfolio, joins portfolio names/categories, returns sorted results array
   lib/
     supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
     db.js                            # All database query functions (see below)
@@ -463,10 +484,13 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Blog Index             | `/blog`                  | Complete |
 | Blog Post              | `/blog/[slug]`           | Complete |
 | Portfolio Comparison   | `/compare`               | Complete |
-| Portfolio Builder      | `/builder`               | Complete (Phase 2 save flow pending — Step 5 next) |
+| Portfolio Builder      | `/builder`               | Complete |
 | Monte Carlo Simulation | `/monte-carlo-simulation`| Complete |
 | Login                  | `/login`                 | Complete |
 | Account                | `/account`               | Complete |
+| Strategy Leaderboard   | `/leaderboard`           | Complete |
+| Drawdown Analyzer      | `/tools/drawdown-analyzer` | Complete |
+| Changelog              | `/changelog`             | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
 
@@ -505,9 +529,11 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 ### Navbar.jsx
 - Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch icon + `account_circle` icon; second row (`flex md:hidden`) shows Database/Screener/Strategies + `<MobileMoreMenu />` on mobile only
+- **Desktop nav links (June 2026):** Database · Screener · Strategies · **Tools ▾** · Membership. The Tools dropdown (`ToolsMenu.jsx`) replaced the individual Compare/Builder/Monte Carlo links and adds Leaderboard and Drawdown Analyzer.
+- **`ToolsMenu.jsx`** (client) — dropdown containing: Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo. Each item has a label + one-line description. Click-outside to close.
+- **`MobileMoreMenu.jsx`** (client) — "More ▾" dropdown on mobile; sections: Tools (Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo) with a divider then Membership and Account.
 - `account_circle` icon (22px) links to `/account` — no auth check needed here; middleware redirects unauthenticated users to `/login?next=/account` automatically
-- Mobile "More ▾" dropdown: Compare, Builder, Monte Carlo, Membership, and Account are in `MobileMoreMenu.jsx` (client component)
-- Stays a server component — all interactivity is in NavSearch.jsx and MobileMoreMenu.jsx (both client)
+- Stays a server component — all interactivity is in NavSearch.jsx, ToolsMenu.jsx, and MobileMoreMenu.jsx (all client)
 - JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx
 - Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
 
@@ -875,12 +901,18 @@ python3 stage2_promote.py --month 2026-04
 - `ben-felix-model-portfolio` — SPY/VTI/EFA/IWN/EEM/AVDV. Backfilled Jul 1995 – Apr 2026 using a multi-proxy chain (VTSMX→VTI, DFSVX→IWN, PRITX→EFA, FEMKX→EEM, DISVX→DLS→AVDV). DISVX EODHD data floor (Jul 1995) is the binding constraint.
 - Backfill scripts: `scripts/auto-returns/backfill_us_stock_market.py`, `backfill_global_stock_market.py`, `backfill_ben_felix_model_portfolio.py` (all idempotent, safe to re-run)
 
+**New portfolios added June 2026:**
+- `jl-collins-wealth-preservation-portfolio` — 50% VTI / 25% VNQ / 20% BND / 5% BIL. Backfilled May 1996 – May 2026 via `backfill_jl_collins_wealth_preservation.py`. Proxy chain: VTSMX→VTI (Jun 2001), VGSIX→VNQ (Oct 2004), VBMFX→BND (Apr 2007), constant 0.35%/mo→SHY (Jul 2002)→BIL (May 2007) for cash. VGSIX (Vanguard REIT Index Investor) is the data floor — launched May 1996. Stage 1 handles going forward.
+
 **Backtest proxy chains (established May 2026):**
 Use these when backfilling new B&H portfolios that hold these ETFs. See `reference_backtest_proxy_chains.md` in memory for full details.
 
 | Live ETF | Proxy | Transition |
 |---|---|---|
 | VTI | VTSMX | Jun 2001 |
+| VNQ | VGSIX | Oct 2004 |
+| BND | VBMFX | Apr 2007 |
+| BIL | SHY (Jul 2002), constant 0.35%/mo before | May 2007 |
 | IWN | DFSVX | Aug 2000 |
 | EFA | PRITX | Sep 2001 |
 | EEM | FEMKX | May 2003 |
@@ -1072,7 +1104,7 @@ Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/che
 ## Membership CTA
 
 Portfolio detail pages show membership touchpoints in the hero right column:
-- **kofi_link IS NOT NULL** → `SignalTeaser` component: blurred placeholder ticker rows + lock icon + "See membership options" link to `/membership`. No text CTA card.
+- **kofi_link IS NOT NULL** → `SignalTeaserWrapper` component (client, June 2026): on mount checks auth + active Signals subscription via `/api/current-holdings/[slug]`. Signals members see real current holdings with month label and "Manage subscription" link. All others see `SignalTeaser` (blurred placeholder + lock + "See membership options"). Portfolio pages remain SSG — auth check is fully client-side with a brief (~100–200ms) flash of blurred content before hydration.
 - **kofi_link IS NULL** → compact neutral "not covered" info card explaining signals cover tactical portfolios only, with "See covered portfolios →" link to `/membership`.
 
 The sidebar (right column of body) has a fuller green CTA card with 3 bullet points on covered portfolios, and a matching neutral card on uncovered portfolios.
@@ -1194,7 +1226,7 @@ Descriptions are stored as a single text value. Use the two-character sequence `
 
 ### Valid internal portfolio links
 When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
-`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`, `jl-collins-wealth-preservation-portfolio`
 
 Do NOT link to: `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
 

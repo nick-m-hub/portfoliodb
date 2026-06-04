@@ -3,13 +3,13 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 export const metadata = {
   title: "Terms of Service | PortfolioDB",
   description:
-    "The terms and conditions governing your use of PortfolioDB.co, including membership subscriptions, data use, and disclaimers.",
+    "The terms and conditions governing your use of PortfolioDB.com, including membership subscriptions, data use, and disclaimers.",
   alternates: {
     canonical: `${siteUrl}/terms-of-service`,
   },
   openGraph: {
     title: "Terms of Service | PortfolioDB",
-    description: "Terms and conditions for using PortfolioDB.co.",
+    description: "Terms and conditions for using PortfolioDB.com.",
     url: `${siteUrl}/terms-of-service`,
     siteName: "PortfolioDB",
     type: "website",
@@ -17,7 +17,7 @@ export const metadata = {
   twitter: {
     card: "summary",
     title: "Terms of Service | PortfolioDB",
-    description: "Terms and conditions for using PortfolioDB.co.",
+    description: "Terms and conditions for using PortfolioDB.com.",
   },
 };
 
@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
       {/* Page header */}
       <h1 className="font-manrope text-3xl font-bold text-on-surface mb-2">Terms of Service</h1>
       <p className="font-inter text-sm text-on-surface-variant mb-10">
-        Effective date: May 1, 2026 &nbsp;·&nbsp; Last updated: May 2026
+        Effective date: May 1, 2026 &nbsp;·&nbsp; Last updated: June 2026
       </p>
 
       {/* Plain-English summary box */}
@@ -36,10 +36,11 @@ export default function TermsOfServicePage() {
         <p className="font-inter text-sm font-semibold text-primary mb-1">Plain-English Summary</p>
         <p className="font-inter text-sm text-on-surface-variant leading-relaxed">
           PortfolioDB is a free educational resource about investment portfolios.
-          Nothing here is financial advice. If you subscribe for paid emails, you
-          can cancel at any time. We won&rsquo;t sell your data. Use the site
-          responsibly and don&rsquo;t misuse it. These terms are governed by US
-          law. The full legal details are below.
+          Nothing here is financial advice. Most features are free with no account
+          needed. Paid memberships (Builder and Signals) are billed through
+          Memberful and can be cancelled at any time. We won&rsquo;t sell your
+          data. Use the site responsibly and don&rsquo;t misuse it. These terms
+          are governed by US law. The full legal details are below.
         </p>
       </div>
 
@@ -47,7 +48,7 @@ export default function TermsOfServicePage() {
       <section className="mb-10">
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">1. Acceptance of Terms</h2>
         <p className="text-base leading-relaxed">
-          By accessing or using PortfolioDB.co (the &ldquo;Site&rdquo;), you
+          By accessing or using PortfolioDB.com (the &ldquo;Site&rdquo;), you
           agree to be bound by these Terms of Service (&ldquo;Terms&rdquo;). If
           you do not agree to these Terms, please do not use the Site. These
           Terms apply to all visitors and users of the Site, including paid
@@ -67,7 +68,7 @@ export default function TermsOfServicePage() {
       <section className="mb-10">
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">2. About PortfolioDB</h2>
         <p className="text-base leading-relaxed">
-          PortfolioDB.co is an independently operated website based in the
+          PortfolioDB.com is an independently operated website based in the
           United States. The Site provides educational information about
           investment portfolios, including historical performance data, portfolio
           comparisons, and related analysis. PortfolioDB is not a registered
@@ -108,9 +109,12 @@ export default function TermsOfServicePage() {
       <section className="mb-10">
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">4. Free Site Access</h2>
         <p className="text-base leading-relaxed">
-          The core content of PortfolioDB.co — including the portfolio database,
-          screener, and all performance data — is available to all visitors at
-          no charge. No account or registration is required to browse the Site.
+          The core content of PortfolioDB.com — including the portfolio database,
+          screener, all performance data, and tools like the Leaderboard, Drawdown
+          Analyzer, Compare, Monte Carlo Simulator, and Portfolio Builder — is
+          available to all visitors at no charge. No account is required to browse
+          or use these features. An account is required only to save portfolio mixes
+          or access paid membership features.
         </p>
       </section>
 
@@ -121,28 +125,36 @@ export default function TermsOfServicePage() {
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">5. Paid Membership</h2>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">What you get</h3>
+        <p className="text-base leading-relaxed mb-2">
+          PortfolioDB offers two optional paid membership tiers:
+        </p>
+        <ul className="list-disc list-outside pl-6 space-y-1 text-base leading-relaxed mb-3">
+          <li><strong>Builder</strong> — save up to 3 custom portfolio mixes and unlock the full Performance Snapshot in the Portfolio Builder.</li>
+          <li><strong>Signals</strong> — all Builder features, unlimited saved mixes, and monthly trade signals showing current holdings for all covered tactical portfolios.</li>
+        </ul>
         <p className="text-base leading-relaxed">
-          PortfolioDB offers an optional paid membership. Subscribers receive
-          email communications with additional portfolio analysis, commentary,
-          and content not distributed to non-subscribers. The specific content
-          and frequency of emails may change over time.
+          The specific features and content included in each tier may change over time. We will notify active subscribers of any material changes by email.
         </p>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Billing and payment</h3>
         <p className="text-base leading-relaxed">
-          Paid memberships are processed through Ko-fi, a third-party platform.
-          By subscribing, you also agree to Ko-fi&rsquo;s terms of service and
-          privacy policy. PortfolioDB does not directly handle or store your
-          payment information.
+          Paid memberships are processed through Memberful, a third-party
+          subscription platform. By subscribing, you also agree to
+          Memberful&rsquo;s terms of service and privacy policy. PortfolioDB
+          does not directly handle or store your payment information.
         </p>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Cancellation</h3>
         <p className="text-base leading-relaxed">
-          You may cancel your paid membership at any time through your Ko-fi
-          account. Cancellation takes effect at the end of your current billing
-          period. We do not offer prorated refunds for partial periods, but we
-          will honor reasonable refund requests made within 7 days of a charge
-          if you contact us.
+          You may cancel your paid membership at any time through your Memberful
+          account at{" "}
+          <a href="https://portfoliodb.memberful.com/account" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:underline">
+            portfoliodb.memberful.com/account
+          </a>
+          . Cancellation takes effect at the end of your current billing
+          period — you retain access until that date. We do not offer prorated
+          refunds for partial periods, but we will honor reasonable refund
+          requests made within 7 days of a charge if you contact us.
         </p>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Changes to membership pricing or benefits</h3>
@@ -165,15 +177,22 @@ export default function TermsOfServicePage() {
           sources. This data does not personally identify you.
         </p>
         <p className="text-base leading-relaxed mb-3">
-          If you become a paid member, we collect your email address (through
-          Ko-fi) for the purpose of sending you membership emails. We do not
-          sell, rent, or share your email address with third parties for
-          marketing purposes.
+          If you sign up with your email address (via the email capture form), your
+          address is added to our mailing list managed through MailerLite. You will
+          receive the free PDF report and occasional portfolio insights. You can
+          unsubscribe at any time using the link in any email.
+        </p>
+        <p className="text-base leading-relaxed mb-3">
+          If you create an account or become a paid member, we collect your email
+          address and store your account data (including saved portfolio mixes and
+          subscription status) in our database. Billing is processed through
+          Memberful — we do not store your payment information. We do not sell,
+          rent, or share your personal data with third parties for marketing
+          purposes.
         </p>
         <p className="text-base leading-relaxed">
-          By subscribing, you consent to receiving emails from PortfolioDB. You
-          can unsubscribe at any time using the link included in every email, or
-          by cancelling your membership through Ko-fi.
+          Our full privacy practices are described in the{" "}
+          <a href="/privacy-policy" className="text-[#27624a] hover:underline">Privacy Policy</a>.
         </p>
       </section>
 

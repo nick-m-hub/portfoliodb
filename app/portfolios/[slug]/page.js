@@ -6,7 +6,7 @@ import StructuredData from '@/components/StructuredData';
 import AllocationDonut from '@/components/AllocationDonut';
 import ChartsSection from '@/components/ChartsSection';
 import EmailCapture from '@/components/EmailCapture'
-import SignalTeaser from '@/components/SignalTeaser';
+import SignalTeaserWrapper from '@/components/SignalTeaserWrapper';
 import StatTooltip from '@/components/StatTooltip';
 import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 
@@ -291,7 +291,7 @@ export default async function PortfolioDetailPage({ params }) {
                 </Link>
               </div>
             )}
-            {portfolio.kofi_link && <SignalTeaser />}
+            {portfolio.kofi_link && <SignalTeaserWrapper slug={portfolio.slug} />}
           </div>
         </section>
 

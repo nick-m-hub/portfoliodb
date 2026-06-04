@@ -124,6 +124,36 @@ WITH running_values AS (
   JOIN last_date ld ON ld.portfolio_slug = mr.portfolio_slug
   GROUP BY mr.portfolio_slug, ld.last_date
 
+), cagr_1yr AS (
+  SELECT
+    mr.portfolio_slug,
+    CASE
+      WHEN count(*) FILTER (WHERE mr.date >= (ld.last_date - '1 year'::interval)) >= 12
+      THEN ((exp(sum(ln(((1)::numeric + (mr.monthly_return / (100)::numeric))))
+          FILTER (WHERE mr.date >= (ld.last_date - '1 year'::interval)))
+        - (1)::numeric) * (100)::numeric)
+      ELSE NULL::numeric
+    END AS cagr_1yr
+  FROM monthly_returns mr
+  JOIN last_date ld ON ld.portfolio_slug = mr.portfolio_slug
+  GROUP BY mr.portfolio_slug, ld.last_date
+
+), cagr_3yr AS (
+  SELECT
+    mr.portfolio_slug,
+    CASE
+      WHEN count(*) FILTER (WHERE mr.date >= (ld.last_date - '3 years'::interval)) >= 36
+      THEN ((power(
+        exp(sum(ln(((1)::numeric + (mr.monthly_return / (100)::numeric))))
+          FILTER (WHERE mr.date >= (ld.last_date - '3 years'::interval))),
+        (12.0 / (NULLIF(count(*) FILTER (WHERE mr.date >= (ld.last_date - '3 years'::interval)), 0))::numeric))
+        - (1)::numeric) * (100)::numeric)
+      ELSE NULL::numeric
+    END AS cagr_3yr
+  FROM monthly_returns mr
+  JOIN last_date ld ON ld.portfolio_slug = mr.portfolio_slug
+  GROUP BY mr.portfolio_slug, ld.last_date
+
 ), cagr_gfc AS (
   -- Global Financial Crisis: 2007–2009 (requires ≥24 months of data in window)
   SELECT
@@ -247,7 +277,9 @@ SELECT
   p.m1_link,
   p.kofi_link,
   round(co.cagr, 2)                    AS cagr,
-  round(c10.cagr_10yr, 2)              AS cagr_10yr,
+  round(c1.cagr_1yr, 2)               AS cagr_1yr,
+  round(c3.cagr_3yr, 2)               AS cagr_3yr,
+  round(c10.cagr_10yr, 2)             AS cagr_10yr,
   round(gfc.cagr_gfc, 2)               AS cagr_gfc,
   round(dotcom.cagr_dotcom, 2)         AS cagr_dotcom,
   round(cv.current_value, 2)           AS current_value,
@@ -273,8 +305,10 @@ SELECT
   round(r10.rolling_10yr_low, 2)       AS rolling_10yr_low,
   round(r10.rolling_10yr_high, 2)      AS rolling_10yr_high,
   round(r10.rolling_10yr_avg, 2)       AS rolling_10yr_avg
-FROM ((((((((((((((portfolios p
+FROM ((((((((((((((((portfolios p
   LEFT JOIN core co             ON co.portfolio_slug = p.slug)
+  LEFT JOIN cagr_1yr c1         ON c1.portfolio_slug = p.slug)
+  LEFT JOIN cagr_3yr c3         ON c3.portfolio_slug = p.slug)
   LEFT JOIN cagr_10yr c10       ON c10.portfolio_slug = p.slug)
   LEFT JOIN cagr_gfc gfc        ON gfc.portfolio_slug = p.slug)
   LEFT JOIN cagr_dotcom dotcom  ON dotcom.portfolio_slug = p.slug)

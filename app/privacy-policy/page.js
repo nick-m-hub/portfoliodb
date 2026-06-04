@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
       {/* Page header */}
       <h1 className="font-manrope text-3xl font-bold text-on-surface mb-2">Privacy Policy</h1>
       <p className="font-inter text-sm text-on-surface-variant mb-10">
-        Effective date: May 1, 2026 &nbsp;·&nbsp; Last updated: May 2026
+        Effective date: May 1, 2026 &nbsp;·&nbsp; Last updated: June 2026
       </p>
 
       {/* Plain-English summary */}
@@ -37,9 +37,11 @@ export default function PrivacyPolicyPage() {
         <p className="font-inter text-sm text-on-surface-variant leading-relaxed">
           If you just browse the site, we only collect anonymized analytics
           through Google Analytics — nothing personally identifiable. If you
-          become a paid member, we collect your email address to send you
-          membership emails. We don&rsquo;t sell your data. Ever. You can
-          unsubscribe or cancel at any time.
+          submit your email address, we add it to our mailing list via MailerLite.
+          If you create an account or become a paid member, we store your email,
+          account data, and subscription status in our database. Billing is handled
+          by Memberful. We don&rsquo;t sell your data. Ever. You can unsubscribe
+          or cancel at any time.
         </p>
       </div>
 
@@ -47,7 +49,7 @@ export default function PrivacyPolicyPage() {
       <section className="mb-10">
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">1. Who We Are</h2>
         <p className="text-base leading-relaxed">
-          PortfolioDB.co is an independently operated website based in the
+          PortfolioDB.com is an independently operated website based in the
           United States. This Privacy Policy explains how we collect, use, and
           protect information when you visit the Site or become a paid member.
           If you have questions, please use the contact page.
@@ -62,7 +64,7 @@ export default function PrivacyPolicyPage() {
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">From all visitors — anonymized analytics</h3>
         <p className="text-base leading-relaxed mb-3">
-          When you visit PortfolioDB.co, Google Analytics (GA4) automatically
+          When you visit PortfolioDB.com, Google Analytics (GA4) automatically
           collects anonymized data about your visit. This includes:
         </p>
         <ul className="list-disc list-outside pl-6 space-y-1 text-base leading-relaxed mb-3">
@@ -86,20 +88,30 @@ export default function PrivacyPolicyPage() {
           .
         </p>
 
-        <h3 className="font-inter text-base font-semibold text-on-surface mt-6 mb-2">From paid members — email address</h3>
+        <h3 className="font-inter text-base font-semibold text-on-surface mt-6 mb-2">From email subscribers</h3>
+        <p className="text-base leading-relaxed mb-4">
+          If you submit your email address via the signup form on the Site, your
+          address is stored in MailerLite, the email platform we use to send our
+          newsletter and free PDF report. You can unsubscribe at any time using
+          the link in any email.
+        </p>
+
+        <h3 className="font-inter text-base font-semibold text-on-surface mt-2 mb-2">From account holders and paid members</h3>
         <p className="text-base leading-relaxed">
-          If you subscribe to a paid membership, your email address is collected
-          through Ko-fi, the third-party platform we use to process
-          subscriptions. We receive your email address from Ko-fi for the sole
-          purpose of sending you membership emails. Ko-fi&rsquo;s handling of
-          your payment information and account data is governed by{" "}
+          If you create a free account or subscribe to a paid membership, we
+          collect your email address and store your account data — including saved
+          portfolio mixes and subscription status — in our database (Supabase).
+          Membership subscriptions are processed through Memberful, a third-party
+          platform. We receive your email address and subscription status from
+          Memberful. Memberful&rsquo;s handling of your payment information is
+          governed by{" "}
           <a
-            href="https://ko-fi.com/privacy"
+            href="https://memberful.com/privacy/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#27624a] hover:text-primary hover:underline transition-colors"
           >
-            Ko-fi&rsquo;s Privacy Policy
+            Memberful&rsquo;s Privacy Policy
           </a>
           .
         </p>
@@ -119,9 +131,14 @@ export default function PrivacyPolicyPage() {
             identify popular content, and improve the user experience
           </li>
           <li>
-            <strong>Your email address</strong> — to send you the membership
-            emails you subscribed to receive; occasional administrative messages
-            related to your membership (e.g., billing changes or policy updates)
+            <strong>Your email address (mailing list)</strong> — to deliver the
+            free PDF report and occasional portfolio insights you signed up for
+          </li>
+          <li>
+            <strong>Your account and subscription data</strong> — to authenticate
+            your account, store your saved portfolio mixes, and verify your
+            membership tier; occasional administrative messages related to your
+            membership (e.g., billing changes or policy updates)
           </li>
         </ul>
         <p className="text-base leading-relaxed mt-4">
@@ -146,8 +163,9 @@ export default function PrivacyPolicyPage() {
             websites.
           </li>
           <li>
-            We do not require registration or an account to access any part of
-            the Site.
+            We do not require registration or an account to access the portfolio
+            database, screener, or any of the analysis tools. An account is
+            required only to save portfolio mixes or access paid features.
           </li>
         </ul>
       </section>
@@ -158,9 +176,11 @@ export default function PrivacyPolicyPage() {
       <section className="mb-10">
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">5. Cookies</h2>
         <p className="text-base leading-relaxed mb-3">
-          PortfolioDB.co uses cookies only through Google Analytics. These are
-          analytics cookies that help us understand how visitors use the Site.
-          They do not store personally identifiable information.
+          PortfolioDB.com uses cookies for two purposes: analytics (via Google
+          Analytics) and authentication. Analytics cookies help us understand how
+          visitors use the Site and do not store personally identifiable
+          information. Authentication cookies are set by Supabase when you sign in
+          to your account and are required to keep you logged in across page visits.
         </p>
         <p className="text-base leading-relaxed mb-3">
           We do not use advertising cookies, tracking pixels, or third-party
@@ -197,36 +217,28 @@ export default function PrivacyPolicyPage() {
                 <td className="px-4 py-3 font-medium">Google Analytics (GA4)</td>
                 <td className="px-4 py-3">Anonymized site analytics</td>
                 <td className="px-4 py-3">
-                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">
-                    policies.google.com/privacy
-                  </a>
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">policies.google.com/privacy</a>
                 </td>
               </tr>
               <tr className="bg-surface-container-low">
-                <td className="px-4 py-3 font-medium">Ko-fi</td>
+                <td className="px-4 py-3 font-medium">Memberful</td>
                 <td className="px-4 py-3">Membership subscriptions and payment processing</td>
                 <td className="px-4 py-3">
-                  <a href="https://ko-fi.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">
-                    ko-fi.com/privacy
-                  </a>
+                  <a href="https://memberful.com/privacy/" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">memberful.com/privacy</a>
                 </td>
               </tr>
               <tr>
-                <td className="px-4 py-3 font-medium">Vercel</td>
-                <td className="px-4 py-3">Website hosting and delivery</td>
+                <td className="px-4 py-3 font-medium">MailerLite</td>
+                <td className="px-4 py-3">Email list management and newsletter delivery</td>
                 <td className="px-4 py-3">
-                  <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">
-                    vercel.com/legal/privacy-policy
-                  </a>
+                  <a href="https://www.mailerlite.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">mailerlite.com/legal/privacy-policy</a>
                 </td>
               </tr>
               <tr className="bg-surface-container-low">
                 <td className="px-4 py-3 font-medium">Supabase</td>
-                <td className="px-4 py-3">Database (portfolio data only — no personal data stored here)</td>
+                <td className="px-4 py-3">Database — stores portfolio data, user accounts, saved mixes, and subscription status</td>
                 <td className="px-4 py-3">
-                  <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">
-                    supabase.com/privacy
-                  </a>
+                  <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:text-primary hover:underline transition-colors">supabase.com/privacy</a>
                 </td>
               </tr>
             </tbody>
@@ -241,11 +253,11 @@ export default function PrivacyPolicyPage() {
         <h2 className="font-manrope text-xl font-semibold text-primary mb-3">7. Data Retention</h2>
         <p className="text-base leading-relaxed">
           Analytics data is retained according to Google Analytics&rsquo; default
-          settings (26 months). Your email address is retained for as long as
-          your membership is active. If you cancel your membership and request
-          that we delete your email address, we will do so within a reasonable
-          time. We do not retain any payment information — that is handled
-          entirely by Ko-fi.
+          settings (26 months). Email addresses on our mailing list are retained
+          until you unsubscribe. Account and subscription data is retained for as
+          long as your account is active. If you close your account and request
+          deletion of your data, we will do so within a reasonable time. We do not
+          retain any payment information — that is handled entirely by Memberful.
         </p>
       </section>
 
@@ -264,9 +276,10 @@ export default function PrivacyPolicyPage() {
             emails from us.
           </li>
           <li>
-            <strong>Cancel your membership</strong> — through your Ko-fi account
-            at any time. Cancellation ends future billing and membership email
-            delivery.
+            <strong>Cancel your membership</strong> — through your Memberful
+            account at{" "}
+            <a href="https://portfoliodb.memberful.com/account" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:underline">portfoliodb.memberful.com/account</a>
+            {" "}at any time. Cancellation ends future billing; you retain access until the end of your billing period.
           </li>
           <li>
             <strong>Request deletion of your email address</strong> — contact us

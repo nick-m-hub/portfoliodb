@@ -7,6 +7,8 @@ const links = [
   { label: 'Privacy Policy', href: '/privacy-policy' },
   { label: 'Methodology', href: '/methodology' },
   { label: 'Glossary', href: '/glossary-of-terms' },
+  { label: 'Leaderboard', href: '/leaderboard' },
+  { label: 'Changelog', href: '/changelog' },
   { label: 'Support', href: '/contact' },
 ];
 

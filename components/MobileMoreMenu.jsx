@@ -25,42 +25,16 @@ export default function MobileMoreMenu() {
         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>expand_more</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white border border-outline-variant rounded-lg shadow-md py-1 min-w-[120px] z-50">
-          <Link
-            href="/compare"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
-          >
-            Compare
-          </Link>
-          <Link
-            href="/builder"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
-          >
-            Builder
-          </Link>
-          <Link
-            href="/monte-carlo-simulation"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
-          >
-            Monte Carlo
-          </Link>
-          <Link
-            href="/membership"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
-          >
-            Membership
-          </Link>
-          <Link
-            href="/account"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter"
-          >
-            Account
-          </Link>
+        <div className="absolute right-0 top-full mt-1 bg-white border border-outline-variant rounded-lg shadow-md py-1 min-w-[140px] z-50">
+          <p className="px-4 pt-2 pb-1 text-xs font-semibold text-on-surface-variant uppercase tracking-wide font-inter">Tools</p>
+          <Link href="/leaderboard" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Leaderboard</Link>
+          <Link href="/tools/drawdown-analyzer" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Drawdown Analyzer</Link>
+          <Link href="/compare" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Compare</Link>
+          <Link href="/builder" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Builder</Link>
+          <Link href="/monte-carlo-simulation" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Monte Carlo</Link>
+          <div className="border-t border-outline-variant my-1" />
+          <Link href="/membership" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Membership</Link>
+          <Link href="/account" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors font-inter">Account</Link>
         </div>
       )}
     </div>

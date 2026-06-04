@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import NavSearch from '@/components/NavSearch';
 import MobileMoreMenu from '@/components/MobileMoreMenu';
+import ToolsMenu from '@/components/ToolsMenu';
 
 /** @param {{ portfolios: Array<{name: string, slug: string}> }} props */
 export default function Navbar({ portfolios = [] }) {
@@ -39,24 +40,7 @@ export default function Navbar({ portfolios = [] }) {
               >
                 Strategies
               </Link>
-              <Link
-                href="/compare"
-                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
-              >
-                Compare
-              </Link>
-              <Link
-                href="/builder"
-                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
-              >
-                Builder
-              </Link>
-              <Link
-                href="/monte-carlo-simulation"
-                className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
-              >
-                Monte Carlo
-              </Link>
+              <ToolsMenu />
               <Link
                 href="/membership"
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
