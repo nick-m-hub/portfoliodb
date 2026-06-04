@@ -370,6 +370,7 @@ portfoliodb/
     SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side. Date display uses { timeZone: 'UTC' } — date-only strings from Supabase (e.g. 2026-06-01) parse as UTC midnight and roll back a day in US timezones without this.
     MaterialSymbolsActivator.jsx     # Client component — renders null; useEffect flips the Material Symbols <link media="print"> to media="all" after hydration, making the icon font load non-blocking (Fix #13, June 2026)
     HoldingPeriodHeatmap.jsx         # Client component — triangular CAGR heatmap (start year × holding period), color-coded 8-band scale, hover tooltip with reserved height. Rendered full-width on portfolio detail pages.
+    WithdrawalRatesTable.jsx         # Server component — SWR + PWR table across 20/25/30/40-year horizons, nominal and real (3% inflation). Shows "Passes the 4% Rule" badge when 30yr real SWR ≥ 4.0%. Data passed as prop from page.js. "Run Monte Carlo →" CTA in footer.
     ToolsMenu.jsx                    # Client component — desktop "Tools ▾" dropdown in Navbar; contains Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo with label + one-line description per item; click-outside to close
     PricingToggle.jsx                # Client component — monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge; 4 Memberful checkout URLs hardcoded (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
     LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
@@ -378,7 +379,7 @@ portfoliodb/
     CurrentSignals.jsx               # Client component — two contexts: (1) 'builder': renders a single blended holdings list computed from the mix's weights × each portfolio's current holdings/allocations; tactical portions blurred for non-Signals members; (2) 'account': grid of all signal portfolios with current month holdings (blurred with lock overlay for non-Signals). Props: context, blendedHoldings (builder), signals (account), tier
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
-    MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards
+    MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards, SWR binary search
     BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session; "Download PDF" button (Builder/Signals tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click. Does NOT receive allAllocations/allSignals as props — fetches them client-side via /api/builder-holdings when 2+ portfolios are selected (avoids heavy server-side load on page open)
     BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
   app/
@@ -403,6 +404,7 @@ portfoliodb/
     supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
     db.js                            # All database query functions (see below)
     statDefinitions.js               # Plain JS (no 'use client') — STAT_DEFINITIONS object with definitions for 19 stat keys; importable by both server and client components
+    withdrawalRates.js               # Plain JS — `buildWithdrawalRates(monthlyReturns)` computes SWR + PWR for 4 durations × 2 inflation modes using Bengen rolling-window binary search (20 steps). Called server-side in portfolio detail page. Returns `{ 20: { swr_nominal, swr_real, pwr_nominal, pwr_real }, 25: ..., 30: ..., 40: ... }` or null per duration when data is insufficient.
   public/
     fonts/
       Manrope-Bold.ttf               # Manrope 700 — used by OG image routes (next/og requires TTF)
@@ -714,11 +716,11 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - **Return methods:**
   - *Historical (bootstrap):* randomly resamples full calendar years from the portfolio's actual monthly return history; maintains return autocorrelation within a year
   - *Statistical:* draws random monthly returns from a normal distribution fitted to the portfolio's historical mean and std dev (Box-Muller transform)
-- **Sequence of returns risk:** groups monthly returns by calendar year, sorts years worst-to-best by annual return, prepends the N worst calendar years to the front of every simulation's return sequence; remaining period is bootstrapped or statistical as selected. All 1,000 simulations share the same forced-bad prefix.
+- **Sequence of returns risk:** groups monthly returns by calendar year, sorts years worst-to-best by annual return, prepends the N worst calendar years to the front of every simulation's return sequence; remaining period is bootstrapped or statistical as selected. All 1,000 simulations share the same forced-bad prefix. The worst years remain in the bootstrap pool (not removed after being forced to the front), so the random remainder still carries full tail risk (June 2026 fix).
 - **Contributions:** applied every month after withdrawals. `contributionEndYear = 0` means contribute for the full period; any positive integer stops contributions after that year.
 - **Withdrawal delay:** `withdrawalDelay = 0` means withdrawals start immediately. `currentYear = Math.floor(m / 12) + 1`; withdrawals only apply when `currentYear > withdrawalDelay`. Inflation adjusts the withdrawal amount from month 0 (even during the delay), so the amount is already inflation-adjusted when withdrawals begin.
 - **Output:** Safe Withdrawal Rate card (green highlight, computed via 12-step binary search using `N_SIMS_SWR = 300` sims per step — the rate at which 90% of simulations survive). Plus 5-line Recharts `LineChart` + 4 stat cards (success rate, median ending balance, 90th percentile, 10th percentile).
-- **SWR binary search:** `computeSWR()` searches monthly withdrawal between $0 and 25% of initial portfolio annually. Uses `nSims` param in `runMonteCarlo` so the reduced sim count divides correctly — **do not use `N_SIMS` constant** in the success rate denominator; use `nSims` (the parameter).
+- **SWR binary search:** `computeSWR()` searches monthly withdrawal between $0 and 25% of initial portfolio annually. Uses `nSims` param in `runMonteCarlo` so the reduced sim count divides correctly — **do not use `N_SIMS` constant** in the success rate denominator; use `nSims` (the parameter). `computeSWR()` receives and forwards the full sim params including `withdrawalDelay` and `contributionEndYear` — these are respected in the SWR calculation (June 2026 fix).
 - **Inflation:** adjusts the withdrawal amount by `(1.03)^(1/12) - 1` every month, regardless of withdrawal frequency. On a withdrawal month, the current (already-inflated) amount is subtracted.
 - **"Monte Carlo Simulation" button** on every portfolio detail page hero links to `/monte-carlo-simulation?slug=${slug}`, pre-populating the portfolio.
 - Navbar: "Monte Carlo" link added to desktop nav and mobile More dropdown.
@@ -787,10 +789,20 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Rows render newest start year at top (reversed). Grid scrolls horizontally on mobile via `-mx-6 px-6 md:-mx-8 md:px-8` bleed pattern on the scroll container.
 - Hover tooltip uses reserved `h-5` fixed-height div so the grid never shifts on hover/unhover.
 
-### Portfolio Detail Page Layout (June 2026)
-- **Two-column grid** (`grid grid-cols-12`): col-span-8 (left) contains Allocation, Performance Snapshot, Rolling Returns summary, Growth of $10K chart (`section="growth"`); col-span-4 (right) is the sidebar (Implementation, At a Glance, Membership CTA).
-- **Full-width row** (`col-span-12`, inside the same grid so it appears right after both columns close — no gap): contains Historical Drawdown + Rolling Returns charts (`section="charts"`), HoldingPeriodHeatmap, and Description. Using `col-span-12` inside the same grid avoids the gap problem that occurs when the sidebar is taller than the left column (tactical portfolios with many tickers).
-- The `section` prop on ChartsSection splits the single "Compare to" benchmark bar: it appears above the Growth chart (col-span-8), and the Drawdown + Rolling charts use their own independent benchmark state in the full-width section.
+### WithdrawalRatesTable.jsx + lib/withdrawalRates.js (June 2026)
+- Server component — pure display, no `'use client'`. Props: `rates` (from `buildWithdrawalRates()`), `slug` (for the "Run Monte Carlo →" CTA link).
+- Two sub-sections: **Safe Withdrawal Rate** (portfolio value stays above $0) and **Perpetual Withdrawal Rate** (real purchasing power preserved at end of period). Each has Nominal and Real (3% inflation) columns across 4 durations.
+- **4% Rule badge:** if `rates[30]?.swr_real >= 4.0`, renders a green "Passes the 4% Rule" pill next to the heading. If 30yr data exists but SWR is below 4.0%, renders a neutral "Below the 4% Rule at 30 yrs" pill. No badge if 30yr data is insufficient.
+- **`buildWithdrawalRates(monthlyReturns)`** in `lib/withdrawalRates.js`: for each duration (20/25/30/40yr), collects all rolling windows of that length from the full history, then runs a 20-step binary search on the annual withdrawal rate (0–25% range). `simulateWindow()` operates directly on the original array with start index + length (no slice copies). Returns null per duration when `total - windowLength < 1`. Computation is server-side at SSG build time — adds ~100–300ms per portfolio at build time, negligible at runtime.
+- **PWR definition:** ending real value (nominal / cumulative inflation) ≥ starting value ($10,000). For nominal PWR, ending nominal value ≥ $10,000.
+- Placed in the col-span-8 main column between Rolling Returns summary and the Description detail section.
+
+### Portfolio Detail Page Layout (June 2026, updated June 2026)
+- **Two-column grid** (`grid grid-cols-12`): col-span-8 (left) contains Allocation, Performance Snapshot, Rolling Returns summary, WithdrawalRatesTable, and the Description detail (Investment Philosophy / Who It's For / Pros/Cons); col-span-4 (right) is the sidebar (Implementation, At a Glance, Membership CTA).
+- **Full-width rows** (`col-span-12`, inside the same grid — no gap): (1) ChartsSection (all three charts — Growth of $10K, Historical Drawdown, Rolling Returns — with `space-y-8` on the wrapper div); (2) HoldingPeriodHeatmap. Using `col-span-12` inside the same grid avoids the gap problem that occurs when the sidebar is taller than the left column.
+- ChartsSection is called **without** a `section` prop (defaults to `'all'`) — it renders the "Compare to" benchmark bar plus all three charts in one block at full width.
+- Description detail moved above ChartsSection (June 2026): Investment Philosophy / Who It's For / Pros/Cons sits in the col-span-8 main column between WithdrawalRatesTable and the full-width chart row. This improves SEO content placement and lets users read the strategy context before reaching the charts.
+- `generateMetadata` includes "Includes safe withdrawal rate analysis." appended to all portfolio meta descriptions, targeting retirement-focused search queries.
 
 ---
 
