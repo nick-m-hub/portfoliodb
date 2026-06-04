@@ -244,7 +244,7 @@ function parseMixParam(mixParam, allPortfolios) {
     .slice(0, MAX_PORTFOLIOS);
 }
 
-export default function BuilderClient({ allPortfolios, mixParam = null, userId = null, tier = null, savedCount = 0, allAllocations = [], allSignals = [] }) {
+export default function BuilderClient({ allPortfolios, mixParam = null, userId = null, tier = null, savedCount = 0 }) {
   // Pre-populate from ?mix= URL param if provided
   const initialSelections = parseMixParam(mixParam, allPortfolios);
 
@@ -269,6 +269,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
   const [logScale, setLogScale] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [holdingsData, setHoldingsData] = useState({ allocations: [], signals: [] });
   const searchRef = useRef(null);
 
   // Filter portfolio list for the search dropdown
@@ -305,13 +306,13 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   const blendedHoldings = useMemo(() => {
     if (selections.length < 2 || !weightOk) return null;
 
-    // Group allAllocations by portfolio slug for fast lookup
+    // Group fetched allocations by portfolio slug for fast lookup
     const allocBySlug = {};
-    for (const a of allAllocations) {
+    for (const a of holdingsData.allocations) {
       if (!allocBySlug[a.portfolio_slug]) allocBySlug[a.portfolio_slug] = [];
       allocBySlug[a.portfolio_slug].push(a);
     }
-    const signalBySlug = Object.fromEntries(allSignals.map((s) => [s.slug, s]));
+    const signalBySlug = Object.fromEntries(holdingsData.signals.map((s) => [s.slug, s]));
 
     let hasTactical = false;
     const tickerTotals = {}; // ticker → blended weight (0–100 scale)
@@ -344,7 +345,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
       .sort((a, b) => b.weight - a.weight);
 
     return holdings.length > 0 ? { hasTactical, holdings } : null;
-  }, [selections, weightOk, allAllocations, allSignals, tacticalSlugs]);
+  }, [selections, weightOk, holdingsData, tacticalSlugs]);
 
   // Fetch monthly returns for a single slug (no-op if already fetched)
   const fetchReturns = useCallback(
@@ -444,6 +445,20 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
     setShowSavePrompt(false);
     setSaveName('');
     setSaveStatus('idle');
+  }, [selectionSlugs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch allocations + signals for the current selection client-side.
+  // Only runs when there are 2+ portfolios — avoids loading this data on page load.
+  useEffect(() => {
+    if (selections.length < 2) {
+      setHoldingsData({ allocations: [], signals: [] });
+      return;
+    }
+    const slugs = selectionSlugs; // already joined
+    fetch(`/api/builder-holdings?slugs=${encodeURIComponent(slugs)}`)
+      .then((r) => r.json())
+      .then((data) => setHoldingsData(data))
+      .catch(() => {});
   }, [selectionSlugs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // POST the blended mix to /api/builder-save

@@ -70,7 +70,8 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { name, selections } = body;
+  const { selections } = body;
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 80) : null;
 
   // Fix #4 — Validate both lower bound (≥ 2) and upper bound (≤ 6) on selections array
   if (!Array.isArray(selections) || selections.length < 2 || selections.length > 6) {

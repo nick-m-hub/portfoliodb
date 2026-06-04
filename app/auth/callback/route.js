@@ -14,7 +14,9 @@ function getAdminClient() {
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/account';
+  const rawNext = searchParams.get('next') ?? '';
+  // Only allow relative paths starting with / to prevent open-redirect edge cases
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/account';
 
   if (code) {
     const cookieStore = await cookies();

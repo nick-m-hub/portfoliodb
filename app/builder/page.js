@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getPortfolioNames, getAllAllocations, getCurrentSignals } from '@/lib/db';
+import { getPortfolioNames } from '@/lib/db';
 import BuilderClient from '@/components/BuilderClient';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
@@ -56,11 +56,7 @@ export default async function BuilderPage({ searchParams }) {
     savedCount = count ?? 0;
   }
 
-  const [allPortfolios, allAllocations, allSignals] = await Promise.all([
-    getPortfolioNames(),
-    getAllAllocations(),
-    getCurrentSignals(),
-  ]);
+  const allPortfolios = await getPortfolioNames();
   const mixParam = params?.mix ?? null;
 
   return (
@@ -71,8 +67,6 @@ export default async function BuilderPage({ searchParams }) {
         userId={user?.id ?? null}
         tier={tier}
         savedCount={savedCount}
-        allAllocations={allAllocations ?? []}
-        allSignals={allSignals ?? []}
       />
     </main>
   );

@@ -35,7 +35,7 @@ export default async function AccountPage() {
   if (!user) redirect('/login?next=/account');
 
   // Fetch subscription, saved mixes, and current signals in parallel
-  const [{ data: subscription }, { data: savedMixes }, signals, allAllocations] = await Promise.all([
+  const [{ data: subscription }, { data: savedMixes }, signals] = await Promise.all([
     supabase
       .from('user_subscriptions')
       .select('plan, billing_period, status, current_period_end')
@@ -50,8 +50,10 @@ export default async function AccountPage() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
     getCurrentSignals(),
-    getAllAllocations(),
   ]);
+
+  // Only fetch full allocations if the user has saved mixes (needed for blended holdings display)
+  const allAllocations = savedMixes?.length > 0 ? await getAllAllocations() : [];
 
   const tier = subscription?.plan ?? null;
   const mixes = savedMixes ?? [];

@@ -1,5 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { supabase } from '@/lib/supabase';
 import LeaderboardClient from './LeaderboardClient';
 
 export const revalidate = 86400; // revalidate once per day
@@ -18,8 +17,6 @@ export const metadata = {
 };
 
 async function getLeaderboardData() {
-  const cookieStore = await cookies();
-  const supabase = createServerSupabaseClient(cookieStore);
   const { data, error } = await supabase
     .from('portfolio_stats')
     .select('slug, name, category, ytd_return, cagr_1yr, cagr_3yr, cagr_10yr, sharpe_ratio, last_updated')
