@@ -42,6 +42,7 @@ export default function ChartsSection({
   drawdownData,
   rollingDatasets,
   benchmarks,
+  section = 'all', // 'all' | 'growth' | 'charts'
 }) {
   const [selectedBenchmark, setSelectedBenchmark] = useState(null);
   const [show10yr, setShow10yr] = useState(false);
@@ -78,9 +79,12 @@ export default function ChartsSection({
     ? growthData10yr[growthData10yr.length - 1].value
     : growthData.length > 0 ? growthData[growthData.length - 1].value : null;
 
+  const showGrowth = section === 'all' || section === 'growth';
+  const showCharts = section === 'all' || section === 'charts';
+
   return (
     <>
-      {showBenchmarkToggle && (
+      {showBenchmarkToggle && (showGrowth || showCharts) && (
         <div className="flex items-center gap-3">
           <span className="font-inter text-[13px] text-on-surface-variant">Compare to:</span>
           <div className="flex gap-2">
@@ -112,7 +116,7 @@ export default function ChartsSection({
       )}
 
       {/* Growth of $10,000 */}
-      {growthData.length > 0 && (
+      {showGrowth && growthData.length > 0 && (
         <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -214,7 +218,7 @@ export default function ChartsSection({
       )}
 
       {/* Historical Drawdown */}
-      {drawdownData.length > 0 && (
+      {showCharts && drawdownData.length > 0 && (
         <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="mb-6">
             <h2 className="font-manrope text-[22px] font-bold text-primary">Historical Drawdown</h2>
@@ -227,7 +231,7 @@ export default function ChartsSection({
       )}
 
       {/* Rolling Returns */}
-      {Object.values(rollingDatasets).some((d) => d.length > 0) && (
+      {showCharts && Object.values(rollingDatasets).some((d) => d.length > 0) && (
         <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
           <div className="mb-6">
             <h2 className="font-manrope text-[22px] font-bold text-primary">Rolling Returns</h2>

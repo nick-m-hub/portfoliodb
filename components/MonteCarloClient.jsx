@@ -12,10 +12,30 @@ import {
   ReferenceLine,
 } from 'recharts';
 
+// ── Blend helper ─────────────────────────────────────────────────────────────
+
+function buildBlendedReturns(returnsBySlug, selections) {
+  const slugs = selections.map((s) => s.slug);
+  const weights = Object.fromEntries(selections.map((s) => [s.slug, parseFloat(s.weight) / 100]));
+
+  // Find common dates across all portfolios
+  const dateSets = slugs.map((slug) => new Set((returnsBySlug[slug] ?? []).map((r) => r.date)));
+  const commonDates = [...dateSets[0]].filter((d) => dateSets.every((set) => set.has(d))).sort();
+
+  return commonDates.map((date) => {
+    const blended = slugs.reduce((acc, slug) => {
+      const row = (returnsBySlug[slug] ?? []).find((r) => r.date === date);
+      return acc + (row ? row.monthly_return * (weights[slug] ?? 0) : 0);
+    }, 0);
+    return { date, monthly_return: Math.round(blended * 10000) / 10000 };
+  });
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const INFLATION_MONTHLY = Math.pow(1.03, 1 / 12) - 1;
 const N_SIMS = 1000;
+const N_SIMS_SWR = 300; // reduced sim count for binary search speed
 
 const FREQ_OPTIONS = [
   { value: 'monthly', label: 'Monthly' },
@@ -93,6 +113,10 @@ function runMonteCarlo({
   returnMethod,
   sequenceRiskYears,
   monthlyReturns,
+  contributionAmount = 0,
+  contributionEndYear = 0,  // 0 = full period
+  withdrawalDelay = 0,       // years to wait before withdrawals begin
+  nSims = N_SIMS,
 }) {
   const totalMonths = years * 12;
   const allRates = monthlyReturns.map((r) => r.monthly_return);
@@ -153,7 +177,7 @@ function runMonteCarlo({
 
   const allSims = [];
 
-  for (let s = 0; s < N_SIMS; s++) {
+  for (let s = 0; s < nSims; s++) {
     const returns = buildSequence();
     let value = initialValue;
     let withdrawal = withdrawalAmount;
@@ -162,16 +186,25 @@ function runMonteCarlo({
     for (let m = 0; m < totalMonths; m++) {
       value *= 1 + returns[m] / 100;
 
-      const isWDMonth =
-        withdrawalFrequency === 'monthly' ||
-        (withdrawalFrequency === 'quarterly' && (m + 1) % 3 === 0) ||
-        (withdrawalFrequency === 'annually' && (m + 1) % 12 === 0);
+      const currentYear = Math.floor(m / 12) + 1;
 
-      if (isWDMonth && withdrawal > 0) {
-        value = Math.max(0, value - withdrawal);
+      // Withdrawals: only after the delay period
+      if (currentYear > withdrawalDelay) {
+        const isWDMonth =
+          withdrawalFrequency === 'monthly' ||
+          (withdrawalFrequency === 'quarterly' && (m + 1) % 3 === 0) ||
+          (withdrawalFrequency === 'annually' && (m + 1) % 12 === 0);
+        if (isWDMonth && withdrawal > 0) {
+          value = Math.max(0, value - withdrawal);
+        }
       }
 
-      // Inflation grows the withdrawal amount every month
+      // Contributions: only within the contribution duration (0 = full period)
+      if (contributionAmount > 0 && (!contributionEndYear || currentYear <= contributionEndYear)) {
+        value += contributionAmount;
+      }
+
+      // Inflation grows the withdrawal amount every month (even during delay)
       if (adjustForInflation) {
         withdrawal *= 1 + INFLATION_MONTHLY;
       }
@@ -205,7 +238,7 @@ function runMonteCarlo({
   }
 
   const finals = allSims.map((s) => s[s.length - 1]).sort((a, b) => a - b);
-  const successRate = (finals.filter((v) => v > 0).length / N_SIMS) * 100;
+  const successRate = (finals.filter((v) => v > 0).length / nSims) * 100;
 
   return {
     chartData,
@@ -214,6 +247,40 @@ function runMonteCarlo({
     p10Final: getPercentile(finals, 0.1),
     p90Final: getPercentile(finals, 0.9),
   };
+}
+
+// ── Safe Withdrawal Rate ──────────────────────────────────────────────────────
+
+function computeSWR({ initialValue, adjustForInflation, years, returnMethod, sequenceRiskYears, monthlyReturns, contributionAmount }) {
+  if (!initialValue || initialValue <= 0 || !monthlyReturns?.length) return null;
+
+  // Binary search: find monthly withdrawal where success rate ≈ 90%
+  let lo = 0;
+  let hi = (initialValue * 0.25) / 12; // 25% annual is the upper bound
+
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    const { successRate } = runMonteCarlo({
+      initialValue,
+      withdrawalAmount: mid,
+      withdrawalFrequency: 'monthly',
+      adjustForInflation,
+      years,
+      returnMethod,
+      sequenceRiskYears,
+      monthlyReturns,
+      contributionAmount,
+      nSims: N_SIMS_SWR,
+    });
+    if (successRate >= 90) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  const monthlyWD = (lo + hi) / 2;
+  return ((monthlyWD * 12) / initialValue) * 100; // annual %
 }
 
 // ── Custom Tooltip ────────────────────────────────────────────────────────────
@@ -267,6 +334,7 @@ function PillGroup({ options, value, onChange }) {
 
 export default function MonteCarloClient({
   allPortfolioNames,
+  savedMixes = [],
   initialSlug,
   initialReturns,
   initialPortfolio,
@@ -278,6 +346,9 @@ export default function MonteCarloClient({
 
   const [initialValue, setInitialValue] = useState('500000');
   const [withdrawalAmount, setWithdrawalAmount] = useState('2000');
+  const [contributionAmount, setContributionAmount] = useState('0');
+  const [contributionEndYear, setContributionEndYear] = useState('');
+  const [withdrawalDelay, setWithdrawalDelay] = useState('');
   const [withdrawalFrequency, setWithdrawalFrequency] = useState('monthly');
   const [adjustForInflation, setAdjustForInflation] = useState(true);
   const [years, setYears] = useState('30');
@@ -297,10 +368,22 @@ export default function MonteCarloClient({
     }
     setFetching(true);
     try {
-      const res = await fetch(`/api/monte-carlo-returns?slug=${encodeURIComponent(newSlug)}`);
-      const data = await res.json();
-      setMonthlyReturns(data.returns ?? []);
-      setPortfolioStats(data.portfolio ?? null);
+      if (newSlug.startsWith('mix:')) {
+        const mixId = newSlug.slice(4);
+        const mix = savedMixes.find((m) => m.id === mixId);
+        if (!mix) throw new Error('Mix not found');
+        const slugs = mix.selections.map((s) => s.slug).join(',');
+        const res = await fetch(`/api/builder-returns?slugs=${encodeURIComponent(slugs)}`);
+        const data = await res.json();
+        const blended = buildBlendedReturns(data, mix.selections);
+        setMonthlyReturns(blended);
+        setPortfolioStats({ name: mix.name || 'Custom Mix' });
+      } else {
+        const res = await fetch(`/api/monte-carlo-returns?slug=${encodeURIComponent(newSlug)}`);
+        const data = await res.json();
+        setMonthlyReturns(data.returns ?? []);
+        setPortfolioStats(data.portfolio ?? null);
+      }
     } catch (e) {
       console.error('Failed to fetch portfolio data:', e);
       setMonthlyReturns([]);
@@ -316,8 +399,10 @@ export default function MonteCarloClient({
     setRunning(true);
     // Defer to let React render the loading state
     setTimeout(() => {
-      const res = runMonteCarlo({
-        initialValue: parseFloat(initialValue) || 0,
+      const initVal = parseFloat(initialValue) || 0;
+      const contribution = parseFloat(contributionAmount) || 0;
+      const simParams = {
+        initialValue: initVal,
         withdrawalAmount: parseFloat(withdrawalAmount) || 0,
         withdrawalFrequency,
         adjustForInflation,
@@ -325,8 +410,13 @@ export default function MonteCarloClient({
         returnMethod,
         sequenceRiskYears: Number(sequenceRiskYears),
         monthlyReturns,
-      });
-      setResults(res);
+        contributionAmount: contribution,
+        contributionEndYear: parseInt(contributionEndYear) || 0,
+        withdrawalDelay: parseInt(withdrawalDelay) || 0,
+      };
+      const res = runMonteCarlo(simParams);
+      const swrAnnual = computeSWR({ ...simParams, initialValue: initVal });
+      setResults({ ...res, swrAnnual });
       setRunning(false);
     }, 10);
   }
@@ -374,11 +464,26 @@ export default function MonteCarloClient({
                   className="w-full bg-surface-container border border-outline-variant rounded-lg px-3 py-2.5 font-inter text-[14px] text-on-surface focus:outline-none focus:border-primary"
                 >
                   <option value="">— Select a portfolio —</option>
-                  {allPortfolioNames.map((p) => (
-                    <option key={p.slug} value={p.slug}>
-                      {p.name}
-                    </option>
-                  ))}
+                  {savedMixes.length > 0 && (
+                    <optgroup label="Custom Mixes">
+                      {savedMixes.map((mix) => (
+                        <option key={`mix:${mix.id}`} value={`mix:${mix.id}`}>
+                          {mix.name || 'Untitled Mix'}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {savedMixes.length > 0 ? (
+                    <optgroup label="All Portfolios">
+                      {allPortfolioNames.map((p) => (
+                        <option key={p.slug} value={p.slug}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    allPortfolioNames.map((p) => (
+                      <option key={p.slug} value={p.slug}>{p.name}</option>
+                    ))
+                  )}
                 </select>
                 {histYears && (
                   <p className="font-inter text-[11px] text-on-surface-variant mt-1">
@@ -425,6 +530,50 @@ export default function MonteCarloClient({
                 </div>
               </div>
 
+              {/* Monthly contribution */}
+              <div>
+                <label className="block font-inter text-[12px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Monthly Contribution{' '}
+                  <span className="font-normal normal-case tracking-normal text-outline">(optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-inter text-[14px] text-on-surface-variant">
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatWithCommas(contributionAmount)}
+                    onChange={handleNumberInput(setContributionAmount)}
+                    className="w-full bg-surface-container border border-outline-variant rounded-lg pl-6 pr-3 py-2.5 font-inter text-[14px] text-on-surface focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Contribution duration */}
+              {(parseFloat(contributionAmount) || 0) > 0 && (
+                <div>
+                  <label className="block font-inter text-[12px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                    Contribution Duration{' '}
+                    <span className="font-normal normal-case tracking-normal text-outline">(blank = full period)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={contributionEndYear}
+                      onChange={(e) => setContributionEndYear(e.target.value)}
+                      min="1"
+                      max="50"
+                      placeholder="—"
+                      className="w-full bg-surface-container border border-outline-variant rounded-lg px-3 pr-14 py-2.5 font-inter text-[14px] text-on-surface focus:outline-none focus:border-primary"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-inter text-[14px] text-on-surface-variant">
+                      years
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Withdrawal frequency */}
               <div>
                 <label className="block font-inter text-[12px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
@@ -435,6 +584,33 @@ export default function MonteCarloClient({
                   value={withdrawalFrequency}
                   onChange={setWithdrawalFrequency}
                 />
+              </div>
+
+              {/* Withdrawal delay */}
+              <div>
+                <label className="block font-inter text-[12px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Delay Withdrawals{' '}
+                  <span className="font-normal normal-case tracking-normal text-outline">(optional)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={withdrawalDelay}
+                    onChange={(e) => setWithdrawalDelay(e.target.value)}
+                    min="0"
+                    max="49"
+                    placeholder="0"
+                    className="w-full bg-surface-container border border-outline-variant rounded-lg px-3 pr-14 py-2.5 font-inter text-[14px] text-on-surface focus:outline-none focus:border-primary"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-inter text-[14px] text-on-surface-variant">
+                    years
+                  </span>
+                </div>
+                {(parseInt(withdrawalDelay) || 0) > 0 && (
+                  <p className="font-inter text-[11px] text-on-surface-variant mt-1">
+                    Withdrawals begin in year {(parseInt(withdrawalDelay) || 0) + 1}.
+                  </p>
+                )}
               </div>
 
               {/* Inflation */}
@@ -560,6 +736,24 @@ export default function MonteCarloClient({
               </div>
             ) : (
               <div className="space-y-5">
+
+                {/* SWR highlight card */}
+                {results.swrAnnual != null && (
+                  <div className="bg-[#f0f7f3] border border-[#27624a]/30 rounded-xl p-4 shadow-sm flex items-center gap-5">
+                    <div className="flex-shrink-0">
+                      <div className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">
+                        Safe Withdrawal Rate
+                      </div>
+                      <div className="font-manrope text-[36px] font-bold text-primary leading-none">
+                        {results.swrAnnual.toFixed(1)}%
+                        <span className="font-inter text-[14px] font-semibold text-on-surface-variant ml-1">/yr</span>
+                      </div>
+                    </div>
+                    <p className="font-inter text-[12px] text-on-surface-variant leading-relaxed">
+                      The highest annual withdrawal rate at which this portfolio survives in 90% of simulated scenarios over {yearsInt} years.
+                    </p>
+                  </div>
+                )}
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -706,7 +900,9 @@ export default function MonteCarloClient({
                       {adjustForInflation && ' Withdrawals increase by 3% per year to account for inflation.'}
                       {sequenceRiskYears > 0 &&
                         ` The ${sequenceRiskYears} worst historical year${sequenceRiskYears > 1 ? 's' : ''} are forced to the start of every simulation to stress-test early retirement risk.`}
-                      {' '}No taxes, transaction costs, or contributions are modeled.
+                      {(parseFloat(contributionAmount) || 0) > 0 && ` Monthly contributions of ${formatFull(parseFloat(contributionAmount))} are added${(parseInt(contributionEndYear) || 0) > 0 ? ` for the first ${contributionEndYear} years` : ' for the full period'}.`}
+                      {(parseInt(withdrawalDelay) || 0) > 0 && ` Withdrawals begin in year ${(parseInt(withdrawalDelay) || 0) + 1}.`}
+                      {(parseFloat(contributionAmount) || 0) === 0 && ' No taxes, transaction costs, or contributions are modeled.'}
                     </p>
                   </div>
                 </div>

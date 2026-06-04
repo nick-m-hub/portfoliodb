@@ -50,6 +50,26 @@ const CHANGELOG = [
         type: 'improvement',
         text: 'Account page now clearly shows your access expiry date regardless of subscription status.',
       },
+      {
+        type: 'new',
+        text: 'Holding Period Returns heatmap — every portfolio detail page now shows a triangular grid of annualised CAGR for every start year and holding period combination, up to 30 years. Hover any cell to see the exact return.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio detail page layout updated — Historical Drawdown, Rolling Returns chart, and Holding Period heatmap now span the full page width for easier reading.',
+      },
+      {
+        type: 'improvement',
+        text: '1-Year and 3-Year CAGR added to the Portfolio Comparison stats table.',
+      },
+      {
+        type: 'improvement',
+        text: 'Monte Carlo Simulation — four new inputs: monthly contribution, contribution duration, withdrawal delay (start withdrawals in a future year), and a Safe Withdrawal Rate result card showing the highest annual withdrawal rate at 90% success.',
+      },
+      {
+        type: 'improvement',
+        text: 'Monte Carlo Simulation — saved mixes from the Portfolio Builder now appear in the portfolio selector under "Custom Mixes" for logged-in members.',
+      },
     ],
   },
   {

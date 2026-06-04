@@ -40,20 +40,22 @@ export default function LeaderboardClient({ portfolios }) {
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-container rounded-xl p-1 w-fit mb-1 overflow-x-auto">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2 rounded-lg font-inter text-sm font-medium whitespace-nowrap transition-colors ${
-              activeTab === t.key
-                ? 'bg-surface-container-lowest text-primary shadow-sm'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mb-1">
+        <div className="flex gap-1 bg-surface-container rounded-xl p-1 w-fit">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-2 rounded-lg font-inter text-sm font-medium whitespace-nowrap transition-colors ${
+                activeTab === t.key
+                  ? 'bg-surface-container-lowest text-primary shadow-sm'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
       <p className="font-inter text-xs text-on-surface-variant mb-6">{tab.description}</p>
 

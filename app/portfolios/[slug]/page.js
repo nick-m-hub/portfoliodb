@@ -9,6 +9,7 @@ import EmailCapture from '@/components/EmailCapture'
 import SignalTeaserWrapper from '@/components/SignalTeaserWrapper';
 import StatTooltip from '@/components/StatTooltip';
 import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
+import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -86,6 +87,45 @@ function buildRollingReturnData(monthlyReturns, windowMonths) {
   return result;
 }
 
+// Compute holding period returns heatmap: for every (startYear, N) pair, annualised CAGR
+function buildHeatmapData(monthlyReturns) {
+  if (!monthlyReturns?.length) return null;
+
+  const returnMap = new Map();
+  for (const row of monthlyReturns) {
+    returnMap.set(row.date.slice(0, 7), Number(row.monthly_return));
+  }
+
+  const firstYear = parseInt(monthlyReturns[0].date.slice(0, 4));
+  const lastYear  = parseInt(monthlyReturns[monthlyReturns.length - 1].date.slice(0, 4));
+
+  const startYears = [];
+  for (let y = firstYear; y <= lastYear; y++) startYears.push(y);
+
+  const maxPeriod = Math.min(30, lastYear - firstYear + 1);
+  const holdingPeriods = [];
+  for (let n = 1; n <= maxPeriod; n++) holdingPeriods.push(n);
+
+  const data = startYears.map((startYear) =>
+    holdingPeriods.map((n) => {
+      const endYear = startYear + n - 1;
+      if (endYear > lastYear) return null;
+      let compound = 1;
+      for (let y = startYear; y <= endYear; y++) {
+        for (let m = 1; m <= 12; m++) {
+          const key = `${y}-${String(m).padStart(2, '0')}`;
+          const ret = returnMap.get(key);
+          if (ret === undefined) return null;
+          compound *= (1 + ret / 100);
+        }
+      }
+      return Math.round((Math.pow(compound, 1 / n) - 1) * 10000) / 100;
+    })
+  );
+
+  return { startYears, holdingPeriods, data };
+}
+
 // Compute growth of $10,000 from monthly returns, downsampled to one point per year
 function buildGrowthData(monthlyReturns) {
   if (!monthlyReturns?.length) return [];
@@ -136,6 +176,7 @@ export default async function PortfolioDetailPage({ params }) {
     '10Y': buildRollingReturnData(monthlyReturns, 120),
   };
 
+  const heatmapData = buildHeatmapData(monthlyReturns);
   const last10yrReturns = monthlyReturns.slice(-120);
   const growthData10yr = monthlyReturns.length > 120 ? buildGrowthData(last10yrReturns) : [];
 
@@ -445,27 +486,6 @@ export default async function PortfolioDetailPage({ params }) {
               rollingDatasets={rollingDatasets}
               benchmarks={benchmarks}
             />
-
-            {/* Description */}
-            {descriptionDetail && (
-              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
-                <ReactMarkdown
-                  components={{
-                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
-                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
-                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
-                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
-                    em: ({children}) => <em className="italic">{children}</em>,
-                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
-                    li: ({children}) => <li>{children}</li>,
-                  }}
-                >
-                  {descriptionDetail}
-                </ReactMarkdown>
-              </section>
-            )}
           </div>
 
           {/* ── Sidebar ── */}
@@ -604,6 +624,31 @@ export default async function PortfolioDetailPage({ params }) {
 
 
           </aside>
+
+          {/* ── Full-width row inside the same grid ── */}
+          <div className="lg:col-span-12 space-y-8">
+            <HoldingPeriodHeatmap heatmapData={heatmapData} />
+
+            {descriptionDetail && (
+              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
+                <ReactMarkdown
+                  components={{
+                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
+                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
+                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
+                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
+                    em: ({children}) => <em className="italic">{children}</em>,
+                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
+                    li: ({children}) => <li>{children}</li>,
+                  }}
+                >
+                  {descriptionDetail}
+                </ReactMarkdown>
+              </section>
+            )}
+          </div>
         </div>
 
         {/* ── Related Portfolios ── */}

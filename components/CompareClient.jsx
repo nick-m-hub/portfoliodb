@@ -17,6 +17,8 @@ const STATS = [
   { key: 'best_year',               label: 'Best Year',     fmt: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`, higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
   { key: 'worst_year',              label: 'Worst Year',    fmt: (v) => `${v.toFixed(1)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
   { key: 'ytd_return',              label: 'YTD Return',    fmt: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`, higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
+  { key: 'cagr_1yr',                label: '1-Year CAGR',   fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
+  { key: 'cagr_3yr',                label: '3-Year CAGR',   fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
   { key: 'cagr_10yr',               label: '10-Year CAGR',  fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
   { key: 'ulcer_index',             label: 'Ulcer Index',   fmt: (v) => v.toFixed(2),                            higherBetter: false, colorFn: ()  => 'text-on-surface'                        },
   { key: 'ulcer_performance_index', label: 'UPI',           fmt: (v) => v.toFixed(3),                            higherBetter: true,  colorFn: ()  => 'text-on-surface'                        },

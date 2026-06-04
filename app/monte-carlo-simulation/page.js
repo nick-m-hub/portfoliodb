@@ -1,5 +1,9 @@
+import { cookies } from 'next/headers';
 import { getPortfolioNames, getMonthlyReturns, getPortfolio } from '@/lib/db';
+import { createServerSupabaseClient } from '@/lib/supabase';
 import MonteCarloClient from '@/components/MonteCarloClient';
+
+export const dynamic = 'force-dynamic';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -24,7 +28,18 @@ export const metadata = {
 export default async function MonteCarloPage({ searchParams }) {
   const { slug } = await searchParams;
 
-  const allPortfolioNames = await getPortfolioNames();
+  const cookieStore = await cookies();
+  const supabase = createServerSupabaseClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const [allPortfolioNames, savedMixesResult] = await Promise.all([
+    getPortfolioNames(),
+    user
+      ? supabase.from('user_portfolios').select('id, name, selections').eq('user_id', user.id).order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const savedMixes = savedMixesResult.data ?? [];
 
   let initialReturns = [];
   let initialPortfolio = null;
@@ -43,6 +58,7 @@ export default async function MonteCarloPage({ searchParams }) {
   return (
     <MonteCarloClient
       allPortfolioNames={allPortfolioNames ?? []}
+      savedMixes={savedMixes}
       initialSlug={slug ?? ''}
       initialReturns={initialReturns}
       initialPortfolio={initialPortfolio}
