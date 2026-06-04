@@ -64,11 +64,25 @@
 
 - [x] **MailerLite sender domain authentication** — portfoliodb.com verified June 2026 (DKIM CNAME added in Cloudflare). All automation emails now send from `support@portfoliodb.com`.
 
-- [ ] **Confirm Stage 1 GitHub Actions cron is active** — `.github/workflows/returns-stage1.yml` exists with a cron trigger (3rd of month, 10am UTC) + manual dispatch. As of May 2026 it was noted as "not yet confirmed running." Check GitHub → Actions tab to verify it has been triggering on schedule. If not, enable the workflow in the Actions tab.
+- [x] **Confirm Stage 1 GitHub Actions cron is active** — Confirmed June 2026: Stage 1 email received automatically on the 3rd of the month, cron is running on schedule.
 
 ---
 
 ## Backlog
+
+- [ ] **Portfolio detail page — in-page jump navigation** — The page now has 10+ sections. Add a sticky or inline anchor nav ("Allocation · Stats · Withdrawal Rates · Charts · Description") so users landing from search can skip to the section they care about. Portfolio Charts and Portfolio Visualizer both do this. Medium effort.
+
+- [x] **Portfolio detail page — 4% Rule callout on Withdrawal Rates** — If Real SWR at 30 years ≥ 4.0%, show a small green badge "Passes the 4% rule" inline in the Withdrawal Rates table. If below 4%, show a neutral note. Immediately contextualises the numbers for users unfamiliar with retirement withdrawal benchmarks. (June 2026)
+
+- [x] **Portfolio detail page — update generateMetadata to mention withdrawal rates** — Meta description currently mentions CAGR, max drawdown, and Sharpe. Now includes SWR data — add real SWR at 30 years to the description string to capture retirement-focused searches. (June 2026)
+
+- [x] **Portfolio detail page — move description detail above charts** — Investment Philosophy / Who It's For / Pros/Cons is currently the last content section before Related Portfolios, after all charts and the heatmap. Moving it above ChartsSection improves content placement for SEO and helps users who want to understand the strategy before digging into numbers. (June 2026)
+
+- [ ] **Portfolio detail page — FAQPage structured data for withdrawal rates** — Add `FAQPage` JSON-LD alongside existing `StructuredData.jsx` using the computed SWR data. Example Q: "What is the safe withdrawal rate for the [name]?" Google surfaces these as featured snippets. Medium effort.
+
+- [ ] **Portfolio detail page — page title CTR improvement** — Current: `[Name] - PortfolioDB`. Proposed: `[Name] — X% CAGR, Sharpe X.XX | PortfolioDB`. Stats in the title tag improve click-through from search results. Low effort but affects all 70+ pages — test on a few first.
+
+- [ ] **Portfolio detail page — mobile hero scroll order** — On mobile the sidebar (Back/Compare/Monte Carlo buttons + signal card) stacks below the hero text, requiring ~300px of scroll before reaching the allocation chart. Reversing the stack order on mobile (data first, action buttons second) reduces time-to-content.
 
 - [x] **Add 1-Year and 3-Year CAGR to Portfolio Comparison tool** — `portfolio_stats` already has `cagr_1yr` and `cagr_3yr` columns. Add them to the stats table in `CompareClient.jsx` alongside the existing CAGR/MaxDD/Sharpe/etc rows. `app/compare/page.js` fetches from `portfolio_stats` — check that `cagr_1yr` and `cagr_3yr` are included in the `.select()` call. Show `—` when null (short-history portfolios won't have a 3yr value).
 

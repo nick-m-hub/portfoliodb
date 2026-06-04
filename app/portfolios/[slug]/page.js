@@ -10,6 +10,8 @@ import SignalTeaserWrapper from '@/components/SignalTeaserWrapper';
 import StatTooltip from '@/components/StatTooltip';
 import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
+import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
+import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -31,8 +33,8 @@ export async function generateMetadata({ params }) {
     ? new Date(portfolio.last_updated).getFullYear() - Math.floor(portfolio.total_months / 12)
     : null;
   const description = startYear
-    ? `${nameForDesc} performance, allocations, and risk stats. CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ${portfolio.sharpe_ratio?.toFixed(2)} since ${startYear}.`
-    : `${nameForDesc} performance data: CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ratio ${portfolio.sharpe_ratio?.toFixed(2)}.`;
+    ? `${nameForDesc} performance, allocations, and risk stats. CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ${portfolio.sharpe_ratio?.toFixed(2)} since ${startYear}. Includes safe withdrawal rate analysis.`
+    : `${nameForDesc} performance data: CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ratio ${portfolio.sharpe_ratio?.toFixed(2)}. Includes safe withdrawal rate analysis.`;
 
   const title = `${portfolio.name} - PortfolioDB`;
   const url = `${siteUrl}/portfolios/${slug}`;
@@ -177,6 +179,7 @@ export default async function PortfolioDetailPage({ params }) {
   };
 
   const heatmapData = buildHeatmapData(monthlyReturns);
+  const withdrawalRates = buildWithdrawalRates(monthlyReturns);
   const last10yrReturns = monthlyReturns.slice(-120);
   const growthData10yr = monthlyReturns.length > 120 ? buildGrowthData(last10yrReturns) : [];
 
@@ -474,18 +477,28 @@ export default async function PortfolioDetailPage({ params }) {
               );
             })()}
 
-            <ChartsSection
-              slug={slug}
-              portfolioName={portfolio.name}
-              sharpeRatio={portfolio.sharpe_ratio}
-              bestYear={portfolio.best_year}
-              worstYear={portfolio.worst_year}
-              growthData={growthData}
-              growthData10yr={growthData10yr}
-              drawdownData={drawdownData}
-              rollingDatasets={rollingDatasets}
-              benchmarks={benchmarks}
-            />
+            <WithdrawalRatesTable rates={withdrawalRates} slug={slug} />
+
+            {descriptionDetail && (
+              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
+                <ReactMarkdown
+                  components={{
+                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
+                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
+                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
+                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
+                    em: ({children}) => <em className="italic">{children}</em>,
+                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
+                    li: ({children}) => <li>{children}</li>,
+                  }}
+                >
+                  {descriptionDetail}
+                </ReactMarkdown>
+              </section>
+            )}
+
           </div>
 
           {/* ── Sidebar ── */}
@@ -625,29 +638,23 @@ export default async function PortfolioDetailPage({ params }) {
 
           </aside>
 
-          {/* ── Full-width row inside the same grid ── */}
+          {/* ── Full-width rows inside the same grid ── */}
           <div className="lg:col-span-12 space-y-8">
+            <ChartsSection
+              slug={slug}
+              portfolioName={portfolio.name}
+              sharpeRatio={portfolio.sharpe_ratio}
+              bestYear={portfolio.best_year}
+              worstYear={portfolio.worst_year}
+              growthData={growthData}
+              growthData10yr={growthData10yr}
+              drawdownData={drawdownData}
+              rollingDatasets={rollingDatasets}
+              benchmarks={benchmarks}
+            />
+          </div>
+          <div className="lg:col-span-12">
             <HoldingPeriodHeatmap heatmapData={heatmapData} />
-
-            {descriptionDetail && (
-              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
-                <ReactMarkdown
-                  components={{
-                    h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
-                    h3: ({children}) => <h3 className="font-manrope text-[17px] font-semibold text-on-surface mt-5 mb-1.5">{children}</h3>,
-                    p:  ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
-                    strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
-                    em: ({children}) => <em className="italic">{children}</em>,
-                    a:  ({href, children}) => <a href={href} className="text-[#27624a] hover:text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                    ul: ({children}) => <ul className="list-disc list-outside pl-5 space-y-1 mb-4">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-4">{children}</ol>,
-                    li: ({children}) => <li>{children}</li>,
-                  }}
-                >
-                  {descriptionDetail}
-                </ReactMarkdown>
-              </section>
-            )}
           </div>
         </div>
 

@@ -136,8 +136,11 @@ function runMonteCarlo({
     .sort((a, b) => a.annual - b.annual);
 
   const worstBlocks = yearBlocks.slice(0, sequenceRiskYears);
-  const restBlocks = yearBlocks.slice(sequenceRiskYears);
-  const bootstrapPool = restBlocks.length > 0 ? restBlocks : yearBlocks;
+  // Keep the full history (including the worst years) in the resampling pool so
+  // the random remainder still carries full tail risk. The worst years are only
+  // *additionally* forced to the front via worstBlocks — they are not removed
+  // from the random draws.
+  const bootstrapPool = yearBlocks;
 
   // Statistical params (mean/std of monthly returns)
   const mean = allRates.reduce((a, b) => a + b, 0) / allRates.length;
@@ -251,7 +254,7 @@ function runMonteCarlo({
 
 // ── Safe Withdrawal Rate ──────────────────────────────────────────────────────
 
-function computeSWR({ initialValue, adjustForInflation, years, returnMethod, sequenceRiskYears, monthlyReturns, contributionAmount }) {
+function computeSWR({ initialValue, adjustForInflation, years, returnMethod, sequenceRiskYears, monthlyReturns, contributionAmount, contributionEndYear, withdrawalDelay }) {
   if (!initialValue || initialValue <= 0 || !monthlyReturns?.length) return null;
 
   // Binary search: find monthly withdrawal where success rate ≈ 90%
@@ -263,6 +266,9 @@ function computeSWR({ initialValue, adjustForInflation, years, returnMethod, seq
     const { successRate } = runMonteCarlo({
       initialValue,
       withdrawalAmount: mid,
+      // SWR is expressed as an annual rate withdrawn monthly — frequency is
+      // normalized here, but delay and contribution duration are respected so
+      // the card matches the rest of the configured simulation.
       withdrawalFrequency: 'monthly',
       adjustForInflation,
       years,
@@ -270,6 +276,8 @@ function computeSWR({ initialValue, adjustForInflation, years, returnMethod, seq
       sequenceRiskYears,
       monthlyReturns,
       contributionAmount,
+      contributionEndYear,
+      withdrawalDelay,
       nSims: N_SIMS_SWR,
     });
     if (successRate >= 90) {

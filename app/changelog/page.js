@@ -70,6 +70,14 @@ const CHANGELOG = [
         type: 'improvement',
         text: 'Monte Carlo Simulation — saved mixes from the Portfolio Builder now appear in the portfolio selector under "Custom Mixes" for logged-in members.',
       },
+      {
+        type: 'new',
+        text: 'Withdrawal Rates table added to every portfolio detail page — shows Safe Withdrawal Rate and Perpetual Withdrawal Rate across 20, 25, 30, and 40-year horizons, in both nominal (fixed withdrawals) and real (inflation-adjusted) terms. Includes a "Passes the 4% Rule" badge when the 30-year real SWR is at or above 4%.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio detail page — all three charts (Growth of $10,000, Historical Drawdown, Rolling Returns) now span the full page width.',
+      },
     ],
   },
   {
