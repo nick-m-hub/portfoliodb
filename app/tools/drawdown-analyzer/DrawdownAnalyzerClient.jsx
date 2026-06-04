@@ -55,15 +55,23 @@ export default function DrawdownAnalyzerClient() {
     fetchAnalysis(preset.from, preset.to, preset.desc);
   }
 
+  // Validate that a string is YYYY-MM format (the only format the API accepts)
+  const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
   function handleCustomSubmit(e) {
     e.preventDefault();
     if (!customFrom || !customTo) return;
+    if (!MONTH_RE.test(customFrom) || !MONTH_RE.test(customTo)) {
+      setError('Please use YYYY-MM format, e.g. 2018-12');
+      return;
+    }
     setActivePreset(null);
     const label = `${formatMonth(customFrom)} – ${formatMonth(customTo)}`;
     fetchAnalysis(customFrom, customTo, label);
   }
 
   function formatMonth(ym) {
+    if (!MONTH_RE.test(ym)) return ym;
     const [y, m] = ym.split('-');
     return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
@@ -102,20 +110,26 @@ export default function DrawdownAnalyzerClient() {
       {/* Custom date range */}
       <form onSubmit={handleCustomSubmit} className="flex flex-wrap items-end gap-3 mb-8">
         <div className="flex flex-col gap-1">
-          <label className="font-inter text-xs font-medium text-on-surface-variant">From</label>
+          <label className="font-inter text-xs font-medium text-on-surface-variant">
+            From <span className="text-outline font-normal">(YYYY-MM)</span>
+          </label>
           <input
             type="month"
             value={customFrom}
-            onChange={(e) => { setCustomFrom(e.target.value); setActivePreset(null); }}
+            onChange={(e) => { setCustomFrom(e.target.value); setActivePreset(null); setError(null); }}
+            placeholder="2018-12"
             className="font-inter text-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="font-inter text-xs font-medium text-on-surface-variant">To</label>
+          <label className="font-inter text-xs font-medium text-on-surface-variant">
+            To <span className="text-outline font-normal">(YYYY-MM)</span>
+          </label>
           <input
             type="month"
             value={customTo}
-            onChange={(e) => { setCustomTo(e.target.value); setActivePreset(null); }}
+            onChange={(e) => { setCustomTo(e.target.value); setActivePreset(null); setError(null); }}
+            placeholder="2022-10"
             className="font-inter text-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary"
           />
         </div>
