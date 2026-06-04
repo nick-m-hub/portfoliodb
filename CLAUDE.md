@@ -277,6 +277,8 @@ Key formula approach:
   The `getAllocations()` and `getAllAllocations()` db functions already apply
   this coalesce logic, so components just use `a.color`.
 
+- **Date-only columns (e.g. `date`, `published_at`) display one day early in US timezones** if formatted naively. `new Date('2026-06-01')` parses as UTC midnight, which is May 31 in EST/PST. Always pass `{ timeZone: 'UTC' }` to `toLocaleDateString()` when formatting date-only strings from Supabase: `new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })`.
+
 ---
 
 ## File Structure
@@ -365,7 +367,7 @@ portfoliodb/
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
-    SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side.
+    SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side. Date display uses { timeZone: 'UTC' } — date-only strings from Supabase (e.g. 2026-06-01) parse as UTC midnight and roll back a day in US timezones without this.
     MaterialSymbolsActivator.jsx     # Client component — renders null; useEffect flips the Material Symbols <link media="print"> to media="all" after hydration, making the icon font load non-blocking (Fix #13, June 2026)
     HoldingPeriodHeatmap.jsx         # Client component — triangular CAGR heatmap (start year × holding period), color-coded 8-band scale, hover tooltip with reserved height. Rendered full-width on portfolio detail pages.
     ToolsMenu.jsx                    # Client component — desktop "Tools ▾" dropdown in Navbar; contains Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo with label + one-line description per item; click-outside to close
