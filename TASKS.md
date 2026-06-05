@@ -70,7 +70,7 @@
 
 ## Backlog
 
-- [ ] **Portfolio detail page — in-page jump navigation** — The page now has 10+ sections. Add a sticky or inline anchor nav ("Allocation · Stats · Withdrawal Rates · Charts · Description") so users landing from search can skip to the section they care about. Portfolio Charts and Portfolio Visualizer both do this. Medium effort.
+- [x] **Portfolio detail page — in-page jump navigation (June 2026)** — `components/PortfolioJumpNav.jsx` client component. Sticks just below the Navbar (dynamically measures Navbar height on mount + resize, so it works on both mobile 86px two-row nav and desktop 49px single-row nav). 7 section pills: Allocation · Performance · Rolling Returns · Withdrawal Rates · Strategy · Charts · Holding Period. Conditional pills (Rolling Returns, Strategy) only appear when those sections actually render. Scroll-spy highlights active section; smooth scroll on click lands heading in visible content area. Section `id` attributes added to all 7 sections in `app/portfolios/[slug]/page.js`; `navSections` array computed server-side.
 
 - [x] **Portfolio detail page — 4% Rule callout on Withdrawal Rates** — If Real SWR at 30 years ≥ 4.0%, show a small green badge "Passes the 4% rule" inline in the Withdrawal Rates table. If below 4%, show a neutral note. Immediately contextualises the numbers for users unfamiliar with retirement withdrawal benchmarks. (June 2026)
 
