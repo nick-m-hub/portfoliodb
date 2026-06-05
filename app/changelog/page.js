@@ -78,6 +78,10 @@ const CHANGELOG = [
         type: 'improvement',
         text: 'Portfolio detail page — all three charts (Growth of $10,000, Historical Drawdown, Rolling Returns) now span the full page width.',
       },
+      {
+        type: 'improvement',
+        text: 'Portfolio detail pages now have a sticky jump navigation bar — click any section (Allocation, Performance, Rolling Returns, Withdrawal Rates, Strategy, Charts, Holding Period) to scroll directly to it. Active section highlights as you scroll.',
+      },
     ],
   },
   {

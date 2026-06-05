@@ -12,6 +12,7 @@ import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
+import PortfolioJumpNav from '@/components/PortfolioJumpNav';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -218,6 +219,17 @@ export default async function PortfolioDetailPage({ params }) {
   const descriptionIntro = firstParaBreak >= 0 ? rawDescription.slice(0, firstParaBreak) : rawDescription
   const descriptionDetail = firstParaBreak >= 0 ? rawDescription.slice(firstParaBreak + 2) : ''
 
+  const hasRollingReturns = ['1yr', '3yr', '5yr', '10yr'].some((p) => portfolio[`rolling_${p}_avg`] != null);
+  const navSections = [
+    { id: 'allocation',       label: 'Allocation' },
+    { id: 'stats',            label: 'Performance' },
+    ...(hasRollingReturns ? [{ id: 'rolling-returns',   label: 'Rolling Returns' }] : []),
+    { id: 'withdrawal-rates', label: 'Withdrawal Rates' },
+    ...(descriptionDetail ? [{ id: 'strategy',          label: 'Strategy' }] : []),
+    { id: 'charts',           label: 'Charts' },
+    { id: 'heatmap',          label: 'Holding Period' },
+  ];
+
   return (
     <main className="flex-grow w-full">
       <StructuredData portfolio={portfolio} allocations={allocations} />
@@ -348,6 +360,8 @@ export default async function PortfolioDetailPage({ params }) {
           </div>
         </section>
 
+        <PortfolioJumpNav sections={navSections} />
+
         {/* ── Body ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -355,7 +369,7 @@ export default async function PortfolioDetailPage({ params }) {
           <div className="lg:col-span-8 space-y-8">
 
             {/* Allocation */}
-            <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+            <section id="allocation" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="font-manrope text-[22px] font-bold text-primary">{allocationLabel}</h2>
@@ -403,7 +417,7 @@ export default async function PortfolioDetailPage({ params }) {
             </section>
 
             {/* Performance Snapshot */}
-            <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+            <section id="stats" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
               <h2 className="font-manrope text-[22px] font-bold text-primary mb-1">Performance Snapshot</h2>
               <div className="flex items-center justify-between mb-5">
                 <p className="font-inter text-[13px]">
@@ -497,7 +511,7 @@ export default async function PortfolioDetailPage({ params }) {
                 { label: '10 Year', low: portfolio.rolling_10yr_low, avg: portfolio.rolling_10yr_avg, high: portfolio.rolling_10yr_high },
               ].filter((r) => r.avg != null);
               return (
-                <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+                <section id="rolling-returns" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
                   <h2 className="font-manrope text-[22px] font-bold text-primary mb-6">Rolling Returns</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -525,10 +539,12 @@ export default async function PortfolioDetailPage({ params }) {
               );
             })()}
 
-            <WithdrawalRatesTable rates={withdrawalRates} slug={slug} />
+            <div id="withdrawal-rates">
+              <WithdrawalRatesTable rates={withdrawalRates} slug={slug} />
+            </div>
 
             {descriptionDetail && (
-              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
+              <section id="strategy" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm font-inter text-[16px] text-on-surface-variant leading-relaxed">
                 <ReactMarkdown
                   components={{
                     h2: ({children}) => <h2 className="font-manrope text-[20px] font-bold text-primary mt-6 mb-2 first:mt-0">{children}</h2>,
@@ -687,7 +703,7 @@ export default async function PortfolioDetailPage({ params }) {
           </aside>
 
           {/* ── Full-width rows inside the same grid ── */}
-          <div className="lg:col-span-12 space-y-8">
+          <div id="charts" className="lg:col-span-12 space-y-8">
             <ChartsSection
               slug={slug}
               portfolioName={portfolio.name}
@@ -701,7 +717,7 @@ export default async function PortfolioDetailPage({ params }) {
               benchmarks={benchmarks}
             />
           </div>
-          <div className="lg:col-span-12">
+          <div id="heatmap" className="lg:col-span-12">
             <HoldingPeriodHeatmap heatmapData={heatmapData} />
           </div>
         </div>
