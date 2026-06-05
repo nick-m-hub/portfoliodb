@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 
 const DURATIONS = [20, 25, 30, 40];
@@ -132,13 +134,15 @@ export default function WithdrawalRatesTable({ rates, slug }) {
           <strong className="text-on-surface">Real</strong> = withdrawals grow 3%/yr with inflation.
           Based on this portfolio&apos;s full return history using the Bengen rolling-window methodology.
         </p>
-        <Link
-          href={`/monte-carlo-simulation?slug=${slug}`}
-          className="flex items-center gap-1.5 font-inter text-[13px] font-semibold text-primary hover:underline flex-shrink-0"
-        >
-          <span className="material-symbols-outlined text-[16px]">monitoring</span>
-          Run Monte Carlo →
-        </Link>
+        {slug && (
+          <Link
+            href={`/monte-carlo-simulation?slug=${slug}`}
+            className="flex items-center gap-1.5 font-inter text-[13px] font-semibold text-primary hover:underline flex-shrink-0"
+          >
+            <span className="material-symbols-outlined text-[16px]">monitoring</span>
+            Run Monte Carlo →
+          </Link>
+        )}
       </div>
     </section>
   );

@@ -3,7 +3,12 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import GrowthChart from '@/components/GrowthChart';
+import DrawdownChart from '@/components/DrawdownChart';
+import RollingReturnChart from '@/components/RollingReturnChart';
+import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
+import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import CurrentSignals from '@/components/CurrentSignals';
+import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
 const RF_MONTHLY = 0.375; // 4.5% annual risk-free rate / 12
@@ -42,20 +47,95 @@ function buildBlendedReturns(portfolioReturns, selections) {
   }));
 }
 
+function buildDrawdownData(blended) {
+  let value = 10000;
+  let peak = 10000;
+  return blended.map((r) => {
+    value *= 1 + r.monthly_return / 100;
+    if (value > peak) peak = value;
+    const dd = ((value - peak) / peak) * 100;
+    return { label: r.date.slice(0, 7), value: Math.round(dd * 100) / 100 };
+  });
+}
+
+function buildRollingDatasets(blended) {
+  const windows = [
+    { label: '1Y', months: 12 },
+    { label: '3Y', months: 36 },
+    { label: '5Y', months: 60 },
+    { label: '10Y', months: 120 },
+  ];
+  const datasets = {};
+  for (const { label, months } of windows) {
+    if (blended.length < months) continue;
+    const data = [];
+    for (let i = months - 1; i < blended.length; i++) {
+      let compound = 1;
+      for (let j = i - months + 1; j <= i; j++) {
+        compound *= 1 + blended[j].monthly_return / 100;
+      }
+      const annualized = (Math.pow(compound, 12 / months) - 1) * 100;
+      data.push({ label: blended[i].date.slice(0, 7), value: Math.round(annualized * 100) / 100 });
+    }
+    if (data.length > 0) datasets[label] = data;
+  }
+  return datasets;
+}
+
+function buildHeatmapData(monthlyReturns) {
+  if (!monthlyReturns?.length) return null;
+  const returnMap = new Map();
+  for (const row of monthlyReturns) {
+    returnMap.set(row.date.slice(0, 7), Number(row.monthly_return));
+  }
+  const firstYear = parseInt(monthlyReturns[0].date.slice(0, 4));
+  const lastYear = parseInt(monthlyReturns[monthlyReturns.length - 1].date.slice(0, 4));
+  const startYears = [];
+  for (let y = firstYear; y <= lastYear; y++) startYears.push(y);
+  const maxPeriod = Math.min(30, lastYear - firstYear + 1);
+  const holdingPeriods = [];
+  for (let n = 1; n <= maxPeriod; n++) holdingPeriods.push(n);
+  const data = startYears.map((startYear) =>
+    holdingPeriods.map((n) => {
+      const endYear = startYear + n - 1;
+      if (endYear > lastYear) return null;
+      let compound = 1;
+      for (let y = startYear; y <= endYear; y++) {
+        for (let m = 1; m <= 12; m++) {
+          const key = `${y}-${String(m).padStart(2, '0')}`;
+          const ret = returnMap.get(key);
+          if (ret === undefined) return null;
+          compound *= 1 + ret / 100;
+        }
+      }
+      return Math.round((Math.pow(compound, 1 / n) - 1) * 10000) / 100;
+    })
+  );
+  return { startYears, holdingPeriods, data };
+}
+
 function computeStats(blended) {
   const n = blended.length;
   if (n < 12) return null;
 
-  // Single-pass: running value for CAGR + drawdown + growth chart + ulcer index
+  // Single-pass: running value for CAGR + drawdown + growth chart + ulcer index + longest drawdown
   let value = 10000;
   let peak = 10000;
   let maxDrawdown = 0;
   let sumDDSquared = 0;
+  let currentDDStreak = 0;
+  let longestDrawdownMonths = 0;
   const byYear = {};
 
   for (const r of blended) {
     value *= 1 + r.monthly_return / 100;
-    if (value > peak) peak = value;
+    if (value > peak) {
+      peak = value;
+      currentDDStreak = 0;
+    } else {
+      currentDDStreak++;
+      if (currentDDStreak > longestDrawdownMonths) longestDrawdownMonths = currentDDStreak;
+    }
     const dd = ((value - peak) / peak) * 100;
     if (dd < maxDrawdown) maxDrawdown = dd;
     sumDDSquared += dd * dd;
@@ -143,6 +223,12 @@ function computeStats(blended) {
       endValue: byYear[year],
     }));
 
+  // Additional stats (matching portfolio_stats view)
+  const annualizedVolatility = stdDev * Math.sqrt(12);
+  const pctProfitableMonths = Math.round((returns.filter((r) => r > 0).length / n) * 1000) / 10;
+  const bestMonth = Math.max(...returns);
+  const worstMonth = Math.min(...returns);
+
   return {
     cagr,
     maxDrawdown,
@@ -156,6 +242,11 @@ function computeStats(blended) {
     cagr10yr,
     gfcCagr,
     dotcomCagr,
+    annualizedVolatility,
+    pctProfitableMonths,
+    bestMonth,
+    worstMonth,
+    longestDrawdownMonths,
     growthData,
     annualReturns,
     totalMonths: n,
@@ -224,6 +315,25 @@ function SnapshotRow({ icon, label, value, positive, error }) {
   );
 }
 
+function LockOverlay({ title }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-surface-container-lowest/75">
+      <span className="material-symbols-outlined text-[32px] text-primary mb-2">lock</span>
+      <p className="font-manrope font-bold text-[16px] text-on-surface mb-1">{title}</p>
+      <p className="font-inter text-[13px] text-on-surface-variant mb-4 text-center px-6">
+        Unlock with a Builder or Signals membership
+      </p>
+      <Link
+        href="/membership"
+        className="inline-flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
+      >
+        See plans
+        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+      </Link>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────
@@ -270,6 +380,8 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   const [logScale, setLogScale] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [holdingsData, setHoldingsData] = useState({ allocations: [], signals: [] });
+  const [withdrawalRates, setWithdrawalRates] = useState(null);
+  const [swrLoading, setSwrLoading] = useState(false);
   const searchRef = useRef(null);
 
   // Filter portfolio list for the search dropdown
@@ -289,15 +401,38 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
 
   const isReady = selections.length >= 2 && weightOk && allDataLoaded && !isLoading;
 
-  const stats = useMemo(() => {
-    if (!isReady) return null;
+  const blendedReturns = useMemo(() => {
+    if (!isReady) return [];
     try {
-      const blended = buildBlendedReturns(portfolioReturns, selections);
-      return computeStats(blended);
+      return buildBlendedReturns(portfolioReturns, selections);
+    } catch {
+      return [];
+    }
+  }, [isReady, portfolioReturns, selections]);
+
+  const stats = useMemo(() => {
+    if (!blendedReturns.length) return null;
+    try {
+      return computeStats(blendedReturns);
     } catch {
       return null;
     }
-  }, [isReady, portfolioReturns, selections]);
+  }, [blendedReturns]);
+
+  const drawdownData = useMemo(() => {
+    if (!blendedReturns.length) return [];
+    return buildDrawdownData(blendedReturns);
+  }, [blendedReturns]);
+
+  const rollingDatasets = useMemo(() => {
+    if (!blendedReturns.length) return {};
+    return buildRollingDatasets(blendedReturns);
+  }, [blendedReturns]);
+
+  const heatmapData = useMemo(() => {
+    if (!blendedReturns.length || !tier) return null;
+    return buildHeatmapData(blendedReturns);
+  }, [blendedReturns, tier]);
 
   // Compute blended holdings for the Current Holdings card.
   // Weights each portfolio's holdings (allocations or tactical signals) by the
@@ -447,6 +582,25 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
     setSaveStatus('idle');
   }, [selectionSlugs]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Compute SWR/PWR for tier members; defer with setTimeout so loading state renders first
+  useEffect(() => {
+    if (!blendedReturns.length || !tier) {
+      setWithdrawalRates(null);
+      setSwrLoading(false);
+      return;
+    }
+    setSwrLoading(true);
+    setWithdrawalRates(null);
+    const timer = setTimeout(() => {
+      try {
+        setWithdrawalRates(buildWithdrawalRates(blendedReturns));
+      } finally {
+        setSwrLoading(false);
+      }
+    }, 10);
+    return () => clearTimeout(timer);
+  }, [blendedReturns, tier]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch allocations + signals for the current selection client-side.
   // Only runs when there are 2+ portfolios — avoids loading this data on page load.
   useEffect(() => {
@@ -483,12 +637,9 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   }, [saveName, selections]);
 
   const handleDownloadPDF = useCallback(async () => {
-    if (!stats) return;
+    if (!stats || !blendedReturns.length) return;
     setPdfLoading(true);
     try {
-      // Compute blended returns from current portfolio selections
-      const blendedReturns = buildBlendedReturns(portfolioReturns, selections);
-
       // Fetch benchmark returns in parallel with library imports
       const [{ pdf }, { BuilderPDFDocument }, benchRes] = await Promise.all([
         import('@react-pdf/renderer'),
@@ -519,7 +670,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
     } finally {
       setPdfLoading(false);
     }
-  }, [stats, selections, saveName, portfolioReturns]);
+  }, [stats, selections, saveName, blendedReturns]);
 
   // Weight display — show integer if whole number, one decimal otherwise
   const weightDisplay =
@@ -743,9 +894,118 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
               Loading return data…
             </p>
           )}
+
+          {/* ── Save CTA (inside selector) ── */}
+          {isReady && stats && (
+            <div className="mt-4 pt-4 border-t border-outline-variant">
+              {!userId ? (
+                <div className="flex flex-col gap-2.5">
+                  <p className="font-manrope font-bold text-[14px] text-on-surface">Like this mix?</p>
+                  <Link
+                    href="/login?next=/builder"
+                    className="flex items-center justify-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
+                    Sign in to save
+                  </Link>
+                </div>
+              ) : !tier ? (
+                <div className="flex flex-col gap-2.5">
+                  <p className="font-manrope font-bold text-[14px] text-on-surface">Save this mix</p>
+                  <p className="font-inter text-[12px] text-on-surface-variant">
+                    Unlock charts, SWR analysis, and PDF export with a membership.
+                  </p>
+                  <Link
+                    href="/membership"
+                    className="flex items-center justify-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
+                  >
+                    See plans
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                  </Link>
+                </div>
+              ) : tier === 'builder' && localSavedCount >= 3 ? (
+                <div className="flex flex-col gap-2">
+                  <p className="font-manrope font-bold text-[14px] text-on-surface">3/3 mixes saved</p>
+                  <p className="font-inter text-[12px] text-on-surface-variant">
+                    Manage your mixes or upgrade for unlimited saves.
+                  </p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Link href="/account" className="font-inter text-[13px] font-semibold text-primary hover:underline">
+                      Manage mixes →
+                    </Link>
+                    <Link href="/membership" className="font-inter text-[13px] text-on-surface-variant hover:text-on-surface transition-colors">
+                      Upgrade to Signals
+                    </Link>
+                  </div>
+                </div>
+              ) : saveStatus === 'saved' ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>check_circle</span>
+                    <p className="font-manrope font-bold text-[14px] text-on-surface">Mix saved</p>
+                  </div>
+                  <Link href="/account" className="font-inter text-[13px] font-semibold text-primary hover:underline flex-shrink-0">
+                    View mixes →
+                  </Link>
+                </div>
+              ) : !showSavePrompt ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-manrope font-bold text-[14px] text-on-surface">Like this mix?</p>
+                    <p className="font-inter text-[12px] text-on-surface-variant">Save it to your account.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowSavePrompt(true)}
+                    className="flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-3 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors flex-shrink-0"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bookmark</span>
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <label className="block font-inter text-[13px] font-semibold text-on-surface">
+                    Name this mix (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    placeholder="e.g. My Retirement Mix"
+                    maxLength={80}
+                    className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 font-inter text-[13px] text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:border-primary transition-colors"
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleSave}
+                      disabled={saveStatus === 'saving'}
+                      className="flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors disabled:opacity-60"
+                    >
+                      <span
+                        className={`material-symbols-outlined ${saveStatus === 'saving' ? 'animate-spin' : ''}`}
+                        style={{ fontSize: '16px' }}
+                      >
+                        {saveStatus === 'saving' ? 'progress_activity' : 'bookmark'}
+                      </span>
+                      {saveStatus === 'saving' ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setShowSavePrompt(false); setSaveStatus('idle'); }}
+                      className="font-inter text-[13px] text-on-surface-variant hover:text-on-surface transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    {saveStatus === 'error' && (
+                      <p className="font-inter text-[12px] text-error">Failed to save. Try again.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* ── Results Panel ── */}
+        {/* ── Quick Results: Stats + Growth chart ── */}
         <div className="space-y-4">
 
           {/* Placeholder — not enough to compute */}
@@ -776,12 +1036,11 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
             </div>
           )}
 
-          {/* Full results */}
+          {/* Stats card + Growth chart */}
           {isReady && stats && (
             <>
               {/* Stats card */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5">
-                {/* Header: title + date range + weight pills */}
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
                   <div>
                     <h2 className="font-manrope font-bold text-[18px] text-on-surface">
@@ -793,34 +1052,32 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                  {tier && (
-                    <button
-                      onClick={handleDownloadPDF}
-                      disabled={pdfLoading}
-                      title="Download PDF report"
-                      className="flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors disabled:opacity-50"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                        {pdfLoading ? 'progress_activity' : 'download'}
-                      </span>
-                      {pdfLoading ? 'Generating…' : 'Download PDF'}
-                    </button>
-                  )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {selections.map((s, i) => (
-                      <span
-                        key={s.slug}
-                        className="inline-flex items-center font-inter text-[11px] font-medium px-2 py-0.5 rounded-full text-white"
-                        style={{ backgroundColor: PORTFOLIO_COLORS[i] }}
+                    {tier && (
+                      <button
+                        onClick={handleDownloadPDF}
+                        disabled={pdfLoading}
+                        title="Download PDF report"
+                        className="flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors disabled:opacity-50"
                       >
-                        {s.weight}%&nbsp;{s.name}
-                      </span>
-                    ))}
-                  </div>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                          {pdfLoading ? 'progress_activity' : 'download'}
+                        </span>
+                        {pdfLoading ? 'Generating…' : 'Download PDF'}
+                      </button>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {selections.map((s, i) => (
+                        <span
+                          key={s.slug}
+                          className="inline-flex items-center font-inter text-[11px] font-medium px-2 py-0.5 rounded-full text-white"
+                          style={{ backgroundColor: PORTFOLIO_COLORS[i] }}
+                        >
+                          {s.weight}%&nbsp;{s.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                {/* 3-stat grid — always visible */}
                 <div className="grid grid-cols-3 gap-3">
                   <StatCard
                     label="CAGR"
@@ -838,7 +1095,6 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                     positive={stats.sharpe >= 0}
                   />
                 </div>
-
                 <p className="mt-4 font-inter text-[11px] text-on-surface-variant">
                   Only months where all selected portfolios have return data are included.
                   Assumes monthly rebalancing to target weights. Past performance does not
@@ -870,275 +1126,161 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                 </div>
                 <GrowthChart data={stats.growthData} logScale={logScale} />
               </div>
-
-              {/* Performance Snapshot — blurred for non-members */}
-              <div className="relative">
-                {/* Blurred content layer */}
-                <div
-                  className={`bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 transition-[filter] ${
-                    !tier ? 'blur-sm select-none pointer-events-none' : ''
-                  }`}
-                >
-                  <h3 className="font-manrope font-bold text-[16px] text-on-surface mb-4">
-                    Performance Snapshot
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-6">
-                    {/* Left column */}
-                    <div>
-                      <SnapshotRow
-                        icon="show_chart"
-                        label="Sortino Ratio"
-                        value={stats.sortino.toFixed(2)}
-                        positive={stats.sortino >= 0}
-                      />
-                      <SnapshotRow
-                        icon="arrow_upward"
-                        label="Best Year"
-                        value={stats.bestYear != null ? `+${stats.bestYear.toFixed(1)}%` : null}
-                        positive
-                      />
-                      <SnapshotRow
-                        icon="calendar_today"
-                        label="YTD Return"
-                        value={stats.ytdReturn != null ? `${stats.ytdReturn >= 0 ? '+' : ''}${stats.ytdReturn.toFixed(1)}%` : null}
-                        positive={stats.ytdReturn != null && stats.ytdReturn >= 0}
-                        error={stats.ytdReturn != null && stats.ytdReturn < 0}
-                      />
-                      <SnapshotRow
-                        icon="warning"
-                        label="Ulcer Index"
-                        value={stats.ulcerIndex.toFixed(2)}
-                      />
-                      <SnapshotRow
-                        icon="account_balance"
-                        label="GFC CAGR"
-                        value={stats.gfcCagr != null ? `${stats.gfcCagr >= 0 ? '+' : ''}${stats.gfcCagr.toFixed(1)}%` : null}
-                        positive={stats.gfcCagr != null && stats.gfcCagr >= 0}
-                        error={stats.gfcCagr != null && stats.gfcCagr < 0}
-                      />
-                    </div>
-                    {/* Right column */}
-                    <div>
-                      <SnapshotRow
-                        icon="arrow_downward"
-                        label="Worst Year"
-                        value={stats.worstYear != null ? `${stats.worstYear >= 0 ? '+' : ''}${stats.worstYear.toFixed(1)}%` : null}
-                        positive={stats.worstYear != null && stats.worstYear >= 0}
-                        error={stats.worstYear != null && stats.worstYear < 0}
-                      />
-                      <SnapshotRow
-                        icon="history"
-                        label="10-Year CAGR"
-                        value={stats.cagr10yr != null ? `${stats.cagr10yr >= 0 ? '+' : ''}${stats.cagr10yr.toFixed(1)}%` : null}
-                        positive={stats.cagr10yr != null && stats.cagr10yr >= 0}
-                        error={stats.cagr10yr != null && stats.cagr10yr < 0}
-                      />
-                      <SnapshotRow
-                        icon="monitoring"
-                        label="Ulcer Perf. Index"
-                        value={stats.ulcerPerformanceIndex != null ? stats.ulcerPerformanceIndex.toFixed(2) : null}
-                        positive={stats.ulcerPerformanceIndex != null && stats.ulcerPerformanceIndex >= 0}
-                      />
-                      <SnapshotRow
-                        icon="computer"
-                        label="Dot-com CAGR"
-                        value={stats.dotcomCagr != null ? `${stats.dotcomCagr >= 0 ? '+' : ''}${stats.dotcomCagr.toFixed(1)}%` : null}
-                        positive={stats.dotcomCagr != null && stats.dotcomCagr >= 0}
-                        error={stats.dotcomCagr != null && stats.dotcomCagr < 0}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lock overlay */}
-                {!tier && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-surface-container-lowest/75">
-                    <span className="material-symbols-outlined text-[32px] text-primary mb-2">lock</span>
-                    <p className="font-manrope font-bold text-[16px] text-on-surface mb-1">
-                      Performance Snapshot
-                    </p>
-                    <p className="font-inter text-[13px] text-on-surface-variant mb-4 text-center px-6">
-                      Unlock with a Builder or Signals membership
-                    </p>
-                    <Link
-                      href="/membership"
-                      className="inline-flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-                    >
-                      See plans
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                        arrow_forward
-                      </span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Current Holdings — blended view of all selected portfolios */}
-              {blendedHoldings && (
-                <CurrentSignals
-                  context="builder"
-                  blendedHoldings={blendedHoldings}
-                  tier={tier}
-                />
-              )}
-
-              {/* Save CTA card */}
-              <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5">
-                {!userId ? (
-                  /* State A: not logged in */
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <p className="font-manrope font-bold text-[16px] text-on-surface">Like this mix?</p>
-                      <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
-                        Sign in to save it permanently to your account.
-                      </p>
-                    </div>
-                    <Link
-                      href="/login?next=/builder"
-                      className="flex items-center gap-2 bg-primary text-white font-inter font-semibold text-[14px] px-5 py-2.5 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>login</span>
-                      Sign in to save
-                    </Link>
-                  </div>
-                ) : !tier ? (
-                  /* State B: logged in, no plan */
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary flex-shrink-0" style={{ fontSize: '24px' }}>
-                        workspace_premium
-                      </span>
-                      <div>
-                        <p className="font-manrope font-bold text-[16px] text-on-surface mb-2">Save this mix</p>
-                        <ul className="space-y-1.5">
-                          {[
-                            'Save up to 3 custom mixes permanently',
-                            'Unlock the Performance Snapshot with 8 additional stats',
-                            'Download a full PDF report for any mix',
-                          ].map((item) => (
-                            <li key={item} className="flex items-start gap-2 font-inter text-[13px] text-on-surface-variant">
-                              <span className="material-symbols-outlined text-primary flex-shrink-0" style={{ fontSize: '15px' }}>check</span>
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <Link
-                      href="/membership"
-                      className="inline-flex items-center gap-2 bg-primary text-white font-inter font-semibold text-[14px] px-5 py-2.5 rounded-xl hover:bg-[#0a5c3f] transition-colors self-start"
-                    >
-                      See plans
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
-                    </Link>
-                  </div>
-                ) : tier === 'builder' && localSavedCount >= 3 ? (
-                  /* State C: builder at 3-mix limit */
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <p className="font-manrope font-bold text-[16px] text-on-surface">3/3 mixes saved</p>
-                      <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
-                        You&apos;ve reached the Builder limit. Manage your mixes or upgrade for unlimited saves.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <Link
-                        href="/account"
-                        className="flex items-center gap-2 bg-primary text-white font-inter font-semibold text-[14px] px-4 py-2.5 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-                      >
-                        Manage mixes
-                      </Link>
-                      <Link
-                        href="/membership"
-                        className="font-inter text-[14px] text-on-surface-variant hover:text-on-surface transition-colors"
-                      >
-                        Upgrade to Signals
-                      </Link>
-                    </div>
-                  </div>
-                ) : saveStatus === 'saved' ? (
-                  /* Saved success */
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary" style={{ fontSize: '20px' }}>check_circle</span>
-                      <div>
-                        <p className="font-manrope font-bold text-[16px] text-on-surface">Mix saved</p>
-                        <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
-                          You can load it any time from your account.
-                        </p>
-                      </div>
-                    </div>
-                    <Link
-                      href="/account"
-                      className="font-inter text-[14px] font-semibold text-primary hover:underline"
-                    >
-                      View your mixes →
-                    </Link>
-                  </div>
-                ) : !showSavePrompt ? (
-                  /* State D default: teaser */
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      <p className="font-manrope font-bold text-[16px] text-on-surface">Like this mix?</p>
-                      <p className="font-inter text-[13px] text-on-surface-variant mt-0.5">
-                        Save it permanently to your account.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowSavePrompt(true)}
-                      className="flex items-center gap-2 bg-primary text-white font-inter font-semibold text-[14px] px-5 py-2.5 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>bookmark</span>
-                      Save This Mix
-                    </button>
-                  </div>
-                ) : (
-                  /* State D expanded: name input + save button */
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <label className="block font-inter text-[13px] font-semibold text-on-surface mb-1.5">
-                        Name this mix (optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={saveName}
-                        onChange={(e) => setSaveName(e.target.value)}
-                        placeholder="e.g. My Retirement Mix"
-                        maxLength={80}
-                        className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 font-inter text-[14px] text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <button
-                        onClick={handleSave}
-                        disabled={saveStatus === 'saving'}
-                        className="flex items-center gap-2 bg-primary text-white font-inter font-semibold text-[14px] px-5 py-2.5 rounded-xl hover:bg-[#0a5c3f] transition-colors disabled:opacity-60"
-                      >
-                        <span
-                          className={`material-symbols-outlined ${saveStatus === 'saving' ? 'animate-spin' : ''}`}
-                          style={{ fontSize: '18px' }}
-                        >
-                          {saveStatus === 'saving' ? 'progress_activity' : 'bookmark'}
-                        </span>
-                        {saveStatus === 'saving' ? 'Saving…' : 'Save'}
-                      </button>
-                      <button
-                        onClick={() => { setShowSavePrompt(false); setSaveStatus('idle'); }}
-                        className="font-inter text-[14px] text-on-surface-variant hover:text-on-surface transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      {saveStatus === 'error' && (
-                        <p className="font-inter text-[13px] text-error">Failed to save. Please try again.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
             </>
           )}
         </div>
       </div>
+
+      {/* ── Full-width analysis (below the 2-col grid) ── */}
+      {isReady && stats && (
+        <div className="space-y-4 mt-4">
+
+          {/* Performance Snapshot (2/3) + Blended Holdings (1/3) */}
+          <div className={`grid grid-cols-1 gap-4 items-start ${blendedHoldings ? 'lg:grid-cols-[2fr_1fr]' : ''}`}>
+
+            {/* Performance Snapshot — gated */}
+            <div className="relative">
+              <div
+                className={`bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 transition-[filter] ${
+                  !tier ? 'blur-sm select-none pointer-events-none' : ''
+                }`}
+              >
+                <h3 className="font-manrope font-bold text-[18px] text-on-surface mb-4">
+                  Performance Snapshot
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-8">
+                  <div>
+                    <SnapshotRow icon="show_chart"      label="Sortino Ratio"      value={stats.sortino.toFixed(2)} positive={stats.sortino >= 0} />
+                    <SnapshotRow icon="arrow_upward"    label="Best Year"          value={stats.bestYear != null ? `+${stats.bestYear.toFixed(1)}%` : null} positive />
+                    <SnapshotRow icon="calendar_today"  label="YTD Return"         value={stats.ytdReturn != null ? `${stats.ytdReturn >= 0 ? '+' : ''}${stats.ytdReturn.toFixed(1)}%` : null} positive={stats.ytdReturn != null && stats.ytdReturn >= 0} error={stats.ytdReturn != null && stats.ytdReturn < 0} />
+                    <SnapshotRow icon="warning"         label="Ulcer Index"        value={stats.ulcerIndex.toFixed(2)} />
+                    <SnapshotRow icon="account_balance" label="GFC CAGR"           value={stats.gfcCagr != null ? `${stats.gfcCagr >= 0 ? '+' : ''}${stats.gfcCagr.toFixed(1)}%` : null} positive={stats.gfcCagr != null && stats.gfcCagr >= 0} error={stats.gfcCagr != null && stats.gfcCagr < 0} />
+                    <SnapshotRow icon="bar_chart"       label="Ann. Volatility"    value={`${stats.annualizedVolatility.toFixed(1)}%`} />
+                    <SnapshotRow icon="trending_up"     label="Best Month"         value={`+${stats.bestMonth.toFixed(1)}%`} positive />
+                  </div>
+                  <div>
+                    <SnapshotRow icon="arrow_downward"  label="Worst Year"         value={stats.worstYear != null ? `${stats.worstYear >= 0 ? '+' : ''}${stats.worstYear.toFixed(1)}%` : null} positive={stats.worstYear != null && stats.worstYear >= 0} error={stats.worstYear != null && stats.worstYear < 0} />
+                    <SnapshotRow icon="history"         label="10-Year CAGR"       value={stats.cagr10yr != null ? `${stats.cagr10yr >= 0 ? '+' : ''}${stats.cagr10yr.toFixed(1)}%` : null} positive={stats.cagr10yr != null && stats.cagr10yr >= 0} error={stats.cagr10yr != null && stats.cagr10yr < 0} />
+                    <SnapshotRow icon="monitoring"      label="Ulcer Perf. Index"  value={stats.ulcerPerformanceIndex != null ? stats.ulcerPerformanceIndex.toFixed(2) : null} positive={stats.ulcerPerformanceIndex != null && stats.ulcerPerformanceIndex >= 0} />
+                    <SnapshotRow icon="computer"        label="Dot-com CAGR"       value={stats.dotcomCagr != null ? `${stats.dotcomCagr >= 0 ? '+' : ''}${stats.dotcomCagr.toFixed(1)}%` : null} positive={stats.dotcomCagr != null && stats.dotcomCagr >= 0} error={stats.dotcomCagr != null && stats.dotcomCagr < 0} />
+                    <SnapshotRow icon="trending_down"   label="Worst Month"        value={`${stats.worstMonth.toFixed(1)}%`} error />
+                    <SnapshotRow icon="check_circle"    label="Profitable Months"  value={`${stats.pctProfitableMonths.toFixed(1)}%`} positive />
+                    <SnapshotRow icon="timer"           label="Longest Drawdown"   value={`${stats.longestDrawdownMonths} mo`} />
+                  </div>
+                </div>
+              </div>
+              {!tier && <LockOverlay title="Performance Snapshot" />}
+            </div>
+
+            {/* Blended Holdings — 1/3 */}
+            {blendedHoldings && (
+              <CurrentSignals
+                context="builder"
+                blendedHoldings={blendedHoldings}
+                tier={tier}
+              />
+            )}
+          </div>
+
+          {/* Drawdown + Rolling Returns — side-by-side on desktop, gated */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Historical Drawdown */}
+            <div className="relative">
+              <div
+                className={`bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 transition-[filter] ${
+                  !tier ? 'blur-sm select-none pointer-events-none' : ''
+                }`}
+              >
+                <h3 className="font-manrope font-bold text-[16px] text-on-surface mb-4">
+                  Historical Drawdown
+                </h3>
+                {drawdownData.length > 0 && <DrawdownChart data={drawdownData} />}
+              </div>
+              {!tier && <LockOverlay title="Historical Drawdown" />}
+            </div>
+
+            {/* Rolling Returns */}
+            <div className="relative">
+              <div
+                className={`bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 transition-[filter] ${
+                  !tier ? 'blur-sm select-none pointer-events-none' : ''
+                }`}
+              >
+                <h3 className="font-manrope font-bold text-[16px] text-on-surface mb-4">
+                  Rolling Returns
+                </h3>
+                {Object.keys(rollingDatasets).length > 0 ? (
+                  <RollingReturnChart datasets={rollingDatasets} />
+                ) : (
+                  <p className="font-inter text-[13px] text-on-surface-variant">
+                    Insufficient data (requires ≥12 months).
+                  </p>
+                )}
+              </div>
+              {!tier && <LockOverlay title="Rolling Returns" />}
+            </div>
+          </div>
+
+          {/* Withdrawal Rates — gated, computed async for tier members */}
+          <div className="relative">
+            <div
+              className={`transition-[filter] ${
+                !tier ? 'blur-sm select-none pointer-events-none' : ''
+              }`}
+            >
+              {tier ? (
+                swrLoading ? (
+                  <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 flex items-center gap-3 min-h-[80px]">
+                    <span className="material-symbols-outlined text-on-surface-variant animate-spin" style={{ fontSize: '20px' }}>
+                      progress_activity
+                    </span>
+                    <span className="font-inter text-[14px] text-on-surface-variant">
+                      Computing withdrawal rates…
+                    </span>
+                  </div>
+                ) : withdrawalRates ? (
+                  <WithdrawalRatesTable rates={withdrawalRates} slug={null} />
+                ) : null
+              ) : (
+                <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-8 min-h-[200px]">
+                  <h2 className="font-manrope text-[22px] font-bold text-primary mb-2">Withdrawal Rates</h2>
+                  <p className="font-inter text-[13px] text-on-surface-variant">
+                    The highest annual withdrawal rate that succeeded across every historical rolling
+                    window. 100% success rate — no historical starting point ran out of money.
+                  </p>
+                </div>
+              )}
+            </div>
+            {!tier && <LockOverlay title="Withdrawal Rates" />}
+          </div>
+
+          {/* Holding Period Heatmap — gated */}
+          {(!tier || heatmapData) && (
+            <div className="relative">
+              <div
+                className={`transition-[filter] ${
+                  !tier ? 'blur-sm select-none pointer-events-none' : ''
+                }`}
+              >
+                {tier ? (
+                  heatmapData && <HoldingPeriodHeatmap heatmapData={heatmapData} />
+                ) : (
+                  <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-8 min-h-[200px]">
+                    <h2 className="font-manrope text-[22px] font-bold text-primary mb-2">Holding Period Returns</h2>
+                    <p className="font-inter text-[13px] text-on-surface-variant">
+                      Annualised CAGR for every start year and holding period. Each cell answers:
+                      &ldquo;What if I invested in January of that year and held for N years?&rdquo;
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!tier && <LockOverlay title="Holding Period Returns" />}
+            </div>
+          )}
+
+
+        </div>
+      )}
     </div>
   );
 }

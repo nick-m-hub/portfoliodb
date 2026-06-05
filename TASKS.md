@@ -80,28 +80,6 @@
 
 - [x] **Portfolio Builder — expand paid stats, charts, and SWR/PWR (June 2026)** — All gated behind Builder/Signals tier. **5 new Performance Snapshot stats:** Ann. Volatility, Best Month, Worst Month, % Profitable Months, Longest Drawdown Duration (Performance Snapshot now has 14 stats total). **4 new analysis sections:** Historical Drawdown chart, Rolling Returns chart (1Y/3Y/5Y/10Y), Withdrawal Rates table (SWR/PWR via `buildWithdrawalRates()`, deferred via `useEffect`), Holding Period Heatmap (via `buildHeatmapData()`). **Layout restructured:** selector + quick stats (3 free stats + Growth chart) in the top 2-column area; all paid analysis is full-width below; Performance Snapshot (2/3) and Blended Holdings (1/3) side-by-side; Drawdown + Rolling Returns side-by-side in a 2-up row; Save CTA moved into the selector card. `blendedReturns` extracted as a shared `useMemo` reused by all downstream computations. `WithdrawalRatesTable` gained `'use client'` and a conditional slug link.
 
-  **Stats to add to Performance Snapshot** (currently shows 8 stats; these are missing):
-  - Ann. Volatility (`stddev(monthly_return) * sqrt(12)` — same formula as view)
-  - Profitable Months (% of months with positive return)
-  - Best Month / Worst Month (single-month extremes)
-  - Longest Drawdown (consecutive months below prior peak — requires tracking peak-to-trough streaks in `buildBlendedReturns`)
-
-  **Charts to add** (currently only Growth of $10K is live in the Builder UI; the others exist only in the PDF):
-  - Historical Drawdown chart (`DrawdownChart.jsx`) — blended drawdown series from the blended return data
-  - Rolling Returns chart (`RollingReturnChart.jsx`) — 1Y/3Y/5Y tabs from blended returns
-
-  **SWR/PWR table** — apply `buildWithdrawalRates()` from `lib/withdrawalRates.js` to the blended monthly return series and render `WithdrawalRatesTable`. All computation is client-side using the same rolling-window binary search. Show a loading state while computing (it's fast but not instant). Gate entirely behind Builder/Signals tier.
-
-  **Holding Period Heatmap** — apply `buildHeatmapData()` to the blended return series and render `HoldingPeriodHeatmap`. All client-side. Gate behind tier.
-
-  **Implementation notes:**
-  - `buildBlendedReturns()` already returns `{ date, monthly_return }` rows — this is the correct input shape for `buildWithdrawalRates()` and `buildHeatmapData()`
-  - `DrawdownChart` and `RollingReturnChart` already accept a data prop — just compute from blended returns, same as `GrowthChart` already does
-  - `WithdrawalRatesTable` is a server component; convert to accept computed `rates` prop passed client-side (it already does — `rates` is the prop), but it imports nothing server-only so it can be used client-side as-is
-  - `HoldingPeriodHeatmap` is already a client component — just pass the blended heatmap data
-  - All new sections should only render when `stats !== null` (i.e., 2+ portfolios selected, weights sum to 100)
-  - Paywall: same blur + lock overlay pattern as current Performance Snapshot card
-
 - [ ] **Investigate high Vercel ISR reads** — ISR read counts are running high and risk hitting the plan limit. Steps: (1) Check Vercel dashboard → Usage to see which pages are generating the most ISR reads and whether the count is growing faster than traffic would explain. (2) Audit which pages actually use ISR (`revalidate: N`) vs. fully static SSG vs. `force-dynamic` — currently only `/leaderboard` uses `revalidate: 86400`; all portfolio detail pages are SSG and should not generate ISR reads at all. (3) Confirm Next.js is not silently falling back to ISR on any SSG page (e.g. if `generateStaticParams` fails for a slug, Next.js may serve it dynamically). (4) Possible remedies: convert `/leaderboard` to `force-dynamic` (trades ISR reads for function invocations, which may be cheaper on the current plan); increase `revalidate` time further; or move leaderboard data to a client-side fetch so the page is fully static. (5) Check if Cloudflare caching is amplifying or masking read counts — proxied traffic hits Cloudflare's cache first, so ISR reads should only happen on cache misses; verify Cloudflare cache hit rate for key routes in the Cloudflare dashboard → Caching → Cache Analytics.
 
 - [ ] **Portfolio detail page — FAQPage structured data for withdrawal rates** — Add `FAQPage` JSON-LD alongside existing `StructuredData.jsx` using the computed SWR data. Example Q: "What is the safe withdrawal rate for the [name]?" Google surfaces these as featured snippets. Medium effort.

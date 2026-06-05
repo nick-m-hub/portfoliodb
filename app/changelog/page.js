@@ -23,6 +23,14 @@ const CHANGELOG = [
     month: 'June 2026',
     entries: [
       {
+        type: 'improvement',
+        text: 'Portfolio Builder (paid): added Historical Drawdown chart, Rolling Returns chart, Safe/Perpetual Withdrawal Rate table, and Holding Period heatmap — the same analysis available on individual portfolio pages, now computed for any custom blend.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio Builder (paid): Performance Snapshot now shows 5 additional stats — Annualised Volatility, Best Month, Worst Month, % Profitable Months, and Longest Drawdown Duration.',
+      },
+      {
         type: 'new',
         text: 'JL Collins Wealth Preservation Portfolio added — 50% stocks, 25% real estate, 20% bonds, 5% cash, with data going back to 1996.',
       },
