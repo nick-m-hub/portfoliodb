@@ -141,7 +141,7 @@ function buildGrowthData(monthlyReturns) {
   return Object.values(byYear);
 }
 
-function StatRow({ icon, label, value, valueClass = 'text-primary', definition }) {
+function StatRow({ icon, label, value, valueClass = 'text-primary', definition, benchmarkValue }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-outline-variant last:border-b-0">
       <div className="flex items-center gap-3">
@@ -151,7 +151,15 @@ function StatRow({ icon, label, value, valueClass = 'text-primary', definition }
           : <span className="font-inter text-[14px] text-on-surface-variant">{label}</span>
         }
       </div>
-      <span className={`font-inter font-semibold text-[15px] ${valueClass}`}>{value}</span>
+      <div className="flex items-center gap-1">
+        <span className={`font-inter font-semibold text-[15px] ${valueClass}`}>{value}</span>
+        {benchmarkValue != null && (
+          <>
+            <span className="font-inter text-[13px] text-outline mx-0.5">/</span>
+            <span className="font-inter text-[13px] text-on-surface-variant">{benchmarkValue}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -159,11 +167,12 @@ function StatRow({ icon, label, value, valueClass = 'text-primary', definition }
 export default async function PortfolioDetailPage({ params }) {
   const { slug } = await params;
 
-  const [portfolio, allocations, monthlyReturns, relatedPortfolios, ...rawBenchmarkReturnsList] = await Promise.all([
+  const [portfolio, allocations, monthlyReturns, relatedPortfolios, benchmark6040, ...rawBenchmarkReturnsList] = await Promise.all([
     getPortfolio(slug),
     getAllocations(slug),
     getMonthlyReturns(slug),
     getRelatedPortfolios(slug),
+    slug !== BENCHMARKS[0].slug ? getPortfolio(BENCHMARKS[0].slug) : Promise.resolve(null),
     ...BENCHMARKS.map((b) => getMonthlyReturns(b.slug)),
   ]);
 
@@ -396,33 +405,72 @@ export default async function PortfolioDetailPage({ params }) {
             {/* Performance Snapshot */}
             <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
               <h2 className="font-manrope text-[22px] font-bold text-primary mb-1">Performance Snapshot</h2>
-              <p className="font-inter text-[13px] mb-5">
-                <Link href="/methodology" className="text-primary underline hover:opacity-75 transition-opacity">How are these calculated? →</Link>
-              </p>
+              <div className="flex items-center justify-between mb-5">
+                <p className="font-inter text-[13px]">
+                  <Link href="/methodology" className="text-primary underline hover:opacity-75 transition-opacity">How are these calculated? →</Link>
+                </p>
+                {benchmark6040 && (
+                  <span className="font-inter text-[12px] text-on-surface-variant">
+                    Portfolio <span className="text-outline mx-0.5">/</span> US 60/40
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-                <StatRow icon="trending_up" label="Real CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} definition={STAT_DEFINITIONS['Real CAGR']} />
-                <StatRow icon="balance" label="Sharpe Ratio" value={portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(3) : '—'} definition={STAT_DEFINITIONS['Sharpe Ratio']} />
-                <StatRow icon="trending_down" label="Max Drawdown" value={portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(2)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Max Drawdown']} />
-                <StatRow icon="show_chart" label="Sortino Ratio" value={portfolio.sortino_ratio != null ? portfolio.sortino_ratio.toFixed(3) : '—'} definition={STAT_DEFINITIONS['Sortino Ratio']} />
-                <StatRow icon="arrow_upward" label="Best Year" value={portfolio.best_year != null ? `+${portfolio.best_year.toFixed(1)}%` : '—'} definition={STAT_DEFINITIONS['Best Year']} />
-                <StatRow icon="arrow_downward" label="Worst Year" value={portfolio.worst_year != null ? `${portfolio.worst_year.toFixed(1)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Worst Year']} />
+                <StatRow icon="trending_up" label="Real CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} definition={STAT_DEFINITIONS['Real CAGR']}
+                  benchmarkValue={benchmark6040?.cagr != null ? `${benchmark6040.cagr.toFixed(1)}%` : null} />
+                <StatRow icon="balance" label="Sharpe Ratio" value={portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(2) : '—'} definition={STAT_DEFINITIONS['Sharpe Ratio']}
+                  benchmarkValue={benchmark6040?.sharpe_ratio != null ? benchmark6040.sharpe_ratio.toFixed(2) : null} />
+                <StatRow icon="trending_down" label="Max Drawdown" value={portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(2)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Max Drawdown']}
+                  benchmarkValue={benchmark6040?.max_drawdown != null ? `${benchmark6040.max_drawdown.toFixed(1)}%` : null} />
+                <StatRow icon="show_chart" label="Sortino Ratio" value={portfolio.sortino_ratio != null ? portfolio.sortino_ratio.toFixed(2) : '—'} definition={STAT_DEFINITIONS['Sortino Ratio']}
+                  benchmarkValue={benchmark6040?.sortino_ratio != null ? benchmark6040.sortino_ratio.toFixed(2) : null} />
+                <StatRow icon="arrow_upward" label="Best Year" value={portfolio.best_year != null ? `+${portfolio.best_year.toFixed(1)}%` : '—'} definition={STAT_DEFINITIONS['Best Year']}
+                  benchmarkValue={benchmark6040?.best_year != null ? `+${benchmark6040.best_year.toFixed(1)}%` : null} />
+                <StatRow icon="arrow_downward" label="Worst Year" value={portfolio.worst_year != null ? `${portfolio.worst_year.toFixed(1)}%` : '—'} valueClass="text-error" definition={STAT_DEFINITIONS['Worst Year']}
+                  benchmarkValue={benchmark6040?.worst_year != null ? `${benchmark6040.worst_year.toFixed(1)}%` : null} />
                 {portfolio.ytd_return != null && (
-                  <StatRow icon="calendar_today" label="YTD Return" value={`${portfolio.ytd_return.toFixed(2)}%`} valueClass={portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['YTD Return']} />
+                  <StatRow icon="calendar_today" label="YTD Return" value={`${portfolio.ytd_return.toFixed(2)}%`} valueClass={portfolio.ytd_return >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['YTD Return']}
+                    benchmarkValue={benchmark6040?.ytd_return != null ? `${benchmark6040.ytd_return.toFixed(1)}%` : null} />
                 )}
                 {portfolio.cagr_10yr != null && (
-                  <StatRow icon="update" label="10-Year CAGR" value={`${portfolio.cagr_10yr.toFixed(2)}%`} valueClass={portfolio.cagr_10yr >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['10-Year CAGR']} />
+                  <StatRow icon="update" label="10-Year CAGR" value={`${portfolio.cagr_10yr.toFixed(2)}%`} valueClass={portfolio.cagr_10yr >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['10-Year CAGR']}
+                    benchmarkValue={benchmark6040?.cagr_10yr != null ? `${benchmark6040.cagr_10yr.toFixed(1)}%` : null} />
                 )}
                 {portfolio.ulcer_index != null && (
-                  <StatRow icon="warning" label="Ulcer Index" value={portfolio.ulcer_index.toFixed(2)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Index']} />
+                  <StatRow icon="warning" label="Ulcer Index" value={portfolio.ulcer_index.toFixed(2)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Index']}
+                    benchmarkValue={benchmark6040?.ulcer_index != null ? benchmark6040.ulcer_index.toFixed(2) : null} />
                 )}
                 {portfolio.ulcer_performance_index != null && (
-                  <StatRow icon="analytics" label="Ulcer Perf. Index" value={portfolio.ulcer_performance_index.toFixed(3)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Perf. Index']} />
+                  <StatRow icon="analytics" label="Ulcer Perf. Index" value={portfolio.ulcer_performance_index.toFixed(2)} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ulcer Perf. Index']}
+                    benchmarkValue={benchmark6040?.ulcer_performance_index != null ? benchmark6040.ulcer_performance_index.toFixed(2) : null} />
                 )}
                 {portfolio.cagr_gfc != null && (
-                  <StatRow icon="account_balance" label="GFC CAGR" value={`${portfolio.cagr_gfc >= 0 ? '+' : ''}${portfolio.cagr_gfc.toFixed(1)}%`} valueClass={portfolio.cagr_gfc >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['GFC CAGR']} />
+                  <StatRow icon="account_balance" label="GFC CAGR" value={`${portfolio.cagr_gfc >= 0 ? '+' : ''}${portfolio.cagr_gfc.toFixed(1)}%`} valueClass={portfolio.cagr_gfc >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['GFC CAGR']}
+                    benchmarkValue={benchmark6040?.cagr_gfc != null ? `${benchmark6040.cagr_gfc >= 0 ? '+' : ''}${benchmark6040.cagr_gfc.toFixed(1)}%` : null} />
                 )}
                 {portfolio.cagr_dotcom != null && (
-                  <StatRow icon="computer" label="Dot-com CAGR" value={`${portfolio.cagr_dotcom >= 0 ? '+' : ''}${portfolio.cagr_dotcom.toFixed(1)}%`} valueClass={portfolio.cagr_dotcom >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['Dot-com CAGR']} />
+                  <StatRow icon="computer" label="Dot-com CAGR" value={`${portfolio.cagr_dotcom >= 0 ? '+' : ''}${portfolio.cagr_dotcom.toFixed(1)}%`} valueClass={portfolio.cagr_dotcom >= 0 ? 'text-primary' : 'text-error'} definition={STAT_DEFINITIONS['Dot-com CAGR']}
+                    benchmarkValue={benchmark6040?.cagr_dotcom != null ? `${benchmark6040.cagr_dotcom >= 0 ? '+' : ''}${benchmark6040.cagr_dotcom.toFixed(1)}%` : null} />
+                )}
+                {portfolio.annualized_volatility != null && (
+                  <StatRow icon="ssid_chart" label="Ann. Volatility" value={`${portfolio.annualized_volatility.toFixed(1)}%`} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Ann. Volatility']}
+                    benchmarkValue={benchmark6040?.annualized_volatility != null ? `${benchmark6040.annualized_volatility.toFixed(1)}%` : null} />
+                )}
+                {portfolio.pct_profitable_months != null && (
+                  <StatRow icon="thumb_up" label="Profitable Months" value={`${portfolio.pct_profitable_months.toFixed(1)}%`} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Profitable Months']}
+                    benchmarkValue={benchmark6040?.pct_profitable_months != null ? `${benchmark6040.pct_profitable_months.toFixed(1)}%` : null} />
+                )}
+                {portfolio.best_month != null && (
+                  <StatRow icon="north" label="Best Month" value={`+${portfolio.best_month.toFixed(2)}%`} valueClass="text-primary" definition={STAT_DEFINITIONS['Best Month']}
+                    benchmarkValue={benchmark6040?.best_month != null ? `+${benchmark6040.best_month.toFixed(1)}%` : null} />
+                )}
+                {portfolio.worst_month != null && (
+                  <StatRow icon="south" label="Worst Month" value={`${portfolio.worst_month.toFixed(2)}%`} valueClass="text-error" definition={STAT_DEFINITIONS['Worst Month']}
+                    benchmarkValue={benchmark6040?.worst_month != null ? `${benchmark6040.worst_month.toFixed(1)}%` : null} />
+                )}
+                {portfolio.longest_drawdown_months != null && portfolio.longest_drawdown_months > 0 && (
+                  <StatRow icon="hourglass_bottom" label="Longest Drawdown" value={`${portfolio.longest_drawdown_months} months`} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Longest Drawdown']}
+                    benchmarkValue={benchmark6040?.longest_drawdown_months != null ? `${benchmark6040.longest_drawdown_months} mo` : null} />
                 )}
                 <StatRow icon="sync" label="Trade Frequency" value={portfolio.trade_frequency || 'Buy & Hold'} />
                 <StatRow icon="shield" label="Risk Level" value={

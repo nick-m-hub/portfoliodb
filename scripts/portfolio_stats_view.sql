@@ -83,6 +83,27 @@ WITH running_values AS (
   FROM monthly_returns
   GROUP BY monthly_returns.portfolio_slug
 
+), drawdown_groups AS (
+  SELECT
+    portfolio_slug,
+    date,
+    running_value < peak_value AS is_underwater,
+    SUM(CASE WHEN running_value >= peak_value THEN 1 ELSE 0 END)
+      OVER (PARTITION BY portfolio_slug ORDER BY date) AS grp
+  FROM running_peak
+
+), longest_drawdown AS (
+  SELECT
+    t.portfolio_slug,
+    COALESCE(MAX(t.streak), 0) AS longest_drawdown_months
+  FROM (
+    SELECT portfolio_slug, grp, COUNT(*) AS streak
+    FROM drawdown_groups
+    WHERE is_underwater
+    GROUP BY portfolio_slug, grp
+  ) t
+  GROUP BY t.portfolio_slug
+
 ), core AS (
   SELECT
     monthly_returns.portfolio_slug,
@@ -99,7 +120,12 @@ WITH running_values AS (
             WHEN (monthly_returns.monthly_return < (0)::numeric)
             THEN (monthly_returns.monthly_return * monthly_returns.monthly_return)
             ELSE (0)::numeric
-          END) * (12)::numeric)), (0)::numeric)) AS sortino_ratio
+          END) * (12)::numeric)), (0)::numeric)) AS sortino_ratio,
+    (stddev(monthly_returns.monthly_return) * sqrt((12)::numeric)) AS annualized_volatility,
+    (COUNT(*) FILTER (WHERE monthly_returns.monthly_return > (0)::numeric) * (100.0)::numeric
+      / NULLIF(COUNT(*), 0)) AS pct_profitable_months,
+    max(monthly_returns.monthly_return) AS best_month,
+    min(monthly_returns.monthly_return) AS worst_month
   FROM monthly_returns
   GROUP BY monthly_returns.portfolio_slug
 
@@ -286,6 +312,11 @@ SELECT
   round(md.max_drawdown, 2)            AS max_drawdown,
   round((co.sharpe_ratio)::numeric, 2) AS sharpe_ratio,
   round(co.sortino_ratio, 2)           AS sortino_ratio,
+  round((co.annualized_volatility)::numeric, 2) AS annualized_volatility,
+  round(co.pct_profitable_months, 1)   AS pct_profitable_months,
+  round(co.best_month, 2)              AS best_month,
+  round(co.worst_month, 2)             AS worst_month,
+  ld.longest_drawdown_months,
   round(ui.ulcer_index, 2)             AS ulcer_index,
   round(upi.upi, 2)                    AS ulcer_performance_index,
   round(bw.best_year, 2)               AS best_year,
@@ -305,8 +336,9 @@ SELECT
   round(r10.rolling_10yr_low, 2)       AS rolling_10yr_low,
   round(r10.rolling_10yr_high, 2)      AS rolling_10yr_high,
   round(r10.rolling_10yr_avg, 2)       AS rolling_10yr_avg
-FROM ((((((((((((((((portfolios p
+FROM (((((((((((((((((portfolios p
   LEFT JOIN core co             ON co.portfolio_slug = p.slug)
+  LEFT JOIN longest_drawdown ld ON ld.portfolio_slug = p.slug)
   LEFT JOIN cagr_1yr c1         ON c1.portfolio_slug = p.slug)
   LEFT JOIN cagr_3yr c3         ON c3.portfolio_slug = p.slug)
   LEFT JOIN cagr_10yr c10       ON c10.portfolio_slug = p.slug)
