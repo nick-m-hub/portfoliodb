@@ -24,7 +24,7 @@ export const metadata = {
 };
 
 const ACTIVE_LETTERS = new Set([
-  "A", "B", "C", "D", "E", "F", "G", "I", "M", "R", "S", "T", "U", "V",
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "M", "P", "R", "S", "T", "U", "V",
 ]);
 const ALL_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -187,6 +187,19 @@ export default function GlossaryOfTermsPage() {
           well-diversified portfolio may hold assets that sometimes move in
           opposite directions, cushioning losses during market downturns.
         </Term>
+        <Term id="drawdown-duration" term="Drawdown Duration">
+          The number of consecutive months a portfolio remained below its prior
+          peak value. While{" "}
+          <a href="#max-drawdown" className="text-primary underline underline-offset-2">
+            max drawdown
+          </a>{" "}
+          measures how deep a loss was, drawdown duration measures how long
+          recovery took. A portfolio might have a moderate max drawdown but take
+          years to fully recover, which can be just as punishing for investors
+          who need to stay the course. PortfolioDB displays the longest
+          historical drawdown duration in the Performance Snapshot on every
+          portfolio detail page.
+        </Term>
         <Term id="dual-momentum" term="Dual Momentum">
           A strategy developed by Gary Antonacci that combines two momentum
           signals: relative momentum (which asset class is outperforming peers)
@@ -258,6 +271,19 @@ export default function GlossaryOfTermsPage() {
         </Term>
       </LetterSection>
 
+      {/* ── H ── */}
+      <LetterSection letter="H">
+        <Term id="holding-period" term="Holding Period">
+          The length of time an investor holds a portfolio before selling. The
+          Holding Period Heatmap on every portfolio detail page shows the
+          annualized CAGR for every combination of start year and holding length
+          in the historical record — letting you see at a glance how results
+          varied depending on when you started and how long you stayed invested.
+          A long holding period generally reduces the risk of poor outcomes
+          because short-term volatility smooths out over time.
+        </Term>
+      </LetterSection>
+
       {/* ── I ── */}
       <LetterSection letter="I">
         <Term id="index-fund" term="Index Fund">
@@ -270,6 +296,22 @@ export default function GlossaryOfTermsPage() {
 
       {/* ── M ── */}
       <LetterSection letter="M">
+        <Term id="monte-carlo" term="Monte Carlo Simulation">
+          A technique that runs thousands of randomized scenarios to estimate
+          the range of possible future outcomes for a portfolio. Rather than
+          projecting a single average return, a Monte Carlo simulation randomly
+          samples from the portfolio&rsquo;s historical return distribution to
+          produce a spread of results -- from optimistic to pessimistic. The{" "}
+          <a
+            href="/monte-carlo-simulation"
+            className="text-primary underline underline-offset-2"
+          >
+            PortfolioDB Monte Carlo tool
+          </a>{" "}
+          runs 1,000 simulations and reports the median outcome alongside 10th
+          and 90th percentile results, along with the Safe Withdrawal Rate at
+          which 90% of simulations survive.
+        </Term>
         <Term id="max-drawdown" term="Max Drawdown">
           The largest peak-to-trough decline in portfolio value over the full
           historical record, expressed as a percentage. It represents the
@@ -292,6 +334,24 @@ export default function GlossaryOfTermsPage() {
           on a regular schedule. It is one of the most studied and persistent
           factors in financial research, though it can suffer sharp reversals
           during sudden market regime changes.
+        </Term>
+      </LetterSection>
+
+      {/* ── P ── */}
+      <LetterSection letter="P">
+        <Term id="perpetual-withdrawal-rate" term="PWR — Perpetual Withdrawal Rate">
+          The highest annual withdrawal rate at which a portfolio would have
+          maintained its real (inflation-adjusted) purchasing power at the end
+          of the period -- not just avoided running dry. PWR is a stricter
+          standard than the{" "}
+          <a href="#safe-withdrawal-rate" className="text-primary underline underline-offset-2">
+            Safe Withdrawal Rate
+          </a>
+          : the portfolio must finish at least as large as it started in real
+          terms. It is the appropriate benchmark for investors who need their
+          portfolio to last indefinitely rather than just for a fixed number of
+          years. PortfolioDB displays PWR alongside SWR across 20-, 25-, 30-,
+          and 40-year horizons on every portfolio detail page.
         </Term>
       </LetterSection>
 
@@ -379,6 +439,34 @@ export default function GlossaryOfTermsPage() {
           don&rsquo;t mind upside swings but do care about losses. A higher
           Sortino ratio is better.
         </Term>
+        <Term id="safe-withdrawal-rate" term="SWR — Safe Withdrawal Rate">
+          The highest annual withdrawal rate (as a percentage of starting
+          portfolio value) at which a portfolio would never have run out of
+          money across all historical rolling windows of a given length. For
+          example, a 30-year real SWR of 4.5% means that, starting from any
+          year in the historical record and adjusting withdrawals for inflation,
+          the portfolio would have lasted at least 30 years. The widely cited
+          "4% Rule" is based on this concept. PortfolioDB shows both nominal
+          and inflation-adjusted (real) SWR across 20-, 25-, 30-, and 40-year
+          horizons on every portfolio detail page, and awards a "Passes the 4%
+          Rule" badge when the 30-year real SWR meets or exceeds 4.0%.
+        </Term>
+        <Term id="sequence-of-returns-risk" term="Sequence of Returns Risk">
+          The risk that a portfolio suffers large losses early in the withdrawal
+          phase, which can permanently deplete savings even if the long-run
+          average return is the same. Withdrawing money during a downturn forces
+          you to sell more shares at low prices, reducing the portfolio&rsquo;s
+          ability to recover when markets rebound. Sequence of returns risk is
+          most damaging in the first five to ten years of retirement. The{" "}
+          <a
+            href="/monte-carlo-simulation"
+            className="text-primary underline underline-offset-2"
+          >
+            PortfolioDB Monte Carlo tool
+          </a>{" "}
+          includes a &ldquo;worst years first&rdquo; option to stress-test a
+          portfolio against this scenario.
+        </Term>
         <Term id="strategic-asset-allocation" term="Strategic Asset Allocation">
           A long-term, fixed asset allocation that is periodically rebalanced
           back to target weights regardless of market conditions. The investor
@@ -427,13 +515,23 @@ export default function GlossaryOfTermsPage() {
 
       {/* ── V ── */}
       <LetterSection letter="V">
-        <Term id="volatility" term="Volatility">
+        <Term id="volatility" term="Volatility / Annualized Volatility">
           The degree to which a portfolio&rsquo;s returns fluctuate over time,
           measured as the standard deviation of periodic returns. High volatility
-          means bigger swings in both directions. Volatility is the risk measure
-          used in the Sharpe and Sortino ratio calculations. It is distinct from
-          drawdown: a portfolio can be volatile without experiencing deep
-          sustained losses, and vice versa.
+          means bigger swings in both directions. PortfolioDB displays{" "}
+          <em>annualized volatility</em> -- the standard deviation of monthly
+          returns multiplied by the square root of 12 -- as an explicit stat in
+          the Performance Snapshot on every portfolio detail page. Volatility is
+          also the risk measure used in the{" "}
+          <a href="#sharpe-ratio" className="text-primary underline underline-offset-2">
+            Sharpe
+          </a>{" "}
+          and{" "}
+          <a href="#sortino-ratio" className="text-primary underline underline-offset-2">
+            Sortino
+          </a>{" "}
+          ratio calculations. It is distinct from drawdown: a portfolio can be
+          volatile without experiencing deep sustained losses, and vice versa.
         </Term>
       </LetterSection>
 

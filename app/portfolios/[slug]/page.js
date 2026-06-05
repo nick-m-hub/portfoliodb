@@ -37,7 +37,17 @@ export async function generateMetadata({ params }) {
     ? `${nameForDesc} performance, allocations, and risk stats. CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ${portfolio.sharpe_ratio?.toFixed(2)} since ${startYear}. Includes safe withdrawal rate analysis.`
     : `${nameForDesc} performance data: CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ratio ${portfolio.sharpe_ratio?.toFixed(2)}. Includes safe withdrawal rate analysis.`;
 
-  const title = `${portfolio.name} - PortfolioDB`;
+  const cagrStr = portfolio.cagr != null ? `${portfolio.cagr.toFixed(1)}% CAGR` : null;
+  const sharpeStr = portfolio.sharpe_ratio != null ? `Sharpe ${portfolio.sharpe_ratio.toFixed(2)}` : null;
+  const titleWithBoth = cagrStr && sharpeStr
+    ? `${portfolio.name} — ${cagrStr}, ${sharpeStr} | PortfolioDB`
+    : cagrStr
+    ? `${portfolio.name} — ${cagrStr} | PortfolioDB`
+    : `${portfolio.name} | PortfolioDB`;
+  const titleWithCagr = cagrStr
+    ? `${portfolio.name} — ${cagrStr} | PortfolioDB`
+    : `${portfolio.name} | PortfolioDB`;
+  const title = titleWithBoth.length <= 70 ? titleWithBoth : titleWithCagr;
   const url = `${siteUrl}/portfolios/${slug}`;
 
   return {
@@ -311,21 +321,21 @@ export default async function PortfolioDetailPage({ params }) {
           <div className="lg:col-span-1 flex flex-col gap-3 pt-2">
             <Link
               href="/database"
-              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+              className="hidden lg:flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Database
             </Link>
             <Link
               href={`/compare?slugs=${slug}`}
-              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+              className="hidden lg:flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">compare_arrows</span>
               Compare This Portfolio
             </Link>
             <Link
               href={`/monte-carlo-simulation?slug=${slug}`}
-              className="flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+              className="hidden lg:flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">monitoring</span>
               Monte Carlo Simulation
@@ -335,7 +345,7 @@ export default async function PortfolioDetailPage({ params }) {
                 href={portfolio.m1_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-full font-inter text-[14px] font-semibold hover:opacity-90 transition-opacity"
+                className="hidden lg:flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-full font-inter text-[14px] font-semibold hover:opacity-90 transition-opacity"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 Invest on M1 Finance
