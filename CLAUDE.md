@@ -224,12 +224,15 @@ Columns returned: slug, name, category, trade_frequency, min_timeline_years,
 risk_level, description, m1_link, kofi_link, cagr, current_value, max_drawdown,
 sharpe_ratio, sortino_ratio, best_year, worst_year, ytd_return, total_months, last_updated,
 cagr_1yr, cagr_3yr, cagr_10yr, ulcer_index, ulcer_performance_index, cagr_gfc, cagr_dotcom,
+annualized_volatility, pct_profitable_months, best_month, worst_month, longest_drawdown_months,
 rolling_1yr_low, rolling_1yr_avg, rolling_1yr_high,
 rolling_3yr_low, rolling_3yr_avg, rolling_3yr_high,
 rolling_5yr_low, rolling_5yr_avg, rolling_5yr_high,
 rolling_10yr_low, rolling_10yr_avg, rolling_10yr_high.
 
 `cagr_1yr` — trailing 12-month total return (requires ≥12 months in window). `cagr_3yr` — trailing 3-year annualized return (requires ≥36 months). Both added June 2026 for the Strategy Leaderboard.
+
+`annualized_volatility` — `stddev(monthly_return) * sqrt(12)`, in percentage points. `pct_profitable_months` — % of months with a positive return, rounded to 1 decimal. `best_month` / `worst_month` — single-month extremes in percentage points. `longest_drawdown_months` — integer count of the longest consecutive streak of months below the prior peak (computed via `drawdown_groups` + `longest_drawdown` CTEs on `running_peak`). All five added June 2026.
 
 Source of truth for the view definition: `scripts/portfolio_stats_view.sql`.
 To add a column: edit that file, then paste the full DROP + CREATE into the Supabase SQL Editor and run it.
@@ -798,6 +801,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Placed in the col-span-8 main column between Rolling Returns summary and the Description detail section.
 
 ### Portfolio Detail Page Layout (June 2026, updated June 2026)
+- **Performance Snapshot benchmark column (June 2026):** Every stat in the Performance Snapshot section shows a "Portfolio / US 60/40" side-by-side value. The benchmark is fetched via `getPortfolio(BENCHMARKS[0].slug)` added to the page's `Promise.all`. Skipped (returns null) when the portfolio being viewed IS the 60/40 benchmark — `slug !== BENCHMARKS[0].slug ? getPortfolio(...) : Promise.resolve(null)`. The `StatRow` local function accepts an optional `benchmarkValue` prop; when present, renders `value / benchmarkValue` with the benchmark in `text-on-surface-variant`. A "Portfolio / US 60/40" legend appears top-right of the section header. Sharpe, Sortino, and UPI display precision reduced from `.toFixed(3)` to `.toFixed(2)` for visual consistency with the benchmark column.
 - **Two-column grid** (`grid grid-cols-12`): col-span-8 (left) contains Allocation, Performance Snapshot, Rolling Returns summary, WithdrawalRatesTable, and the Description detail (Investment Philosophy / Who It's For / Pros/Cons); col-span-4 (right) is the sidebar (Implementation, At a Glance, Membership CTA).
 - **Full-width rows** (`col-span-12`, inside the same grid — no gap): (1) ChartsSection (all three charts — Growth of $10K, Historical Drawdown, Rolling Returns — with `space-y-8` on the wrapper div); (2) HoldingPeriodHeatmap. Using `col-span-12` inside the same grid avoids the gap problem that occurs when the sidebar is taller than the left column.
 - ChartsSection is called **without** a `section` prop (defaults to `'all'`) — it renders the "Compare to" benchmark bar plus all three charts in one block at full width.
