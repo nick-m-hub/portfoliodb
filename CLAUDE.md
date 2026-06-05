@@ -300,7 +300,7 @@ portfoliodb/
     portfolio-screener/
       page.js                        # Screener page (server, wraps ScreenerClient)
     glossary-of-terms/
-      page.js                        # Glossary page (server) — 30 terms, A–V, alphabet anchor nav, links to Methodology + related portfolios
+      page.js                        # Glossary page (server) — 36 terms, A–V (+ H, P added June 2026), alphabet anchor nav, links to Methodology + related portfolios
     membership/
       page.js                        # Membership page (server) — price, what's included, signal portfolio list
     api/
@@ -384,7 +384,7 @@ portfoliodb/
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
     MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards, SWR binary search
-    BuilderClient.jsx                # Portfolio Builder UI (client) — portfolio search/add (max 6), weight inputs with fill-remaining shortcut, equal-weight auto-distribution, blended stats + Growth of $10K chart, "Save This Mix" → Builder plan upgrade prompt; Blended Holdings card (CurrentSignals context='builder') shown when 2+ portfolios selected; localSavedCount tracks saves made in-session; "Download PDF" button (Builder/Signals tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click. Does NOT receive allAllocations/allSignals as props — fetches them client-side via /api/builder-holdings when 2+ portfolios are selected (avoids heavy server-side load on page open)
+    BuilderClient.jsx                # Portfolio Builder UI (client) — two-section layout: top 2-column area (selector + quick stats/Growth chart), full-width analysis below (Performance Snapshot alongside Blended Holdings, Drawdown+Rolling Returns 2-up, SWR/PWR table, Holding Period Heatmap). Save CTA lives inside the selector card. All analysis sections below the 2-col area are gated behind Builder/Signals tier. "Download PDF" button (tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click. Does NOT receive allAllocations/allSignals as props — fetches them client-side via /api/builder-holdings when 2+ portfolios are selected.
     BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
   app/
     leaderboard/
@@ -733,29 +733,42 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 - `app/builder/page.js` is a server component (static) — fetches `getPortfolioNames()` and passes to `BuilderClient`
 - `app/api/builder-returns/route.js` — GET endpoint, accepts `?slugs=a,b,c` (max 6), queries `monthly_returns` in one Supabase call, returns `{ [slug]: [{date, monthly_return}] }`
-- **Portfolio selection:** search box filters `allPortfolioNames` client-side; selecting a portfolio fetches its returns from the API route and redistributes all weights equally; max 6 portfolios
-- **Weight management:** each portfolio has a text input with `inputMode="decimal"`; a "↑N%" shortcut button appears when a portfolio's weight doesn't match the remaining allocation; total weight indicator turns green with a check icon when weights sum to exactly 100%
-- **Equal weight distribution:** `equalWeights(n)` — floor(100/n) per slot, last slot absorbs rounding. Redistribution fires on add and remove.
-- **Computation triggers:** stats are computed (via `useMemo`) only when 2+ portfolios are selected, all weights sum to 100%, all return data is loaded, and no fetches are in progress
-- **Blended return series:** `buildBlendedReturns()` — finds the intersection of all portfolios' date sets, computes weighted monthly return for each common month. Only common months are used.
-- **Stats computed client-side** (mirrors `portfolio_stats` view math):
-  - CAGR: compound growth from running portfolio value, annualised over total months
-  - Max Drawdown: peak-to-trough from running $10K value (stored as negative %)
-  - Sharpe: `(mean_monthly - 0.375%) / stdDev * sqrt(12)` (4.5% annual RF rate)
-  - Sortino: downside deviation uses `min(0, r - RF)^2` averaged over all months
-  - Best/Worst Year: full 12-month years only; partial first/last years excluded
-- **Results display:** 6-stat grid (CAGR, Max Drawdown, Sharpe, Sortino, Best Year, Worst Year) + date range + total months + colour-coded weight pills + Growth of $10K chart (reuses `GrowthChart.jsx`) with Log/Linear toggle
-- **Free stats grid:** 3 stats always visible — CAGR, Max Drawdown, Sharpe Ratio (`grid-cols-3`)
-- **Performance Snapshot (blurred):** 8 additional stats shown blurred for non-members — Sortino Ratio, Best Year, YTD Return, Ulcer Index, GFC CAGR (left column); Worst Year, 10-Year CAGR, Ulcer Perf. Index, Dot-com CAGR (right column). Lock overlay with "See plans →" CTA to `/membership`. Unlocks when `isMember = true`.
-- **Auth props** — `userId`, `tier`, `savedCount` passed from `app/builder/page.js` server-side. `tier` is the active subscription plan ('builder' or 'signals'), null if no active plan. Performance Snapshot unlocks when `tier !== null`.
-- **`parseMixParam(mixParam, allPortfolios)`** — parses `?mix=slug:weight,slug:weight` URL param into selections array; looks up names from `allPortfolios`; max `MAX_PORTFOLIOS` entries; invalid slugs filtered out
-- **`mixParam` prop** — passed from `app/builder/page.js` via `searchParams.mix`; triggers `useEffect` on mount to fetch return data for pre-populated selections
-- **Save CTA — four states driven by props:** (a) `!userId` → "Sign in to save" + link to `/login?next=/builder`; (b) `userId && !tier` → upgrade prompt + "See plans →"; (c) `tier === 'builder' && localSavedCount >= 3` → "3/3 mixes saved" + links to `/account` and `/membership`; (d) can save → "Like this mix?" teaser → click expands to optional name input + Save button → POSTs to `/api/builder-save` → "Mix saved" success + link to `/account`. Save UI state resets when portfolios are added or removed (tracked via `selectionSlugs` derived value).
-- **`localSavedCount`** — local state initialised from `savedCount` prop; incremented after each successful save so the 3/3 limit UI shows immediately without a page reload.
-- **`tacticalSlugs`** — useMemo-derived Set of slugs where `kofi_link` is non-null (from `allPortfolios` prop); used to classify selected portfolios as tactical vs. Buy & Hold.
-- **`blendedHoldings`** — useMemo combining all selected portfolios' holdings weighted by mix weights: Buy & Hold use static allocations (`allAllocations` prop), tactical use current holdings (`allSignals` prop, weights already in % 0–100). Returns `{ hasTactical, holdings: [{ ticker, weight }] }` or null. Passed to `<CurrentSignals context="builder" />`. If any tactical portfolio is included and user is not Signals tier, the list is blurred with an upgrade prompt.
-- **PORTFOLIO_COLORS:** `['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b']` — one per slot, used for colour dots and weight pills
-- **PDF download** — `handleDownloadPDF` is only active when `tier !== null` (Builder or Signals). On click: computes `blendedReturns` from current state, fetches US 60/40 + US Market returns via `/api/builder-returns`, dynamically imports `@react-pdf/renderer` and `BuilderPDF`, generates blob client-side, triggers download as `portfolio-mix-analysis.pdf`. Dynamic import means the ~200KB library only loads on demand. `annualReturns` array added to `computeStats()` return value (used by PDF table).
+
+**Page layout (June 2026):**
+- **Top 2-column area** (`lg:grid-cols-[380px_1fr]`): selector card (left, sticky) + quick results (right: 3-stat card + Growth of $10K chart). This is the fast-feedback loop — stats update immediately as weights change.
+- **Full-width analysis below** (only when `isReady && stats`): Performance Snapshot + Blended Holdings side-by-side (`lg:grid-cols-[2fr_1fr]`), then Drawdown + Rolling Returns 2-up (`md:grid-cols-2`), then Withdrawal Rates, then Holding Period Heatmap.
+- **Save CTA** lives at the bottom of the selector card (compact version of the 4 states), not in the analysis section.
+- All analysis sections below the 2-col area are **gated** — blurred + lock overlay for non-tier users. `LockOverlay` is a shared sub-component defined just above the main export.
+
+**Portfolio selection:**
+- Search box filters `allPortfolioNames` client-side; selecting adds the portfolio and redistributes weights equally; max 6 portfolios
+- Weight inputs: `inputMode="decimal"`, "↑N%" fill-remaining shortcut, total indicator turns green at exactly 100%
+- `equalWeights(n)` — floor(100/n) per slot, last slot absorbs rounding
+
+**Computation pipeline** (all `useMemo`, fire when `isReady` becomes true):
+- `blendedReturns` — intersection of date sets across all portfolios, weighted monthly return per common month
+- `stats` — calls `computeStats(blendedReturns)`: CAGR, Max Drawdown, Sharpe, Sortino, Best/Worst Year, YTD, 10yr CAGR, Ulcer Index, UPI, GFC/Dotcom CAGR, Ann. Volatility, Best/Worst Month, % Profitable Months, Longest Drawdown, growth data, annual returns
+- `drawdownData` — calls `buildDrawdownData(blendedReturns)`: `[{ label: 'YYYY-MM', value: drawdown% }]` for `DrawdownChart`
+- `rollingDatasets` — calls `buildRollingDatasets(blendedReturns)`: `{ '1Y': [...], '3Y': [...], ... }` for `RollingReturnChart`
+- `heatmapData` — calls `buildHeatmapData(blendedReturns)` (same algorithm as portfolio detail page); only computed when `tier !== null`
+- `withdrawalRates` — computed in a `useEffect` (deferred via `setTimeout(10ms)`) calling `buildWithdrawalRates(blendedReturns)` from `lib/withdrawalRates.js`; only computed when `tier !== null`. `swrLoading` state shows a spinner until it resolves.
+
+**Free stats:** 3-stat card (CAGR, Max Drawdown, Sharpe) always visible. Growth of $10K chart with Log/Linear toggle always visible.
+
+**Performance Snapshot (gated, 14 stats in 2 columns):**
+- Left: Sortino, Best Year, YTD Return, Ulcer Index, GFC CAGR, Ann. Volatility, Best Month
+- Right: Worst Year, 10-Year CAGR, Ulcer Perf. Index, Dot-com CAGR, Worst Month, Profitable Months, Longest Drawdown
+- Blurred + lock overlay for non-tier; sits at 2/3 width alongside Blended Holdings (1/3)
+
+**Blended Holdings:** `CurrentSignals context="builder"` at 1/3 width beside Performance Snapshot. Buy & Hold portfolios use static allocations; tactical use current month signals. Tactical portion blurred for non-Signals members.
+
+**Auth props:** `userId`, `tier`, `savedCount` from `app/builder/page.js`. `tier` is 'builder'/'signals'/null.
+
+- **`parseMixParam(mixParam, allPortfolios)`** — parses `?mix=slug:weight,slug:weight` URL param; triggers `useEffect` on mount to pre-load return data
+- **`localSavedCount`** — local state from `savedCount` prop; incremented after each save so the 3/3 limit UI shows immediately
+- **`tacticalSlugs`** — useMemo Set of slugs where `kofi_link` is non-null
+- **PORTFOLIO_COLORS:** `['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b']`
+- **PDF download** (`tier !== null` only) — uses memoized `blendedReturns` directly (no redundant `buildBlendedReturns` call), dynamically imports `@react-pdf/renderer` + `BuilderPDF` on demand
 - Navbar: "Builder" link added between Compare and Monte Carlo (desktop + mobile More dropdown). `/builder` added to sitemap.
 
 ### OG Images (app/opengraph-image.js + app/portfolios/[slug]/opengraph-image.js)
@@ -794,12 +807,13 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Hover tooltip uses reserved `h-5` fixed-height div so the grid never shifts on hover/unhover.
 
 ### WithdrawalRatesTable.jsx + lib/withdrawalRates.js (June 2026)
-- Server component — pure display, no `'use client'`. Props: `rates` (from `buildWithdrawalRates()`), `slug` (for the "Run Monte Carlo →" CTA link).
+- **`'use client'`** — marked as a client component (June 2026) so it can be imported by `BuilderClient.jsx`. No server-only APIs are used, so this is safe; the component is still server-rendered during SSG/SSR on portfolio detail pages.
+- Props: `rates` (from `buildWithdrawalRates()`), `slug` (optional — for the "Run Monte Carlo →" CTA link; if null/undefined the link is not rendered).
 - Two sub-sections: **Safe Withdrawal Rate** (portfolio value stays above $0) and **Perpetual Withdrawal Rate** (real purchasing power preserved at end of period). Each has Nominal and Real (3% inflation) columns across 4 durations.
 - **4% Rule badge:** if `rates[30]?.swr_real >= 4.0`, renders a green "Passes the 4% Rule" pill next to the heading. If 30yr data exists but SWR is below 4.0%, renders a neutral "Below the 4% Rule at 30 yrs" pill. No badge if 30yr data is insufficient.
-- **`buildWithdrawalRates(monthlyReturns)`** in `lib/withdrawalRates.js`: for each duration (20/25/30/40yr), collects all rolling windows of that length from the full history, then runs a 20-step binary search on the annual withdrawal rate (0–25% range). `simulateWindow()` operates directly on the original array with start index + length (no slice copies). Returns null per duration when `total - windowLength < 1`. Computation is server-side at SSG build time — adds ~100–300ms per portfolio at build time, negligible at runtime.
+- **`buildWithdrawalRates(monthlyReturns)`** in `lib/withdrawalRates.js`: for each duration (20/25/30/40yr), collects all rolling windows of that length from the full history, then runs a 20-step binary search on the annual withdrawal rate (0–25% range). `simulateWindow()` operates directly on the original array with start index + length (no slice copies). Returns null per duration when `total - windowLength < 1`. Computation is server-side at SSG build time — adds ~100–300ms per portfolio at build time, negligible at runtime. Also called client-side in BuilderClient via `useEffect` for blended mix SWR.
 - **PWR definition:** ending real value (nominal / cumulative inflation) ≥ starting value ($10,000). For nominal PWR, ending nominal value ≥ $10,000.
-- Placed in the col-span-8 main column between Rolling Returns summary and the Description detail section.
+- Placed in the col-span-8 main column between Rolling Returns summary and the Description detail section on portfolio detail pages.
 
 ### PortfolioJumpNav.jsx (June 2026)
 - Client component — sticky in-page jump nav placed between the hero and the body grid on portfolio detail pages
@@ -817,6 +831,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - ChartsSection is called **without** a `section` prop (defaults to `'all'`) — it renders the "Compare to" benchmark bar plus all three charts in one block at full width.
 - Description detail moved above ChartsSection (June 2026): Investment Philosophy / Who It's For / Pros/Cons sits in the col-span-8 main column between WithdrawalRatesTable and the full-width chart row. This improves SEO content placement and lets users read the strategy context before reaching the charts.
 - `generateMetadata` includes "Includes safe withdrawal rate analysis." appended to all portfolio meta descriptions, targeting retirement-focused search queries.
+- **Page title format (June 2026):** `[Name] — X.X% CAGR, Sharpe X.XX | PortfolioDB`. Falls back to CAGR-only (`[Name] — X.X% CAGR | PortfolioDB`) when the full title would exceed 70 chars. Falls back to `[Name] | PortfolioDB` if stats are unavailable. Stats in the title improve search result CTR.
+- **Mobile hero nav buttons (June 2026):** Back to Database, Compare, and Monte Carlo buttons use `hidden lg:flex` — hidden on mobile to reduce scroll before the allocation chart, visible on desktop.
 
 ---
 
