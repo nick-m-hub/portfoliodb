@@ -78,6 +78,30 @@
 
 - [x] **Portfolio detail page — move description detail above charts** — Investment Philosophy / Who It's For / Pros/Cons is currently the last content section before Related Portfolios, after all charts and the heatmap. Moving it above ChartsSection improves content placement for SEO and helps users who want to understand the strategy before digging into numbers. (June 2026)
 
+- [ ] **Portfolio Builder — expand paid stats, charts, and SWR/PWR** — Several features added to portfolio detail pages since the Builder's Performance Snapshot was last updated (Phase 2 Step 1b) are not yet reflected in the Builder. Implement behind the existing Builder/Signals paywall (`tier !== null`):
+
+  **Stats to add to Performance Snapshot** (currently shows 8 stats; these are missing):
+  - Ann. Volatility (`stddev(monthly_return) * sqrt(12)` — same formula as view)
+  - Profitable Months (% of months with positive return)
+  - Best Month / Worst Month (single-month extremes)
+  - Longest Drawdown (consecutive months below prior peak — requires tracking peak-to-trough streaks in `buildBlendedReturns`)
+
+  **Charts to add** (currently only Growth of $10K is live in the Builder UI; the others exist only in the PDF):
+  - Historical Drawdown chart (`DrawdownChart.jsx`) — blended drawdown series from the blended return data
+  - Rolling Returns chart (`RollingReturnChart.jsx`) — 1Y/3Y/5Y tabs from blended returns
+
+  **SWR/PWR table** — apply `buildWithdrawalRates()` from `lib/withdrawalRates.js` to the blended monthly return series and render `WithdrawalRatesTable`. All computation is client-side using the same rolling-window binary search. Show a loading state while computing (it's fast but not instant). Gate entirely behind Builder/Signals tier.
+
+  **Holding Period Heatmap** — apply `buildHeatmapData()` to the blended return series and render `HoldingPeriodHeatmap`. All client-side. Gate behind tier.
+
+  **Implementation notes:**
+  - `buildBlendedReturns()` already returns `{ date, monthly_return }` rows — this is the correct input shape for `buildWithdrawalRates()` and `buildHeatmapData()`
+  - `DrawdownChart` and `RollingReturnChart` already accept a data prop — just compute from blended returns, same as `GrowthChart` already does
+  - `WithdrawalRatesTable` is a server component; convert to accept computed `rates` prop passed client-side (it already does — `rates` is the prop), but it imports nothing server-only so it can be used client-side as-is
+  - `HoldingPeriodHeatmap` is already a client component — just pass the blended heatmap data
+  - All new sections should only render when `stats !== null` (i.e., 2+ portfolios selected, weights sum to 100)
+  - Paywall: same blur + lock overlay pattern as current Performance Snapshot card
+
 - [ ] **Portfolio detail page — FAQPage structured data for withdrawal rates** — Add `FAQPage` JSON-LD alongside existing `StructuredData.jsx` using the computed SWR data. Example Q: "What is the safe withdrawal rate for the [name]?" Google surfaces these as featured snippets. Medium effort.
 
 - [ ] **Portfolio detail page — page title CTR improvement** — Current: `[Name] - PortfolioDB`. Proposed: `[Name] — X% CAGR, Sharpe X.XX | PortfolioDB`. Stats in the title tag improve click-through from search results. Low effort but affects all 70+ pages — test on a few first.
