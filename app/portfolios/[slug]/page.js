@@ -152,6 +152,64 @@ function buildGrowthData(monthlyReturns) {
   return Object.values(byYear);
 }
 
+function buildFAQSchema(portfolio, withdrawalRates) {
+  if (!withdrawalRates?.[30]) return null;
+  const r30 = withdrawalRates[30];
+  if (r30.swr_real == null) return null;
+
+  const nameForFAQ = /portfolio$/i.test(portfolio.name)
+    ? portfolio.name
+    : `${portfolio.name} Portfolio`;
+
+  const passes = r30.swr_real >= 4.0;
+  const nominalStr = r30.swr_nominal != null ? ` In nominal terms (fixed dollar amount), the rate is ${r30.swr_nominal.toFixed(1)}%.` : '';
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: `What is the safe withdrawal rate for the ${nameForFAQ}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `Based on historical data, the ${nameForFAQ} has supported a ${r30.swr_real.toFixed(1)}% annual withdrawal rate (inflation-adjusted) over a 30-year period with 100% historical success across all rolling windows.${nominalStr}`,
+        },
+      },
+      {
+        '@type': 'Question',
+        name: `Does the ${nameForFAQ} pass the 4% rule?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: passes
+            ? `Yes. The ${nameForFAQ} has a real safe withdrawal rate of ${r30.swr_real.toFixed(1)}% over 30 years, which exceeds the 4% rule benchmark used in retirement planning.`
+            : `The ${nameForFAQ} has a real safe withdrawal rate of ${r30.swr_real.toFixed(1)}% over 30 years, which falls below the 4% benchmark. A more conservative withdrawal rate is historically appropriate for a 30-year retirement horizon.`,
+        },
+      },
+      ...(portfolio.cagr_gfc != null ? [{
+        '@type': 'Question',
+        name: `How did the ${nameForFAQ} perform during the 2008 financial crisis?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: portfolio.cagr_gfc >= 0
+            ? `The ${nameForFAQ} returned an annualized ${portfolio.cagr_gfc.toFixed(1)}% during the 2007–2009 financial crisis, remaining positive while most equity portfolios suffered severe losses.`
+            : `The ${nameForFAQ} declined at an annualized rate of ${Math.abs(portfolio.cagr_gfc).toFixed(1)}% during the 2007–2009 financial crisis, compared to a loss of approximately 20% annualized for a standard US 60/40 portfolio over the same period.`,
+        },
+      }] : []),
+      ...(portfolio.worst_year != null ? [{
+        '@type': 'Question',
+        name: `What was the worst year for the ${nameForFAQ}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: portfolio.worst_year >= 0
+            ? `The ${nameForFAQ} has never had a negative calendar year return in its backtested history. Its weakest year returned ${portfolio.worst_year.toFixed(1)}%.`
+            : `The worst calendar year for the ${nameForFAQ} was a loss of ${Math.abs(portfolio.worst_year).toFixed(1)}%, based on historical backtested data.`,
+        },
+      }] : []),
+    ],
+  };
+}
+
 function StatRow({ icon, label, value, valueClass = 'text-primary', definition, benchmarkValue }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-outline-variant last:border-b-0">
@@ -200,6 +258,7 @@ export default async function PortfolioDetailPage({ params }) {
 
   const heatmapData = buildHeatmapData(monthlyReturns);
   const withdrawalRates = buildWithdrawalRates(monthlyReturns);
+  const faqSchema = buildFAQSchema(portfolio, withdrawalRates);
   const last10yrReturns = monthlyReturns.slice(-120);
   const growthData10yr = monthlyReturns.length > 120 ? buildGrowthData(last10yrReturns) : [];
 
@@ -243,6 +302,12 @@ export default async function PortfolioDetailPage({ params }) {
   return (
     <main className="flex-grow w-full">
       <StructuredData portfolio={portfolio} allocations={allocations} />
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )}
       <div className="max-w-[1280px] mx-auto px-8 md:px-12 pt-10 pb-16">
 
         {/* ── Hero ── */}
