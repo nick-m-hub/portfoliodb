@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import LeaderboardClient from './LeaderboardClient';
 
-export const revalidate = 86400; // revalidate once per day
 
 export const metadata = {
   title: 'Portfolio Strategy Leaderboard | PortfolioDB',
