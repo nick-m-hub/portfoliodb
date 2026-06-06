@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { createBrowserSupabaseClient } from '@/lib/supabase';
 import SignalTeaser from './SignalTeaser';
 import Link from 'next/link';
 
@@ -11,10 +10,6 @@ export default function SignalTeaserWrapper({ slug }) {
 
   useEffect(() => {
     async function check() {
-      const supabase = createBrowserSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setState('locked'); return; }
-
       const res = await fetch(`/api/current-holdings/${slug}`);
       if (!res.ok) { setState('locked'); return; }
 

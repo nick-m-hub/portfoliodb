@@ -397,6 +397,9 @@ portfoliodb/
       drawdown-analyzer/
         page.js                      # Drawdown Analyzer page shell (server, static metadata)
         DrawdownAnalyzerClient.jsx   # Client component — 4 crash presets (dot-com, 2008, COVID, 2022) + custom month range inputs; fetches /api/drawdown-analysis?from=YYYY-MM&to=YYYY-MM; results table sorted by total return or max drawdown; vs US 60/40 delta on every row; medals for top 3
+      portfolio-map/
+        page.js                      # Portfolio Map page (server, SSG) — fetches lean columns from portfolio_stats (slug, name, category, cagr, annualized_volatility, sharpe_ratio, max_drawdown); static description explains all controls; passes data to PortfolioMapClient
+        PortfolioMapClient.jsx       # Client component — Recharts ScatterChart plotting all portfolios by volatility or max drawdown (X) vs CAGR (Y). Controls: X-axis toggle (Volatility / Max Drawdown), period toggle (Full History / 20 Years / 10 Years), category filter pills (Buy and Hold / Tactical / Robo-Advisor), search/highlight box. Period data fetched from /api/portfolio-map-stats with client-side cache. Logged-in users' saved mixes appear as orange overlay dots (fetched via /api/builder-returns + computeStats). DotShape and MixDotShape defined outside component for stable Recharts references. Click portfolio dot → /portfolios/[slug]; click mix dot → /builder?mix=...
     api/
       builder-holdings/
         route.js                     # GET ?slugs=a,b,c — returns allocations (with color fallback) + current tactical signals for the requested slugs only. Called client-side by BuilderClient when 2+ portfolios are selected. Replaces the server-side getAllAllocations()+getCurrentSignals() that used to load on every /builder page open.
@@ -405,11 +408,14 @@ portfoliodb/
           route.js                   # GET — verifies auth + active Signals subscription; returns current month holdings from tactical_monthly_holdings for one portfolio slug; used by SignalTeaserWrapper
       drawdown-analysis/
         route.js                     # GET ?from=YYYY-MM&to=YYYY-MM — fetches all monthly_returns in date window, computes total return + max drawdown per portfolio, joins portfolio names/categories, returns sorted results array
+      portfolio-map-stats/
+        route.js                     # GET ?period=10yr|20yr — computes windowed risk/return stats for the Portfolio Map. Step 1: metadata from portfolio_stats. Step 2: row count with .gte('date', cutoff). Step 3: parallel pagination via Promise.all across all pages simultaneously (fast vs sequential). Step 4: groups by slug, runs computeStats() from lib/portfolioStats, skips portfolios with < 12 months in window. Returns [{ slug, name, category, cagr, annualized_volatility, sharpe_ratio, max_drawdown, total_months }].
   lib/
     supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
     db.js                            # All database query functions (see below)
     statDefinitions.js               # Plain JS (no 'use client') — STAT_DEFINITIONS object with definitions for 19 stat keys; importable by both server and client components
     withdrawalRates.js               # Plain JS — `buildWithdrawalRates(monthlyReturns)` computes SWR + PWR for 4 durations × 2 inflation modes using Bengen rolling-window binary search (20 steps). Called server-side in portfolio detail page. Returns `{ 20: { swr_nominal, swr_real, pwr_nominal, pwr_real }, 25: ..., 30: ..., 40: ... }` or null per duration when data is insufficient.
+    portfolioStats.js                # Plain JS — shared stat helpers used by BuilderClient and PortfolioMapClient. Exports: `RF_MONTHLY` (4.5% annual / 12), `buildBlendedReturns(portfolioReturns, selections)` (intersects date sets across portfolios, returns weighted blended monthly returns; handles single-portfolio case), `computeStats(blended)` (returns null if < 12 months; computes CAGR, maxDrawdown, sharpe, sortino, bestYear, worstYear, ulcerIndex, ulcerPerformanceIndex, ytdReturn, cagr10yr, gfcCagr, dotcomCagr, annualizedVolatility, pctProfitableMonths, bestMonth, worstMonth, longestDrawdownMonths, growthData, annualReturns, totalMonths, startDate, endDate). Mirrors the math in the portfolio_stats materialized view.
   public/
     fonts/
       Manrope-Bold.ttf               # Manrope 700 — used by OG image routes (next/og requires TTF)
@@ -502,6 +508,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 | Account                | `/account`               | Complete |
 | Strategy Leaderboard   | `/leaderboard`           | Complete |
 | Drawdown Analyzer      | `/tools/drawdown-analyzer` | Complete |
+| Portfolio Map          | `/tools/portfolio-map`   | Complete |
 | Changelog              | `/changelog`             | Complete |
 | Sitemap                | `/sitemap.xml`           | Complete |
 | Robots                 | `/robots.txt`            | Complete |
@@ -542,8 +549,9 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 ### Navbar.jsx
 - Two-row layout: first row has logo + desktop nav links (`hidden md:flex`) + NavSearch icon + `account_circle` icon; second row (`flex md:hidden`) shows Database/Screener/Strategies + `<MobileMoreMenu />` on mobile only
 - **Desktop nav links (June 2026):** Database · Screener · Strategies · **Tools ▾** · Membership. The Tools dropdown (`ToolsMenu.jsx`) replaced the individual Compare/Builder/Monte Carlo links and adds Leaderboard and Drawdown Analyzer.
-- **`ToolsMenu.jsx`** (client) — dropdown containing: Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo. Each item has a label + one-line description. Click-outside to close.
-- **`MobileMoreMenu.jsx`** (client) — "More ▾" dropdown on mobile; sections: Tools (Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo) with a divider then Membership and Account.
+- **`ToolsMenu.jsx`** (client) — dropdown containing: Leaderboard, Drawdown Analyzer, Portfolio Map, Compare, Builder, Monte Carlo. Each item has a label + one-line description. Click-outside to close.
+- **`MobileMoreMenu.jsx`** (client) — "More ▾" dropdown on mobile; sections: Tools (Leaderboard, Drawdown Analyzer, Portfolio Map, Compare, Builder, Monte Carlo) with a divider then Membership and Account.
+- **URL convention (decided June 2026):** Analytical chart tools (Drawdown Analyzer, Portfolio Map) live under `/tools/`. Workflow tools (Builder, Compare, Monte Carlo, Leaderboard, Screener) stay at the top level. Rationale: moving the already-indexed workflow tool URLs would cost SEO. Do not move existing `/tools/` routes to the top level or vice versa without a redirect plan.
 - `account_circle` icon (22px) links to `/account` — no auth check needed here; middleware redirects unauthenticated users to `/login?next=/account` automatically
 - Stays a server component — all interactivity is in NavSearch.jsx, ToolsMenu.jsx, and MobileMoreMenu.jsx (all client)
 - JSDoc `@param` type annotation on props is required to avoid TypeScript `never[]` errors when called from layout.tsx

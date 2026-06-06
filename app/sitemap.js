@@ -11,6 +11,7 @@ const staticPages = [
   { path: '/builder',                 changeFrequency: 'monthly', priority: 0.8 },
   { path: '/monte-carlo-simulation',  changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/drawdown-analyzer', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/tools/portfolio-map',     changeFrequency: 'monthly', priority: 0.7 },
   { path: '/strategies',              changeFrequency: 'monthly', priority: 0.8 },
   { path: '/blog',                    changeFrequency: 'weekly',  priority: 0.7 },
   { path: '/membership',              changeFrequency: 'monthly', priority: 0.7 },

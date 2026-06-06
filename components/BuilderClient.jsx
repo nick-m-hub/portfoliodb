@@ -9,6 +9,7 @@ import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import CurrentSignals from '@/components/CurrentSignals';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
+import { buildBlendedReturns, computeStats, RF_MONTHLY as _RF_MONTHLY } from '@/lib/portfolioStats';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
 const BENCHMARKS = [
@@ -16,41 +17,10 @@ const BENCHMARKS = [
   { slug: 'us-stock-market',               label: 'US Stocks' },
   { slug: 'global-stock-market',           label: 'Global Stocks' },
 ];
-const RF_MONTHLY = 0.375; // 4.5% annual risk-free rate / 12
+const RF_MONTHLY = _RF_MONTHLY; // re-exported from lib/portfolioStats for local use
 const MAX_PORTFOLIOS = 6;
 
-// ─────────────────────────────────────────────────────────────
-// Stat computation (mirrors portfolio_stats view math)
-// ─────────────────────────────────────────────────────────────
-
-function buildBlendedReturns(portfolioReturns, selections) {
-  if (selections.length < 2) return [];
-
-  // Build a date → return lookup map for each selected portfolio
-  const maps = {};
-  for (const { slug } of selections) {
-    maps[slug] = {};
-    for (const r of portfolioReturns[slug] || []) {
-      maps[slug][r.date] = Number(r.monthly_return);
-    }
-  }
-
-  // Find months present in every selected portfolio
-  const dateSets = selections.map(({ slug }) => new Set(Object.keys(maps[slug])));
-  if (dateSets.some((s) => s.size === 0)) return [];
-
-  const commonDates = [...dateSets[0]]
-    .filter((date) => dateSets.every((s) => s.has(date)))
-    .sort();
-
-  return commonDates.map((date) => ({
-    date,
-    monthly_return: selections.reduce(
-      (sum, { slug, weight }) => sum + (parseFloat(weight) / 100) * maps[slug][date],
-      0
-    ),
-  }));
-}
+// buildBlendedReturns + computeStats are imported from @/lib/portfolioStats above.
 
 function buildDrawdownData(blended) {
   let value = 10000;
@@ -117,147 +87,6 @@ function buildHeatmapData(monthlyReturns) {
     })
   );
   return { startYears, holdingPeriods, data };
-}
-
-function computeStats(blended) {
-  const n = blended.length;
-  if (n < 12) return null;
-
-  // Single-pass: running value for CAGR + drawdown + growth chart + ulcer index + longest drawdown
-  let value = 10000;
-  let peak = 10000;
-  let maxDrawdown = 0;
-  let sumDDSquared = 0;
-  let currentDDStreak = 0;
-  let longestDrawdownMonths = 0;
-  const byYear = {};
-
-  for (const r of blended) {
-    value *= 1 + r.monthly_return / 100;
-    if (value > peak) {
-      peak = value;
-      currentDDStreak = 0;
-    } else {
-      currentDDStreak++;
-      if (currentDDStreak > longestDrawdownMonths) longestDrawdownMonths = currentDDStreak;
-    }
-    const dd = ((value - peak) / peak) * 100;
-    if (dd < maxDrawdown) maxDrawdown = dd;
-    sumDDSquared += dd * dd;
-    const year = r.date.slice(0, 4);
-    byYear[year] = Math.round(value * 100) / 100;
-  }
-
-  const growthData = Object.entries(byYear)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, val]) => ({ label, value: val }));
-
-  // CAGR from total growth factor
-  const totalGrowth = value / 10000;
-  const cagr = (Math.pow(totalGrowth, 12 / n) - 1) * 100;
-
-  // Sharpe ratio (annualised)
-  const returns = blended.map((r) => r.monthly_return);
-  const mean = returns.reduce((s, r) => s + r, 0) / n;
-  const variance = returns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / Math.max(n - 1, 1);
-  const stdDev = Math.sqrt(variance);
-  const sharpe = stdDev === 0 ? 0 : ((mean - RF_MONTHLY) / stdDev) * Math.sqrt(12);
-
-  // Sortino ratio (downside deviation)
-  const downsideVar =
-    returns.reduce((s, r) => s + Math.pow(Math.min(0, r - RF_MONTHLY), 2), 0) / n;
-  const downsideStdDev = Math.sqrt(downsideVar);
-  const sortino =
-    downsideStdDev === 0 ? 0 : ((mean - RF_MONTHLY) / downsideStdDev) * Math.sqrt(12);
-
-  // Best / worst year (full 12-month years only)
-  const yearCounts = {};
-  const yearFactors = {};
-  for (const r of blended) {
-    const year = r.date.slice(0, 4);
-    yearCounts[year] = (yearCounts[year] || 0) + 1;
-    yearFactors[year] = (yearFactors[year] || 1) * (1 + r.monthly_return / 100);
-  }
-  const fullYearReturns = Object.entries(yearFactors)
-    .filter(([year]) => yearCounts[year] === 12)
-    .map(([, f]) => (f - 1) * 100);
-
-  const bestYear = fullYearReturns.length ? Math.max(...fullYearReturns) : null;
-  const worstYear = fullYearReturns.length ? Math.min(...fullYearReturns) : null;
-
-  // Ulcer Index — sqrt of mean squared percentage drawdowns
-  const ulcerIndex = Math.sqrt(sumDDSquared / n);
-
-  // Ulcer Performance Index — (CAGR − RF_annual) / UI
-  const RF_ANNUAL = RF_MONTHLY * 12;
-  const ulcerPerformanceIndex = ulcerIndex === 0 ? null : (cagr - RF_ANNUAL) / ulcerIndex;
-
-  // YTD Return — compound all months in the current calendar year
-  const currentYear = new Date().getFullYear().toString();
-  const ytdMonths = blended.filter((r) => r.date.startsWith(currentYear));
-  const ytdReturn = ytdMonths.length > 0
-    ? (ytdMonths.reduce((v, r) => v * (1 + r.monthly_return / 100), 1) - 1) * 100
-    : null;
-
-  // 10-Year CAGR — requires at least 120 months of history
-  let cagr10yr = null;
-  if (blended.length >= 120) {
-    const last120 = blended.slice(-120);
-    const growth10 = last120.reduce((v, r) => v * (1 + r.monthly_return / 100), 1);
-    cagr10yr = (Math.pow(growth10, 12 / 120) - 1) * 100;
-  }
-
-  // Crisis-period CAGR helper (returns null if fewer than 6 months of data in range)
-  function crisisCagr(startDate, endDate) {
-    const subset = blended.filter((r) => r.date >= startDate && r.date <= endDate);
-    if (subset.length < 6) return null;
-    const growth = subset.reduce((v, r) => v * (1 + r.monthly_return / 100), 1);
-    return (Math.pow(growth, 12 / subset.length) - 1) * 100;
-  }
-
-  const gfcCagr     = crisisCagr('2007-10-01', '2009-03-31'); // GFC peak-to-trough
-  const dotcomCagr  = crisisCagr('2000-03-01', '2002-10-31'); // Dot-com peak-to-trough
-
-  // Annual returns and year-end portfolio values (for PDF table)
-  const annualReturns = Object.entries(yearFactors)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([year, f]) => ({
-      year,
-      return: (f - 1) * 100,
-      fullYear: yearCounts[year] === 12,
-      endValue: byYear[year],
-    }));
-
-  // Additional stats (matching portfolio_stats view)
-  const annualizedVolatility = stdDev * Math.sqrt(12);
-  const pctProfitableMonths = Math.round((returns.filter((r) => r > 0).length / n) * 1000) / 10;
-  const bestMonth = Math.max(...returns);
-  const worstMonth = Math.min(...returns);
-
-  return {
-    cagr,
-    maxDrawdown,
-    sharpe,
-    sortino,
-    bestYear,
-    worstYear,
-    ulcerIndex,
-    ulcerPerformanceIndex,
-    ytdReturn,
-    cagr10yr,
-    gfcCagr,
-    dotcomCagr,
-    annualizedVolatility,
-    pctProfitableMonths,
-    bestMonth,
-    worstMonth,
-    longestDrawdownMonths,
-    growthData,
-    annualReturns,
-    totalMonths: n,
-    startDate: blended[0].date,
-    endDate: blended[blended.length - 1].date,
-  };
 }
 
 // Equal weight distribution across n portfolios (last slot absorbs rounding)
