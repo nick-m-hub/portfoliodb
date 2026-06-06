@@ -53,6 +53,7 @@ Cloudflare is now the DNS provider and sits in front of Vercel as a proxy. All t
 - **WAF Skip Rule:** URI Path = `/api/memberful` → Skip all rules, placed First (added to allow Memberful webhooks through — note: only effective once Bot Fight Mode is off on free plan)
 - **CAA records:** Deleted — Cloudflare manages SSL issuance now, CAA restrictions are no longer needed.
 - **Resend API key:** Stored in `.env.local` as `RESEND_API_KEY` for reference. The actual key is used in Gmail send-as SMTP settings and Supabase Authentication SMTP settings — if rotated, update both places.
+- **Cache Rule (June 2026):** One cache rule covers `/portfolios/`, `/leaderboard`, `/strategies/`, `/blog/` — all set to "Eligible for cache". This overrides Cloudflare's default behaviour of bypassing cache when session cookies are present, ensuring logged-in users are served from Cloudflare's edge rather than passing through to Vercel. Do NOT apply cache rules to `/api/*`, `/account`, `/builder`, or `/monte-carlo-simulation` — those have server-side auth or dynamic data and must never be cached.
 
 ---
 
@@ -388,7 +389,7 @@ portfoliodb/
     BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
   app/
     leaderboard/
-      page.js                        # Strategy Leaderboard (server, revalidate 86400) — uses anon supabase client (NOT createServerSupabaseClient). IMPORTANT: calling cookies() opts the page out of the full route cache, making revalidate=86400 a no-op. Public data only — no auth needed. Fetches portfolio_stats selecting cagr_1yr/cagr_3yr/cagr_10yr/ytd_return/sharpe_ratio; passes to LeaderboardClient
+      page.js                        # Strategy Leaderboard (server, fully static SSG) — uses anon supabase client (NOT createServerSupabaseClient). No revalidate — page rebuilds with each Vercel deploy, which aligns with the monthly data update cycle. IMPORTANT: do NOT add revalidate or call cookies() here; either opts the page into ISR reads. Public data only — no auth needed. Fetches portfolio_stats selecting cagr_1yr/cagr_3yr/cagr_10yr/ytd_return/sharpe_ratio; passes to LeaderboardClient
       LeaderboardClient.jsx          # Client component — 5 tabs (YTD, 1-Year, 3-Year, 10-Year, Sharpe); sorts portfolios by active tab; medals for top 3; category badges; links to portfolio detail pages
     changelog/
       page.js                        # Changelog (static server component) — hardcoded CHANGELOG array of { month, entries: [{ type, text }] }; type = 'new' | 'improvement' | 'fix'; color-coded badges. Update this file each month before pushing.
