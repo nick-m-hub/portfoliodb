@@ -384,7 +384,7 @@ portfoliodb/
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false
     MonteCarloClient.jsx             # Monte Carlo simulation UI (client) — all inputs, 1,000-simulation engine, 5-line percentile chart (Recharts LineChart), stat cards, SWR binary search
-    BuilderClient.jsx                # Portfolio Builder UI (client) — two-section layout: top 2-column area (selector + quick stats/Growth chart), full-width analysis below (Performance Snapshot alongside Blended Holdings, Drawdown+Rolling Returns 2-up, SWR/PWR table, Holding Period Heatmap). Save CTA lives inside the selector card. All analysis sections below the 2-col area are gated behind Builder/Signals tier. "Download PDF" button (tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click. Does NOT receive allAllocations/allSignals as props — fetches them client-side via /api/builder-holdings when 2+ portfolios are selected.
+    BuilderClient.jsx                # Portfolio Builder UI (client) — two-section layout: top 2-column area (selector + quick stats/Growth chart), full-width analysis below (Performance Snapshot alongside Blended Holdings, Drawdown+Rolling Returns 2-up, SWR/PWR table, Holding Period Heatmap). Save CTA lives inside the selector card. All analysis sections below the 2-col area are gated behind Builder/Signals tier. "Download PDF" button (tier only) dynamically imports @react-pdf/renderer + BuilderPDF on click. Does NOT receive allAllocations/allSignals as props — fetches them client-side via /api/builder-holdings when 2+ portfolios are selected. Growth chart has "Compare to" pill selector (None / US 60/40 / US Stocks / Global Stocks); benchmark data fetched on demand via /api/builder-returns and cached in benchmarkCache; same benchmark overlaid on Drawdown and Rolling Returns charts for tier members. Performance Snapshot (tier) shows "Portfolio / US 60/40" side-by-side on all 14 stats; US 60/40 data auto-fetched when isReady, filtered to the blended mix's date range for a fair comparison.
     BuilderPDF.jsx                   # react-pdf Document for Portfolio Builder PDF export (Builder/Signals tier only) — 3-page landscape A4: (1) mix composition + 12-stat grid + Growth of $10K chart; (2) annual returns table with US 60/40 + US Market benchmark columns + drawdown chart; (3) rolling 1/3/5yr return charts. All charts built from SVG primitives. Benchmark data fetched via /api/builder-returns on download click.
   app/
     leaderboard/
@@ -752,13 +752,24 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - `rollingDatasets` — calls `buildRollingDatasets(blendedReturns)`: `{ '1Y': [...], '3Y': [...], ... }` for `RollingReturnChart`
 - `heatmapData` — calls `buildHeatmapData(blendedReturns)` (same algorithm as portfolio detail page); only computed when `tier !== null`
 - `withdrawalRates` — computed in a `useEffect` (deferred via `setTimeout(10ms)`) calling `buildWithdrawalRates(blendedReturns)` from `lib/withdrawalRates.js`; only computed when `tier !== null`. `swrLoading` state shows a spinner until it resolves.
+- `growthDataMerged`, `drawdownDataMerged`, `rollingDatasetsMerged` — versions of the above with benchmark data merged in (benchmark overlay); pass through unchanged when no benchmark is selected
+- `bench6040Stats` — `computeStats()` run on US 60/40 returns filtered to the same date range as `blendedReturns`; used for the Performance Snapshot benchmark column
 
-**Free stats:** 3-stat card (CAGR, Max Drawdown, Sharpe) always visible. Growth of $10K chart with Log/Linear toggle always visible.
+**Benchmark "Compare to" (Growth chart — free for all users):**
+- `BENCHMARKS` constant: `[{ slug, label }]` for US 60/40, US Stocks, Global Stocks
+- `selectedBenchmark` state (null = none); pill selector appears below "Growth of $10,000" heading
+- Benchmark data fetched on demand via `/api/builder-returns` and cached in `benchmarkCache` (shared cache also holds US 60/40 for the Snapshot column)
+- Selected benchmark is auto-deselected if the user adds it to their mix
+- Benchmark overlay applies to all three charts: Growth (free), Drawdown and Rolling Returns (tier only)
+- Merge helpers defined outside component: `alignAndMergeGrowth()` re-indexes both lines to a common start year; `mergeDrawdownBench()` and `mergeRollingBench()` merge by label
+
+**Free stats:** 3-stat card (CAGR, Max Drawdown, Sharpe) always visible. Growth of $10K chart with Log/Linear toggle and Compare to benchmark selector always visible.
 
 **Performance Snapshot (gated, 14 stats in 2 columns):**
 - Left: Sortino, Best Year, YTD Return, Ulcer Index, GFC CAGR, Ann. Volatility, Best Month
 - Right: Worst Year, 10-Year CAGR, Ulcer Perf. Index, Dot-com CAGR, Worst Month, Profitable Months, Longest Drawdown
 - Blurred + lock overlay for non-tier; sits at 2/3 width alongside Blended Holdings (1/3)
+- All 14 stats show "Portfolio / US 60/40" side-by-side when `bench6040Stats` is available. US 60/40 data is auto-fetched via `useEffect` when `isReady` becomes true (no user action needed). `bench6040Stats` is filtered to the blended mix's exact date range so the comparison is apples-to-apples. `SnapshotRow` accepts optional `benchmarkValue` prop — renders `value / benchmarkValue` with the benchmark in `text-on-surface-variant`. "Portfolio / US 60/40" legend appears in the section header when loaded.
 
 **Blended Holdings:** `CurrentSignals context="builder"` at 1/3 width beside Performance Snapshot. Buy & Hold portfolios use static allocations; tactical use current month signals. Tactical portion blurred for non-Signals members.
 

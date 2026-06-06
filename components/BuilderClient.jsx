@@ -11,6 +11,11 @@ import CurrentSignals from '@/components/CurrentSignals';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
+const BENCHMARKS = [
+  { slug: 'united-states-60-40-portfolio', label: 'US 60/40' },
+  { slug: 'us-stock-market',               label: 'US Stocks' },
+  { slug: 'global-stock-market',           label: 'Global Stocks' },
+];
 const RF_MONTHLY = 0.375; // 4.5% annual risk-free rate / 12
 const MAX_PORTFOLIOS = 6;
 
@@ -273,6 +278,78 @@ function fmtDate(dateStr) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Benchmark merge helpers
+// ─────────────────────────────────────────────────────────────
+
+// Build year-end growth data from raw monthly returns (starting at $10,000)
+function buildBenchGrowthData(rawReturns) {
+  if (!rawReturns?.length) return [];
+  let value = 10000;
+  const byYear = {};
+  for (const r of rawReturns) {
+    value *= 1 + r.monthly_return / 100;
+    byYear[r.date.slice(0, 4)] = Math.round(value * 100) / 100;
+  }
+  return Object.entries(byYear)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, val]) => ({ label, value: val }));
+}
+
+// Merge benchmark growth into portfolio growth, re-indexed to their common start year
+function alignAndMergeGrowth(portData, benchRaw) {
+  if (!portData.length || !benchRaw.length) return portData;
+  const benchData = buildBenchGrowthData(benchRaw);
+  if (!benchData.length) return portData;
+
+  const commonStart = portData[0].label > benchData[0].label ? portData[0].label : benchData[0].label;
+
+  const portMap  = Object.fromEntries(portData.map((d) => [d.label, d.value]));
+  const benchMap = Object.fromEntries(benchData.map((d) => [d.label, d.value]));
+  const portBase  = portMap[commonStart];
+  const benchBase = benchMap[commonStart];
+  if (!portBase || !benchBase) return portData;
+
+  const allYears = [...new Set([...portData.map((d) => d.label), ...benchData.map((d) => d.label)])]
+    .filter((y) => y >= commonStart)
+    .sort();
+
+  return allYears
+    .map((year) => ({
+      label: year,
+      value: portMap[year] != null ? Math.round((portMap[year] / portBase) * 10000 * 100) / 100 : undefined,
+      benchmark: benchMap[year] != null ? Math.round((benchMap[year] / benchBase) * 10000 * 100) / 100 : undefined,
+    }))
+    .filter((d) => d.value != null);
+}
+
+// Merge benchmark drawdown into portfolio drawdown data by label (YYYY-MM)
+function mergeDrawdownBench(portData, benchRaw) {
+  if (!portData.length || !benchRaw.length) return portData;
+  let value = 10000, peak = 10000;
+  const benchMap = {};
+  for (const r of benchRaw) {
+    value *= 1 + r.monthly_return / 100;
+    if (value > peak) peak = value;
+    benchMap[r.date.slice(0, 7)] = Math.round(((value - peak) / peak) * 10000) / 100;
+  }
+  return portData.map((d) => ({ ...d, benchmark: benchMap[d.label] }));
+}
+
+// Merge benchmark rolling datasets into portfolio rolling datasets by label
+function mergeRollingBench(portDatasets, benchRaw) {
+  if (!Object.keys(portDatasets).length || !benchRaw.length) return portDatasets;
+  const benchDatasets = buildRollingDatasets(benchRaw);
+  const result = {};
+  for (const [key, portData] of Object.entries(portDatasets)) {
+    const benchData = benchDatasets[key];
+    if (!benchData?.length) { result[key] = portData; continue; }
+    const benchMap = Object.fromEntries(benchData.map((d) => [d.label, d.value]));
+    result[key] = portData.map((d) => ({ ...d, benchmark: benchMap[d.label] }));
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────
 
@@ -293,7 +370,7 @@ function StatCard({ label, value, positive, error }) {
   );
 }
 
-function SnapshotRow({ icon, label, value, positive, error }) {
+function SnapshotRow({ icon, label, value, positive, error, benchmarkValue }) {
   if (value === null || value === undefined) return null;
   return (
     <div className="flex items-center gap-2.5 py-2.5 border-b border-outline-variant last:border-0">
@@ -310,6 +387,9 @@ function SnapshotRow({ icon, label, value, positive, error }) {
         }`}
       >
         {value}
+        {benchmarkValue !== undefined && (
+          <span className="font-normal text-on-surface-variant"> / {benchmarkValue}</span>
+        )}
       </span>
     </div>
   );
@@ -382,6 +462,9 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
   const [holdingsData, setHoldingsData] = useState({ allocations: [], signals: [] });
   const [withdrawalRates, setWithdrawalRates] = useState(null);
   const [swrLoading, setSwrLoading] = useState(false);
+  const [selectedBenchmark, setSelectedBenchmark] = useState(null);
+  const [benchmarkCache, setBenchmarkCache] = useState({});
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const searchRef = useRef(null);
 
   // Filter portfolio list for the search dropdown
@@ -615,6 +698,35 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
       .catch(() => {});
   }, [selectionSlugs]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear benchmark selection if that portfolio gets added to the mix
+  useEffect(() => {
+    if (selectedBenchmark && selectedSlugs.has(selectedBenchmark)) {
+      setSelectedBenchmark(null);
+    }
+  }, [selectionSlugs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-fetch US 60/40 returns as soon as the mix is ready (for Performance Snapshot benchmark column)
+  useEffect(() => {
+    if (!isReady) return;
+    const slug = 'united-states-60-40-portfolio';
+    if (benchmarkCache[slug]) return;
+    fetch(`/api/builder-returns?slugs=${slug}`)
+      .then((r) => r.json())
+      .then((data) => setBenchmarkCache((prev) => ({ ...prev, ...data })))
+      .catch(() => {});
+  }, [isReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch benchmark monthly returns on demand; cache by slug
+  useEffect(() => {
+    if (!selectedBenchmark || benchmarkCache[selectedBenchmark]) return;
+    setBenchmarkLoading(true);
+    fetch(`/api/builder-returns?slugs=${selectedBenchmark}`)
+      .then((r) => r.json())
+      .then((data) => setBenchmarkCache((prev) => ({ ...prev, ...data })))
+      .catch(() => setBenchmarkCache((prev) => ({ ...prev, [selectedBenchmark]: [] })))
+      .finally(() => setBenchmarkLoading(false));
+  }, [selectedBenchmark]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // POST the blended mix to /api/builder-save
   const handleSave = useCallback(async () => {
     setSaveStatus('saving');
@@ -671,6 +783,40 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
       setPdfLoading(false);
     }
   }, [stats, selections, saveName, blendedReturns]);
+
+  // Benchmark derived values
+  const selectedSlugs      = new Set(selections.map((s) => s.slug));
+  const availableBenchmarks = BENCHMARKS.filter((b) => !selectedSlugs.has(b.slug));
+  const benchmarkRaw        = selectedBenchmark ? (benchmarkCache[selectedBenchmark] ?? []) : [];
+  const benchmarkLabel      = BENCHMARKS.find((b) => b.slug === selectedBenchmark)?.label ?? '';
+
+  // Benchmark-merged chart data
+  const growthDataMerged = useMemo(() => {
+    if (!stats?.growthData?.length) return [];
+    if (!benchmarkRaw.length) return stats.growthData;
+    return alignAndMergeGrowth(stats.growthData, benchmarkRaw);
+  }, [stats, benchmarkRaw]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const drawdownDataMerged = useMemo(() => {
+    if (!drawdownData.length || !benchmarkRaw.length) return drawdownData;
+    return mergeDrawdownBench(drawdownData, benchmarkRaw);
+  }, [drawdownData, benchmarkRaw]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rollingDatasetsMerged = useMemo(() => {
+    if (!benchmarkRaw.length) return rollingDatasets;
+    return mergeRollingBench(rollingDatasets, benchmarkRaw);
+  }, [rollingDatasets, benchmarkRaw]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // US 60/40 stats computed over the same date range as the blended mix (for Performance Snapshot comparison)
+  const bench6040Stats = useMemo(() => {
+    const raw = benchmarkCache['united-states-60-40-portfolio'];
+    if (!raw?.length || !blendedReturns.length) return null;
+    const startDate = blendedReturns[0].date;
+    const endDate   = blendedReturns[blendedReturns.length - 1].date;
+    const filtered  = raw.filter((r) => r.date >= startDate && r.date <= endDate);
+    if (filtered.length < 12) return null;
+    return computeStats(filtered);
+  }, [benchmarkCache, blendedReturns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Weight display — show integer if whole number, one decimal otherwise
   const weightDisplay =
@@ -1104,7 +1250,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
 
               {/* Growth chart card */}
               <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <h3 className="font-manrope font-bold text-[16px] text-on-surface">
                     Growth of $10,000
                   </h3>
@@ -1124,7 +1270,46 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                     ))}
                   </div>
                 </div>
-                <GrowthChart data={stats.growthData} logScale={logScale} />
+
+                {/* Compare to benchmark pills */}
+                {availableBenchmarks.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap mb-4">
+                    <span className="font-inter text-[12px] text-on-surface-variant flex-shrink-0">
+                      Compare to:
+                    </span>
+                    <div className="flex gap-1 flex-wrap">
+                      <button
+                        onClick={() => setSelectedBenchmark(null)}
+                        className={`font-inter text-[12px] px-2.5 py-1 rounded-lg transition-colors ${
+                          !selectedBenchmark
+                            ? 'bg-primary text-white'
+                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-low'
+                        }`}
+                      >
+                        None
+                      </button>
+                      {availableBenchmarks.map((b) => (
+                        <button
+                          key={b.slug}
+                          onClick={() => setSelectedBenchmark(b.slug)}
+                          className={`font-inter text-[12px] px-2.5 py-1 rounded-lg transition-colors ${
+                            selectedBenchmark === b.slug
+                              ? 'bg-primary text-white'
+                              : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-low'
+                          }`}
+                        >
+                          {benchmarkLoading && selectedBenchmark === b.slug ? '…' : b.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <GrowthChart
+                  data={growthDataMerged}
+                  logScale={logScale}
+                  benchmarkLabel={benchmarkLabel || undefined}
+                />
               </div>
             </>
           )}
@@ -1145,27 +1330,68 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                   !tier ? 'blur-sm select-none pointer-events-none' : ''
                 }`}
               >
-                <h3 className="font-manrope font-bold text-[18px] text-on-surface mb-4">
-                  Performance Snapshot
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-manrope font-bold text-[18px] text-on-surface">
+                    Performance Snapshot
+                  </h3>
+                  {bench6040Stats && (
+                    <span className="font-inter text-[11px] text-on-surface-variant">
+                      Portfolio / US 60/40
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-8">
                   <div>
-                    <SnapshotRow icon="show_chart"      label="Sortino Ratio"      value={stats.sortino.toFixed(2)} positive={stats.sortino >= 0} />
-                    <SnapshotRow icon="arrow_upward"    label="Best Year"          value={stats.bestYear != null ? `+${stats.bestYear.toFixed(1)}%` : null} positive />
-                    <SnapshotRow icon="calendar_today"  label="YTD Return"         value={stats.ytdReturn != null ? `${stats.ytdReturn >= 0 ? '+' : ''}${stats.ytdReturn.toFixed(1)}%` : null} positive={stats.ytdReturn != null && stats.ytdReturn >= 0} error={stats.ytdReturn != null && stats.ytdReturn < 0} />
-                    <SnapshotRow icon="warning"         label="Ulcer Index"        value={stats.ulcerIndex.toFixed(2)} />
-                    <SnapshotRow icon="account_balance" label="GFC CAGR"           value={stats.gfcCagr != null ? `${stats.gfcCagr >= 0 ? '+' : ''}${stats.gfcCagr.toFixed(1)}%` : null} positive={stats.gfcCagr != null && stats.gfcCagr >= 0} error={stats.gfcCagr != null && stats.gfcCagr < 0} />
-                    <SnapshotRow icon="bar_chart"       label="Ann. Volatility"    value={`${stats.annualizedVolatility.toFixed(1)}%`} />
-                    <SnapshotRow icon="trending_up"     label="Best Month"         value={`+${stats.bestMonth.toFixed(1)}%`} positive />
+                    <SnapshotRow icon="show_chart"      label="Sortino Ratio"
+                      value={stats.sortino.toFixed(2)} positive={stats.sortino >= 0}
+                      benchmarkValue={bench6040Stats ? bench6040Stats.sortino.toFixed(2) : undefined} />
+                    <SnapshotRow icon="arrow_upward"    label="Best Year"
+                      value={stats.bestYear != null ? `+${stats.bestYear.toFixed(1)}%` : null} positive
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.bestYear != null ? `+${bench6040Stats.bestYear.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="calendar_today"  label="YTD Return"
+                      value={stats.ytdReturn != null ? `${stats.ytdReturn >= 0 ? '+' : ''}${stats.ytdReturn.toFixed(1)}%` : null}
+                      positive={stats.ytdReturn != null && stats.ytdReturn >= 0} error={stats.ytdReturn != null && stats.ytdReturn < 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.ytdReturn != null ? `${bench6040Stats.ytdReturn >= 0 ? '+' : ''}${bench6040Stats.ytdReturn.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="warning"         label="Ulcer Index"
+                      value={stats.ulcerIndex.toFixed(2)}
+                      benchmarkValue={bench6040Stats ? bench6040Stats.ulcerIndex.toFixed(2) : undefined} />
+                    <SnapshotRow icon="account_balance" label="GFC CAGR"
+                      value={stats.gfcCagr != null ? `${stats.gfcCagr >= 0 ? '+' : ''}${stats.gfcCagr.toFixed(1)}%` : null}
+                      positive={stats.gfcCagr != null && stats.gfcCagr >= 0} error={stats.gfcCagr != null && stats.gfcCagr < 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.gfcCagr != null ? `${bench6040Stats.gfcCagr >= 0 ? '+' : ''}${bench6040Stats.gfcCagr.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="bar_chart"       label="Ann. Volatility"
+                      value={`${stats.annualizedVolatility.toFixed(1)}%`}
+                      benchmarkValue={bench6040Stats ? `${bench6040Stats.annualizedVolatility.toFixed(1)}%` : undefined} />
+                    <SnapshotRow icon="trending_up"     label="Best Month"
+                      value={`+${stats.bestMonth.toFixed(1)}%`} positive
+                      benchmarkValue={bench6040Stats ? `+${bench6040Stats.bestMonth.toFixed(1)}%` : undefined} />
                   </div>
                   <div>
-                    <SnapshotRow icon="arrow_downward"  label="Worst Year"         value={stats.worstYear != null ? `${stats.worstYear >= 0 ? '+' : ''}${stats.worstYear.toFixed(1)}%` : null} positive={stats.worstYear != null && stats.worstYear >= 0} error={stats.worstYear != null && stats.worstYear < 0} />
-                    <SnapshotRow icon="history"         label="10-Year CAGR"       value={stats.cagr10yr != null ? `${stats.cagr10yr >= 0 ? '+' : ''}${stats.cagr10yr.toFixed(1)}%` : null} positive={stats.cagr10yr != null && stats.cagr10yr >= 0} error={stats.cagr10yr != null && stats.cagr10yr < 0} />
-                    <SnapshotRow icon="monitoring"      label="Ulcer Perf. Index"  value={stats.ulcerPerformanceIndex != null ? stats.ulcerPerformanceIndex.toFixed(2) : null} positive={stats.ulcerPerformanceIndex != null && stats.ulcerPerformanceIndex >= 0} />
-                    <SnapshotRow icon="computer"        label="Dot-com CAGR"       value={stats.dotcomCagr != null ? `${stats.dotcomCagr >= 0 ? '+' : ''}${stats.dotcomCagr.toFixed(1)}%` : null} positive={stats.dotcomCagr != null && stats.dotcomCagr >= 0} error={stats.dotcomCagr != null && stats.dotcomCagr < 0} />
-                    <SnapshotRow icon="trending_down"   label="Worst Month"        value={`${stats.worstMonth.toFixed(1)}%`} error />
-                    <SnapshotRow icon="check_circle"    label="Profitable Months"  value={`${stats.pctProfitableMonths.toFixed(1)}%`} positive />
-                    <SnapshotRow icon="timer"           label="Longest Drawdown"   value={`${stats.longestDrawdownMonths} mo`} />
+                    <SnapshotRow icon="arrow_downward"  label="Worst Year"
+                      value={stats.worstYear != null ? `${stats.worstYear >= 0 ? '+' : ''}${stats.worstYear.toFixed(1)}%` : null}
+                      positive={stats.worstYear != null && stats.worstYear >= 0} error={stats.worstYear != null && stats.worstYear < 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.worstYear != null ? `${bench6040Stats.worstYear >= 0 ? '+' : ''}${bench6040Stats.worstYear.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="history"         label="10-Year CAGR"
+                      value={stats.cagr10yr != null ? `${stats.cagr10yr >= 0 ? '+' : ''}${stats.cagr10yr.toFixed(1)}%` : null}
+                      positive={stats.cagr10yr != null && stats.cagr10yr >= 0} error={stats.cagr10yr != null && stats.cagr10yr < 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.cagr10yr != null ? `${bench6040Stats.cagr10yr >= 0 ? '+' : ''}${bench6040Stats.cagr10yr.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="monitoring"      label="Ulcer Perf. Index"
+                      value={stats.ulcerPerformanceIndex != null ? stats.ulcerPerformanceIndex.toFixed(2) : null}
+                      positive={stats.ulcerPerformanceIndex != null && stats.ulcerPerformanceIndex >= 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.ulcerPerformanceIndex != null ? bench6040Stats.ulcerPerformanceIndex.toFixed(2) : '—') : undefined} />
+                    <SnapshotRow icon="computer"        label="Dot-com CAGR"
+                      value={stats.dotcomCagr != null ? `${stats.dotcomCagr >= 0 ? '+' : ''}${stats.dotcomCagr.toFixed(1)}%` : null}
+                      positive={stats.dotcomCagr != null && stats.dotcomCagr >= 0} error={stats.dotcomCagr != null && stats.dotcomCagr < 0}
+                      benchmarkValue={bench6040Stats ? (bench6040Stats.dotcomCagr != null ? `${bench6040Stats.dotcomCagr >= 0 ? '+' : ''}${bench6040Stats.dotcomCagr.toFixed(1)}%` : '—') : undefined} />
+                    <SnapshotRow icon="trending_down"   label="Worst Month"
+                      value={`${stats.worstMonth.toFixed(1)}%`} error
+                      benchmarkValue={bench6040Stats ? `${bench6040Stats.worstMonth.toFixed(1)}%` : undefined} />
+                    <SnapshotRow icon="check_circle"    label="Profitable Months"
+                      value={`${stats.pctProfitableMonths.toFixed(1)}%`} positive
+                      benchmarkValue={bench6040Stats ? `${bench6040Stats.pctProfitableMonths.toFixed(1)}%` : undefined} />
+                    <SnapshotRow icon="timer"           label="Longest Drawdown"
+                      value={`${stats.longestDrawdownMonths} mo`}
+                      benchmarkValue={bench6040Stats ? `${bench6040Stats.longestDrawdownMonths} mo` : undefined} />
                   </div>
                 </div>
               </div>
@@ -1194,7 +1420,12 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                 <h3 className="font-manrope font-bold text-[16px] text-on-surface mb-4">
                   Historical Drawdown
                 </h3>
-                {drawdownData.length > 0 && <DrawdownChart data={drawdownData} />}
+                {drawdownData.length > 0 && (
+                  <DrawdownChart
+                    data={drawdownDataMerged}
+                    benchmarkLabel={benchmarkLabel || undefined}
+                  />
+                )}
               </div>
               {!tier && <LockOverlay title="Historical Drawdown" />}
             </div>
@@ -1210,7 +1441,10 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                   Rolling Returns
                 </h3>
                 {Object.keys(rollingDatasets).length > 0 ? (
-                  <RollingReturnChart datasets={rollingDatasets} />
+                  <RollingReturnChart
+                    datasets={rollingDatasetsMerged}
+                    benchmarkLabel={benchmarkLabel || undefined}
+                  />
                 ) : (
                   <p className="font-inter text-[13px] text-on-surface-variant">
                     Insufficient data (requires ≥12 months).
