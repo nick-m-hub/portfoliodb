@@ -365,7 +365,7 @@ portfoliodb/
     DrawdownChart.jsx                # Recharts area chart for Historical Drawdown (client)
     RollingReturnChart.jsx           # Recharts line chart for Rolling Returns 1Y/3Y/5Y/10Y (client)
     ChartsSection.jsx                # Client wrapper owning benchmark, timeline, and log/linear scale toggle state
-    StructuredData.jsx               # JSON-LD structured data for portfolio pages
+    StructuredData.jsx               # Two JSON-LD schema tags for portfolio pages: (1) FinancialProduct (name, description, CAGR, max drawdown, Sharpe, asset allocation); (2) BreadcrumbList (PortfolioDB → Database → [Portfolio Name])
     GoogleAnalytics.jsx              # GA4 script tag — fires only on www.portfoliodb.com (hostname check in inline script)
     EmailCapture.jsx                 # Email capture card (client) — compact horizontal layout, posts to /api/subscribe, success/error states
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
@@ -845,6 +845,8 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - `generateMetadata` includes "Includes safe withdrawal rate analysis." appended to all portfolio meta descriptions, targeting retirement-focused search queries.
 - **Page title format (June 2026):** `[Name] — X.X% CAGR, Sharpe X.XX | PortfolioDB`. Falls back to CAGR-only (`[Name] — X.X% CAGR | PortfolioDB`) when the full title would exceed 70 chars. Falls back to `[Name] | PortfolioDB` if stats are unavailable. Stats in the title improve search result CTR.
 - **Mobile hero nav buttons (June 2026):** Back to Database, Compare, and Monte Carlo buttons use `hidden lg:flex` — hidden on mobile to reduce scroll before the allocation chart, visible on desktop.
+- **BreadcrumbList structured data (June 2026):** `StructuredData.jsx` now outputs two `<script type="application/ld+json">` tags — the existing FinancialProduct schema plus a BreadcrumbList (PortfolioDB → Database → [Portfolio Name]). Breadcrumbs appear as the URL line in Google search results and improve click-through rate.
+- **FAQPage structured data — do not implement.** Google deprecated FAQPage rich results as of May 7, 2026 — the expandable Q&A snippets no longer appear in Google Search. Built and reverted June 2026.
 
 ---
 
