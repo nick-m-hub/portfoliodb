@@ -57,7 +57,9 @@ export default async function AccountPage() {
   // Only fetch full allocations if the user has saved mixes (needed for blended holdings display)
   const allAllocations = savedMixes?.length > 0 ? await getAllAllocations() : [];
 
-  const tier = subscription?.plan ?? null;
+  // Builder-tier features are free for any signed-in user — only an active
+  // Signals subscription elevates someone past the Builder tier.
+  const tier = subscription?.plan === 'signals' ? 'signals' : 'builder';
   const mixes = savedMixes ?? [];
 
   return (
@@ -123,9 +125,10 @@ export default async function AccountPage() {
         ) : (
           <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-inter font-semibold text-[14px] text-on-surface mb-0.5">No active plan</p>
+              <p className="font-inter font-semibold text-[14px] text-on-surface mb-0.5">No paid plan</p>
               <p className="font-inter text-[13px] text-on-surface-variant">
-                Upgrade to save mixes and unlock the Performance Snapshot.
+                Builder features (saved mixes, Performance Snapshot) are free for signed-in
+                users. Upgrade to Signals for monthly trade signals on tactical portfolios.
               </p>
             </div>
             <Link
@@ -159,31 +162,12 @@ export default async function AccountPage() {
           </Link>
         </div>
 
-        {tier ? (
-          <SavedMixList
-            initialMixes={mixes}
-            tier={tier}
-            allAllocations={allAllocations ?? []}
-            allSignals={signals ?? []}
-          />
-        ) : (
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl flex flex-col items-center justify-center py-14 text-center px-8">
-            <span className="material-symbols-outlined text-[44px] text-outline-variant mb-3">lock</span>
-            <p className="font-manrope font-bold text-[16px] text-on-surface mb-1">
-              Saving requires a membership
-            </p>
-            <p className="font-inter text-[14px] text-on-surface-variant mb-4">
-              Builder plan lets you save up to 3 mixes. Signals plan gives you unlimited.
-            </p>
-            <Link
-              href="/membership"
-              className="inline-flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-            >
-              View plans
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-            </Link>
-          </div>
-        )}
+        <SavedMixList
+          initialMixes={mixes}
+          tier={tier}
+          allAllocations={allAllocations ?? []}
+          allSignals={signals ?? []}
+        />
       </section>
 
       {/* ── Current Signals ── */}

@@ -377,7 +377,7 @@ portfoliodb/
     PortfolioJumpNav.jsx             # Client component — sticky in-page jump nav on portfolio detail pages. Dynamically measures Navbar height on mount + resize (works for both mobile 86px and desktop 49px). 7 section pills with scroll-spy active highlighting; smooth scroll on click. navSections array computed server-side so conditional pills only appear when those sections render.
     WithdrawalRatesTable.jsx         # Client component (`'use client'` added June 2026) — SWR + PWR table across 20/25/30/40-year horizons, nominal and real (3% inflation). Shows "Passes the 4% Rule" badge when 30yr real SWR ≥ 4.0%. Data passed as prop from page.js (server) or computed client-side in BuilderClient. "Run Monte Carlo →" CTA in footer — conditional on `slug` prop being provided.
     ToolsMenu.jsx                    # Client component — desktop "Tools ▾" dropdown in Navbar; contains Leaderboard, Drawdown Analyzer, Compare, Builder, Monte Carlo with label + one-line description per item; click-outside to close
-    PricingToggle.jsx                # Client component — monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge; 4 Memberful checkout URLs hardcoded (Builder Monthly 147939, Builder Annual 147940, Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
+    PricingToggle.jsx                # Client component — Builder card shows "Free" + "Sign in free" CTA (→ /login?next=/builder, no Memberful URL); Signals card keeps monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge and 2 Memberful checkout URLs (Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
     LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
     SignOutButton.jsx                # Client component — calls supabase.auth.signOut(), router.push('/'), router.refresh()
     SavedMixList.jsx                 # Client component — displays saved mixes with inline delete confirmation (no window.confirm); buildLoadUrl() generates /builder?mix=slug:weight,... URLs; empty state + Builder tier (x/3) counter with upgrade link; shows blended holdings per mix card (Signals tier = real data; Builder tier = blurred with upgrade prompt); accepts allAllocations + allSignals props from account/page.js
@@ -687,10 +687,11 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Redirects unauthenticated users to `/login?next=/account`
 - Fetches subscription + saved mixes + `getCurrentSignals()` + `getAllAllocations()` in parallel via `Promise.all`
 - Subscription query: `status IN ('active', 'cancelled')`, ordered by `created_at DESC`, `limit(1)` — gets most recent active or cancelled plan
-- Plan card shows: tier badge (`Builder`/`Signals`), billing period, status (cancelled shows red "Cancelled" pill), "Access until [date]" for all statuses (not "Renews" — Memberful doesn't fire a webhook on self-cancellation so status can't be determined in real time), "Reactivate" link for cancelled / "Manage subscription" link for active → `https://portfoliodb.memberful.com/account`
-- No plan: upgrade prompt with "View plans →" to `/membership`
+- **`tier` (June 2026):** computed as `subscription?.plan === 'signals' ? 'signals' : 'builder'` — every signed-in user gets at least `'builder'` for free; only an active Signals subscription elevates further. The Plan section's `subscription ? ... : ...` branch still reflects only *paid* Memberful subscriptions (for billing/cancellation display) — it is independent of feature access now.
+- Plan card (only rendered when a paid `subscription` row exists) shows: tier badge (`Builder`/`Signals`), billing period, status (cancelled shows red "Cancelled" pill), "Access until [date]" for all statuses (not "Renews" — Memberful doesn't fire a webhook on self-cancellation so status can't be determined in real time), "Reactivate" link for cancelled / "Manage subscription" link for active → `https://portfoliodb.memberful.com/account`
+- No paid subscription: "No paid plan" card — copy clarifies Builder features are already free with an account, and upsells Signals for trade signals
 - **Page section order:** Plan → Saved Mixes → Current Signals
-- Saved Mixes section: Builder tier shows `(x/3)` counter; no tier shows locked state with upgrade CTA; passes `allAllocations` + `allSignals` to `SavedMixList` for blended holdings display
+- Saved Mixes section: always renders `<SavedMixList>` (every signed-in user has at least Builder access — the old "locked, no tier" empty state was removed June 2026); shows `(x/3)` counter when `tier === 'builder'`; passes `allAllocations` + `allSignals` to `SavedMixList` for blended holdings display
 - Current Signals section: `<CurrentSignals context="account" signals={signals} tier={tier} />` — shows all signal portfolios' current month holdings; blurred with lock overlay for non-Signals members
 
 ### proxy.js (Auth Middleware — Next.js 16)
@@ -1158,26 +1159,26 @@ Correct rules (GestaltU implementation):
 - Mock email card in "What a signal looks like" section shows ticker/allocation pill badge format (not a generic table) — reflects actual signal email structure
 - Monthly signal email format: portfolio name as heading, tickers as `TICKER — XX%` lines. Formatted via Claude prompt (see Fix #11 in TASKS.md)
 
-## Paid Tiers — Pricing & Memberful (May 2026)
+## Tiers — Free Builder + Paid Signals (June 2026)
 
-Membership is now handled via Memberful (replacing Ko-fi). Two tiers, each with monthly and annual billing:
+**Builder is now free for any signed-in user (changed June 2026 — was a $12/mo paid Memberful tier).** No subscription, no Memberful checkout — just sign in with a free Supabase account. Signals remains a paid tier billed via Memberful.
 
-| Tier    | Monthly | Annual (per year) | Annual (per mo equiv) | Save   |
-|---------|---------|-------------------|-----------------------|--------|
-| Builder | $12/mo  | $108/yr           | $9/mo                 | ~25%   |
-| Signals | $25/mo  | $228/yr           | $19/mo                | ~24%   |
+| Tier    | Price                  | Requirement          |
+|---------|------------------------|----------------------|
+| Builder | Free                   | Signed-in account    |
+| Signals | $25/mo or $228/yr ($19/mo equiv, ~24% off) | Active Memberful subscription |
 
-Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/checkout?plan=ID`):
-- Builder Monthly: 147939
-- Builder Annual: 147940
+Memberful plan IDs (used in checkout URLs `https://portfoliodb.memberful.com/checkout?plan=ID`) — Signals only, Builder plan IDs (147939/147940) are retired and no longer referenced in code:
 - Signals Monthly: 147941
 - Signals Annual: 147942
 
-**What each tier unlocks:**
-- **Builder:** Save up to 3 custom mixes permanently + Performance Snapshot in the Builder (8 additional stats beyond free CAGR/MaxDD/Sharpe)
-- **Signals:** All Builder features + unlimited saved mixes + monthly trade signals for all covered portfolios
+**Effective tier computation (`app/builder/page.js`, `app/account/page.js`, `app/api/builder-save/route.js`):** `tier = subscription?.plan === 'signals' ? 'signals' : 'builder'` for any authenticated user — i.e. logged-in users always get at least `'builder'`; only an active **Signals** subscription elevates them further. `tier` is `null` only for logged-out visitors. The `user_subscriptions` table and Memberful webhook are unchanged — they still track paid Signals (and legacy Builder) subscriptions for billing/cancellation purposes, but a `'builder'`-plan row no longer changes what a user can access (everyone with an account already has it free).
 
-**PricingToggle.jsx** is a client component embedded in `app/membership/page.js` (server). The toggle defaults to annual. `signalCount` prop is passed from the server for a dynamic feature bullet.
+**What each tier unlocks:**
+- **Builder (free with account):** Save up to 3 custom mixes + full Performance Snapshot, charts, withdrawal rate analysis, and PDF export in the Builder (everything beyond the free CAGR/MaxDD/Sharpe + Growth chart)
+- **Signals (paid):** All Builder features + unlimited saved mixes + monthly trade signals for all covered portfolios
+
+**PricingToggle.jsx** is a client component embedded in `app/membership/page.js` (server). Builder card shows "Free" with a "Sign in free" CTA → `/login?next=/builder` (no Memberful URL). Signals card keeps the monthly/annual toggle (defaults to annual) with "Save ~25%" badge and the live Memberful checkout link. `signalCount` prop passed from the server for a dynamic feature bullet.
 
 **Webhook URL:** `https://www.portfoliodb.com/api/memberful` — configure in Memberful → Settings → Webhooks. Webhook Secret auto-generated there; store as `MEMBERFUL_WEBHOOK_SECRET` in Vercel (Sensitive).
 
@@ -1210,11 +1211,11 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 ## Membership Page (`/membership`)
 
 - Pricing is now handled by `PricingToggle.jsx` (client component); `MEMBERSHIP_PRICE` and `KOFI_MEMBERSHIP_URL` constants have been removed
-- Metadata descriptions updated to "from $9/mo" (Builder annual) / "from $19/mo" (Signals annual)
+- Metadata descriptions updated June 2026: Builder is described as free (sign in to unlock), Signals "from $19/mo"
 - Fetches `getSignalPortfolioCount()` and `getSignalPortfolios()` server-side; H1 and Premium section headline on homepage both show live count
 - "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
 - "What a signal looks like" mock email shows 3 hardcoded portfolios; "+ N more" count is dynamic: `{signalCount - 3}` — updates automatically as portfolios are added
-- All pricing CTAs now link directly to Memberful checkout URLs (see Paid Tiers section above)
+- Builder card CTA links to `/login?next=/builder` (free, no Memberful); Signals CTA links directly to its Memberful checkout URL (see Tiers section above)
 - Homepage has one membership touchpoint: the Premium section (below Top Strategies), with headline "Monthly Signals for {signalCount} Portfolios" (live count). The compact callout banner was removed May 2026.
 
 ---

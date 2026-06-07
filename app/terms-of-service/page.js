@@ -37,7 +37,8 @@ export default function TermsOfServicePage() {
         <p className="font-inter text-sm text-on-surface-variant leading-relaxed">
           PortfolioDB is a free educational resource about investment portfolios.
           Nothing here is financial advice. Most features are free with no account
-          needed. Paid memberships (Builder and Signals) are billed through
+          needed, and creating a free account unlocks the Builder (saved mixes,
+          Performance Snapshot). The paid Signals membership is billed through
           Memberful and can be cancelled at any time. We won&rsquo;t sell your
           data. Use the site responsibly and don&rsquo;t misuse it. These terms
           are governed by US law. The full legal details are below.
@@ -113,32 +114,32 @@ export default function TermsOfServicePage() {
           screener, all performance data, and tools like the Leaderboard, Drawdown
           Analyzer, Compare, Monte Carlo Simulator, and Portfolio Builder — is
           available to all visitors at no charge. No account is required to browse
-          or use these features. An account is required only to save portfolio mixes
-          or access paid membership features.
+          or use these features. A free account is required to save portfolio mixes
+          and unlock the full Builder analysis (Performance Snapshot, charts, withdrawal
+          rates, and PDF export). A paid Signals membership is required only for monthly
+          trade signals.
         </p>
       </section>
 
       <hr className="my-8 border-outline-variant" />
 
-      {/* 5. Paid Membership */}
+      {/* 5. Builder Account and Paid Signals Membership */}
       <section className="mb-10">
-        <h2 className="font-manrope text-xl font-semibold text-primary mb-3">5. Paid Membership</h2>
+        <h2 className="font-manrope text-xl font-semibold text-primary mb-3">5. Builder Account and Paid Signals Membership</h2>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">What you get</h3>
-        <p className="text-base leading-relaxed mb-2">
-          PortfolioDB offers two optional paid membership tiers:
-        </p>
         <ul className="list-disc list-outside pl-6 space-y-1 text-base leading-relaxed mb-3">
-          <li><strong>Builder</strong> — save up to 3 custom portfolio mixes and unlock the full Performance Snapshot in the Portfolio Builder.</li>
-          <li><strong>Signals</strong> — all Builder features, unlimited saved mixes, and monthly trade signals showing current holdings for all covered tactical portfolios.</li>
+          <li><strong>Builder (free with an account)</strong> — create a free account to save up to 3 custom portfolio mixes and unlock the full Performance Snapshot, charts, withdrawal rate analysis, and PDF export in the Portfolio Builder.</li>
+          <li><strong>Signals (paid)</strong> — all Builder features, unlimited saved mixes, and monthly trade signals showing current holdings for all covered tactical portfolios.</li>
         </ul>
         <p className="text-base leading-relaxed">
-          The specific features and content included in each tier may change over time. We will notify active subscribers of any material changes by email.
+          The specific features and content included in each tier may change over time. We will notify active Signals subscribers of any material changes by email.
         </p>
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Billing and payment</h3>
         <p className="text-base leading-relaxed">
-          Paid memberships are processed through Memberful, a third-party
+          The Builder tier requires only a free account — no payment is involved. The
+          paid Signals membership is processed through Memberful, a third-party
           subscription platform. By subscribing, you also agree to
           Memberful&rsquo;s terms of service and privacy policy. PortfolioDB
           does not directly handle or store your payment information.
@@ -146,7 +147,7 @@ export default function TermsOfServicePage() {
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Cancellation</h3>
         <p className="text-base leading-relaxed">
-          You may cancel your paid membership at any time through your Memberful
+          You may cancel your Signals membership at any time through your Memberful
           account at{" "}
           <a href="https://portfoliodb.memberful.com/account" target="_blank" rel="noopener noreferrer" className="text-[#27624a] hover:underline">
             portfoliodb.memberful.com/account
@@ -159,10 +160,10 @@ export default function TermsOfServicePage() {
 
         <h3 className="font-inter text-base font-semibold text-on-surface mt-5 mb-2">Changes to membership pricing or benefits</h3>
         <p className="text-base leading-relaxed">
-          We reserve the right to change membership pricing or the benefits
-          included in a paid subscription. If we make a price change, we will
-          notify existing subscribers by email with reasonable advance notice
-          before the change takes effect.
+          We reserve the right to change the features included in the free Builder
+          tier, and the pricing or benefits of the paid Signals membership. If we
+          change Signals pricing, we will notify existing subscribers by email with
+          reasonable advance notice before the change takes effect.
         </p>
       </section>
 

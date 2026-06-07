@@ -52,7 +52,9 @@ export default async function BuilderPage({ searchParams }) {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id),
     ]);
-    tier = subscription?.plan ?? null;
+    // Builder-tier features are free for any signed-in user — only an active
+    // Signals subscription elevates someone past the Builder tier.
+    tier = subscription?.plan === 'signals' ? 'signals' : 'builder';
     savedCount = count ?? 0;
   }
 

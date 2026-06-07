@@ -52,11 +52,9 @@ export async function POST(request) {
     subscription = retried;
   }
 
-  if (!subscription) {
-    return Response.json({ error: 'Subscription required' }, { status: 403 });
-  }
-
-  if (subscription.plan === 'builder') {
+  // Saving mixes is a free Builder-tier feature for any signed-in user — only an
+  // active Signals subscription lifts the 3-mix cap.
+  if (subscription?.plan !== 'signals') {
     // Fix #2 — Fail closed: treat a null count (query error) as "limit reached" rather than
     // allowing the insert, which would silently bypass the 3-mix guard.
     const { count, error: countError } = await supabase

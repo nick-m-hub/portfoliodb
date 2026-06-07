@@ -230,14 +230,14 @@ function LockOverlay({ title }) {
       <span className="material-symbols-outlined text-[32px] text-primary mb-2">lock</span>
       <p className="font-manrope font-bold text-[16px] text-on-surface mb-1">{title}</p>
       <p className="font-inter text-[13px] text-on-surface-variant mb-4 text-center px-6">
-        Unlock with a Builder or Signals membership
+        Sign in to unlock — it&apos;s free
       </p>
       <Link
-        href="/membership"
+        href="/login?next=/builder"
         className="inline-flex items-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
       >
-        See plans
-        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
+        Sign in
       </Link>
     </div>
   );
@@ -882,20 +882,6 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
                     Sign in to save
-                  </Link>
-                </div>
-              ) : !tier ? (
-                <div className="flex flex-col gap-2.5">
-                  <p className="font-manrope font-bold text-[14px] text-on-surface">Save this mix</p>
-                  <p className="font-inter text-[12px] text-on-surface-variant">
-                    Unlock charts, SWR analysis, and PDF export with a membership.
-                  </p>
-                  <Link
-                    href="/membership"
-                    className="flex items-center justify-center gap-1.5 bg-primary text-white font-inter font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[#0a5c3f] transition-colors"
-                  >
-                    See plans
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
                   </Link>
                 </div>
               ) : tier === 'builder' && localSavedCount >= 3 ? (

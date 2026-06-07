@@ -8,12 +8,12 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 export const metadata = {
   title: 'PortfolioDB Membership — Builder & Signals Plans',
   description:
-    'Two membership tiers: Builder (from $9/mo) to save custom portfolio mixes, and Signals (from $19/mo) for monthly rebalancing guidance on 29+ tactical portfolios.',
+    'Builder is free for any signed-in user — save custom portfolio mixes and unlock the Performance Snapshot. Signals (from $19/mo) adds monthly rebalancing guidance on 29+ tactical portfolios.',
   alternates: { canonical: `${siteUrl}/membership` },
   openGraph: {
     title: 'PortfolioDB Membership — Builder & Signals Plans',
     description:
-      'Two membership tiers: Builder (from $9/mo) to save custom portfolio mixes, and Signals (from $19/mo) for monthly rebalancing guidance on 29+ tactical portfolios.',
+      'Builder is free for any signed-in user — save custom portfolio mixes and unlock the Performance Snapshot. Signals (from $19/mo) adds monthly rebalancing guidance on 29+ tactical portfolios.',
     url: `${siteUrl}/membership`,
     siteName: 'PortfolioDB',
     type: 'website',
@@ -22,7 +22,7 @@ export const metadata = {
     card: 'summary',
     title: 'PortfolioDB Membership — Builder & Signals Plans',
     description:
-      'Two membership tiers: Builder (from $9/mo) to save custom portfolio mixes, and Signals (from $19/mo) for monthly rebalancing guidance on 29+ tactical portfolios.',
+      'Builder is free for any signed-in user — save custom portfolio mixes and unlock the Performance Snapshot. Signals (from $19/mo) adds monthly rebalancing guidance on 29+ tactical portfolios.',
   },
 };
 
@@ -44,12 +44,12 @@ export default async function MembershipPage() {
           </span>
         </div>
         <h1 className="font-manrope text-[36px] sm:text-[42px] font-bold text-on-surface leading-tight mb-4 tracking-tight">
-          Two ways to get more<br className="hidden sm:block" /> from PortfolioDB
+          Free tools, plus monthly<br className="hidden sm:block" /> trade signals if you want them
         </h1>
         <p className="font-inter text-[17px] text-on-surface-variant leading-relaxed max-w-2xl">
-          The full database, screener, and tools are free for everyone. Membership adds
-          the ability to save custom portfolio mixes and receive monthly rebalancing
-          signals for tactical portfolios.
+          The full database, screener, and tools are free for everyone. Sign in for free
+          to unlock the Builder — save custom portfolio mixes and see the full Performance
+          Snapshot. Upgrade to Signals for monthly rebalancing guidance on tactical portfolios.
         </p>
       </section>
 

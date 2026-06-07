@@ -1,17 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
-const MEMBERFUL_BUILDER_MONTHLY_URL = 'https://portfoliodb.memberful.com/checkout?plan=147939';
-const MEMBERFUL_BUILDER_ANNUAL_URL  = 'https://portfoliodb.memberful.com/checkout?plan=147940';
 const MEMBERFUL_SIGNALS_MONTHLY_URL = 'https://portfoliodb.memberful.com/checkout?plan=147941';
 const MEMBERFUL_SIGNALS_ANNUAL_URL  = 'https://portfoliodb.memberful.com/checkout?plan=147942';
 
 const PLANS = {
-  builder: {
-    monthly: { price: '$12', per: '/mo', note: 'Cancel anytime.' },
-    annual:  { price: '$9',  per: '/mo', note: 'Billed $108/yr. Cancel anytime.' },
-  },
   signals: {
     monthly: { price: '$25', per: '/mo', note: 'Cancel anytime.' },
     annual:  { price: '$19', per: '/mo', note: 'Billed $228/yr. Cancel anytime.' },
@@ -35,9 +30,7 @@ const getSignalsFeatures = (signalCount) => [
 export default function PricingToggle({ signalCount = 29 }) {
   const [billing, setBilling] = useState('annual');
 
-  const builderUrl  = billing === 'annual' ? MEMBERFUL_BUILDER_ANNUAL_URL  : MEMBERFUL_BUILDER_MONTHLY_URL;
   const signalsUrl  = billing === 'annual' ? MEMBERFUL_SIGNALS_ANNUAL_URL  : MEMBERFUL_SIGNALS_MONTHLY_URL;
-  const builderPlan = PLANS.builder[billing];
   const signalsPlan = PLANS.signals[billing];
 
   return (
@@ -74,10 +67,9 @@ export default function PricingToggle({ signalCount = 29 }) {
               Builder
             </p>
             <div className="flex items-end gap-1 mb-1">
-              <span className="font-manrope text-[40px] font-bold text-on-surface leading-none">{builderPlan.price}</span>
-              <span className="font-inter text-[16px] text-on-surface-variant mb-1">{builderPlan.per}</span>
+              <span className="font-manrope text-[40px] font-bold text-on-surface leading-none">Free</span>
             </div>
-            <p className="font-inter text-[13px] text-on-surface-variant">{builderPlan.note}</p>
+            <p className="font-inter text-[13px] text-on-surface-variant">Just sign in — no payment required.</p>
           </div>
 
           <ul className="space-y-2.5 mb-6 flex-1">
@@ -89,23 +81,12 @@ export default function PricingToggle({ signalCount = 29 }) {
             ))}
           </ul>
 
-          {builderUrl === '#' ? (
-            <button
-              disabled
-              className="flex items-center justify-center gap-2 font-inter font-semibold text-[14px] px-6 py-3 rounded-xl bg-surface-container text-on-surface-variant cursor-not-allowed w-full"
-            >
-              Coming soon
-            </button>
-          ) : (
-            <a
-              href={builderUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 font-inter font-semibold text-[14px] px-6 py-3 rounded-xl bg-on-surface text-white hover:opacity-90 transition-opacity"
-            >
-              Get Builder
-            </a>
-          )}
+          <Link
+            href="/login?next=/builder"
+            className="flex items-center justify-center gap-2 font-inter font-semibold text-[14px] px-6 py-3 rounded-xl bg-on-surface text-white hover:opacity-90 transition-opacity"
+          >
+            Sign in free
+          </Link>
         </div>
 
         {/* Signals card — highlighted */}

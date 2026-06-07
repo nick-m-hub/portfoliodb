@@ -24,6 +24,10 @@ const CHANGELOG = [
     entries: [
       {
         type: 'improvement',
+        text: 'Portfolio Builder is now free for any signed-in user — saved mixes, the full Performance Snapshot, charts, withdrawal rate analysis, and PDF export no longer require a paid plan. Just create a free account. Signals membership remains paid and adds monthly trade signals on top.',
+      },
+      {
+        type: 'improvement',
         text: 'Portfolio Builder (paid): added Historical Drawdown chart, Rolling Returns chart, Safe/Perpetual Withdrawal Rate table, and Holding Period heatmap — the same analysis available on individual portfolio pages, now computed for any custom blend.',
       },
       {
