@@ -45,6 +45,38 @@ I'll paste the content into Supabase as a new blog_posts row.
 
 ---
 
+## Monthly Recap Posts (Recurring)
+
+A second, parallel track alongside the 25-post calendar above — a "Month in Review" post published once a month, separate from the regular portfolio-review rotation. These posts work the data-journalism angle (what actually happened this month, who won, who lagged) rather than the single-portfolio-deep-dive angle, and they keep the blog feeling current between evergreen posts. They also double as a natural monthly hook for the email list and a feeder to `/leaderboard`.
+
+**Title format:** `[Month] [Year] in Review: How [N] Portfolio Strategies Performed`
+(e.g. "May 2026 in Review: How 74 Portfolio Strategies Performed")
+
+**Primary keyword angle:** `[month] [year] portfolio performance review` / `best performing portfolios [month] [year]` — informational, low competition (nobody else publishes this granularity monthly), and it compounds: each post becomes a timestamped snapshot that ranks for "[month] [year]" searches as that month becomes historical.
+
+**Data to pull before writing (one query, `monthly_returns` filtered to the target month + `portfolios` for names/categories):**
+- Every portfolio's return for the month, sorted — top 5–8 and bottom 5–8
+- Average return across all portfolios + % of portfolios that finished positive
+- The three benchmark returns (US 60/40, US Stocks, Global Stocks) for context
+- Category averages (Buy and Hold vs. Tactical vs. Robo-Advisor) — reveals whether the month rewarded static allocation or active rotation
+
+**Outline (~1,200 words):**
+1. **Open with the headline number** — the average return across all tracked portfolios and the breadth (e.g. "71 of 74 portfolios finished May positive"). Concrete, not a question.
+2. **What moved markets** — 2–3 sentences of plain-English market context for the month (the "why" behind the numbers — `[ADD YOUR TAKE HERE]` slot #1, since this requires Nick's read on what actually happened)
+3. **The winners** — name the top 3–4 performers with their actual May returns, noting any pattern (e.g. momentum/dual-momentum strategies riding a rally hard). Link to 2 of their detail pages.
+4. **The laggards** — name the bottom 2–3, with the actual numbers; usually one standout underperformer is more interesting than a list of near-flat portfolios. Link to its detail page and explain *why* it likely lagged in plain terms (e.g. a trend-following strategy whipsawed by a fast reversal).
+5. **Buy and Hold vs. Tactical — who came out ahead this month** — compare the category averages plainly; resist the urge to declare a permanent winner from one month of data — `[ADD YOUR TAKE HERE]` slot #2 for Nick's broader perspective on what one month does (and doesn't) prove
+6. **CTA** — "See the full rankings on the [Strategy Leaderboard](/leaderboard)" + link to `/database` to explore further
+
+**Internal links:** `/leaderboard` (primary — built for exactly this "see this month's top performers" use case), `/database`, 3–4 portfolio detail pages (the standout winners/laggards referenced)
+
+**Style notes specific to recaps:**
+- These are **timely, not evergreen** — the live numbers will look dated within weeks, so always frame returns explicitly as "[Month] [Year] return" (never as a portfolio's defining characteristic)
+- Keep the tone observational, not predictive — describing what happened, not forecasting what's next
+- A picked publishing slot (e.g. first Monday of the month, once enough of the prior month's data has settled) keeps the cadence predictable for returning readers
+
+---
+
 ## Summary Table
 
 | # | Title | Tier | Primary Keyword | Portfolios Referenced |

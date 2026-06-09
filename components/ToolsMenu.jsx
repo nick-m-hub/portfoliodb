@@ -6,6 +6,7 @@ const TOOLS = [
   { href: '/leaderboard',              label: 'Leaderboard',        desc: 'Top strategies by return & Sharpe' },
   { href: '/tools/drawdown-analyzer', label: 'Drawdown Analyzer',  desc: 'How portfolios held up in crashes' },
   { href: '/tools/portfolio-map',     label: 'Portfolio Map',       desc: 'Risk vs. return chart for all portfolios' },
+  { href: '/tools/correlation',       label: 'Correlation Matrix',  desc: 'See which strategies move together' },
   { href: '/compare',                  label: 'Compare',            desc: 'Side-by-side portfolio comparison' },
   { href: '/builder',                  label: 'Builder',            desc: 'Blend portfolios into a custom mix' },
   { href: '/monte-carlo-simulation',   label: 'Monte Carlo',        desc: 'Simulate withdrawals & scenarios' },
