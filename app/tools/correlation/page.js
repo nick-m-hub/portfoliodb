@@ -31,7 +31,7 @@ export default async function CorrelationMatrixPage() {
             Correlation Matrix
           </h1>
           <p className="text-on-surface-variant text-sm max-w-2xl">
-            How closely do these strategies actually move together? Each cell shows the historical correlation between two portfolios&apos; monthly returns — green means they tend to move independently (good for diversification), red means they tend to move in lockstep (largely redundant to hold both). Filter by category, search to highlight a portfolio, or hover any cell for details. Click a cell to compare the two side by side.
+            How closely do these strategies actually move together? Each cell shows the historical correlation between two portfolios&apos; monthly returns — green means they tend to move independently (good for diversification), red means they tend to move in lockstep (largely redundant to hold both). Filter by category, search to highlight a portfolio, or hover any cell for details. Click a cell to open both portfolios in the Builder at 50/50 to see how blending them affects risk-adjusted returns.
           </p>
         </div>
         <CorrelationMatrixClient allStrategies={allStrategies} />

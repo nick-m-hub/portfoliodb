@@ -87,6 +87,8 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
   const [selectedStrategies, setSelectedStrategies] = useState(new Set());
   const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
   const strategyPickerRef = useRef(null);
+  const [sortBySlug, setSortBySlug] = useState(null); // row label clicked to sort columns
+  const [sortAsc, setSortAsc] = useState(true); // true = lowest correlation first (most diversifying)
 
   // Derive sorted list of all unique strategies from the prop
   const ALL_STRATEGIES = useMemo(
@@ -165,11 +167,24 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
     const allIndices = data.portfolios.map((p, idx) => ({ p, idx }));
     const categoryFilteredForCols = allIndices.filter(({ p }) => activeCategories.has(p.category));
     // Priority: portfolio picker > strategy filter > category pills
-    const colIndices = selectedSlugs.size > 0
+    let colIndices = selectedSlugs.size > 0
       ? allIndices.filter(({ p }) => selectedSlugs.has(p.slug))
       : selectedStrategies.size > 0
         ? allIndices.filter(({ p }) => slugsForSelectedStrategies.has(p.slug))
         : categoryFilteredForCols;
+
+    // Sort columns by correlation to the clicked row portfolio
+    if (sortBySlug) {
+      const sortIdx = data.portfolios.findIndex((p) => p.slug === sortBySlug);
+      if (sortIdx !== -1) {
+        const nullFallback = sortAsc ? Infinity : -Infinity;
+        colIndices = [...colIndices].sort((a, b) => {
+          const ra = data.matrix[sortIdx][a.idx] ?? nullFallback;
+          const rb = data.matrix[sortIdx][b.idx] ?? nullFallback;
+          return sortAsc ? ra - rb : rb - ra;
+        });
+      }
+    }
 
     const rowPortfolios = allIndices.map(({ p }) => p);
     const colPortfolios = colIndices.map(({ p }) => p);
@@ -177,7 +192,7 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
       colIndices.map(({ idx: j }) => data.matrix[i][j])
     );
     return { rowPortfolios, colPortfolios, matrix };
-  }, [data, activeCategories, selectedSlugs, selectedStrategies, slugsForSelectedStrategies]);
+  }, [data, activeCategories, selectedSlugs, selectedStrategies, slugsForSelectedStrategies, sortBySlug, sortAsc]);
 
   function togglePortfolioSelection(slug) {
     setSelectedSlugs((prev) => {
@@ -234,6 +249,20 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
     });
     return set;
   }, [data, isSearching, searchTerm]);
+
+  function handleRowLabelClick(slug) {
+    if (sortBySlug === slug) {
+      if (sortAsc) {
+        setSortAsc(false);
+      } else {
+        setSortBySlug(null);
+        setSortAsc(true);
+      }
+    } else {
+      setSortBySlug(slug);
+      setSortAsc(true);
+    }
+  }
 
   function toggleCategory(cat) {
     setActiveCategories((prev) => {
@@ -430,12 +459,14 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
             )}
           </div>
         {/* Clear all filters */}
-        {(activeCategories.size < ALL_CATEGORIES.length || selectedStrategies.size > 0 || selectedSlugs.size > 0) && (
+        {(activeCategories.size < ALL_CATEGORIES.length || selectedStrategies.size > 0 || selectedSlugs.size > 0 || sortBySlug !== null) && (
           <button
             onClick={() => {
               setActiveCategories(new Set(ALL_CATEGORIES));
               setSelectedStrategies(new Set());
               setSelectedSlugs(new Set());
+              setSortBySlug(null);
+              setSortAsc(true);
             }}
             className="font-inter text-sm font-medium text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1"
           >
@@ -492,17 +523,17 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
               </span>
               {hoveredPair.row.slug !== hoveredPair.col.slug && (
                 <button
-                  onClick={() => router.push(`/compare?slugs=${hoveredPair.row.slug},${hoveredPair.col.slug}`)}
+                  onClick={() => router.push(`/builder?mix=${hoveredPair.row.slug}:50,${hoveredPair.col.slug}:50`)}
                   className="font-inter text-xs font-medium text-primary hover:underline whitespace-nowrap"
                 >
-                  Compare these two →
+                  Build blend →
                 </button>
               )}
             </div>
           </div>
         ) : (
           <p className="font-inter text-xs text-on-surface-variant">
-            Hover any cell to see the correlation between two portfolios. Click a cell to compare them side by side.
+            Hover any cell to see the correlation between two portfolios. Click a cell to open both in the Builder at 50/50.
           </p>
         )}
       </div>
@@ -576,7 +607,7 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
                   return (
                     <tr key={p.slug}>
                       <th
-                        className="bg-surface-container-lowest text-left font-inter font-normal whitespace-nowrap overflow-hidden text-ellipsis"
+                        className="bg-surface-container-lowest font-inter font-normal hover:bg-surface-container-low transition-colors"
                         style={{
                           position: 'sticky',
                           left: 0,
@@ -585,15 +616,24 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
                           maxWidth: ROW_LABEL_WIDTH,
                           height: CELL_HEIGHT,
                           fontSize: '11px',
-                          color: rowHighlighted ? '#074a34' : '#404943',
-                          fontWeight: rowHighlighted ? 700 : 400,
+                          color: rowHighlighted || sortBySlug === p.slug ? '#074a34' : '#404943',
+                          fontWeight: rowHighlighted || sortBySlug === p.slug ? 700 : 400,
                           opacity: rowDimmed ? 0.3 : 1,
-                          paddingRight: 10,
-                          textAlign: 'right',
+                          cursor: 'pointer',
                         }}
-                        title={p.name}
+                        title={sortBySlug === p.slug ? `Sorted by ${p.name} — click to ${sortAsc ? 'reverse' : 'clear'} sort` : `Click to sort columns by correlation to ${p.name}`}
+                        onClick={() => handleRowLabelClick(p.slug)}
                       >
-                        {p.name}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3, paddingRight: 10 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0', textAlign: 'right', minWidth: 0 }}>
+                            {p.name}
+                          </span>
+                          {sortBySlug === p.slug && (
+                            <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '12px', color: '#074a34' }}>
+                              {sortAsc ? 'arrow_upward' : 'arrow_downward'}
+                            </span>
+                          )}
+                        </div>
                       </th>
                       {colPortfolios.map((q, j) => {
                         const r = matrix[i][j];
@@ -605,7 +645,7 @@ export default function CorrelationMatrixClient({ allStrategies = [] }) {
                             key={q.slug}
                             onMouseEnter={() => setHovered({ i, j })}
                             onMouseLeave={() => setHovered((h) => (h && h.i === i && h.j === j ? null : h))}
-                            onClick={() => !isSelf && router.push(`/compare?slugs=${p.slug},${q.slug}`)}
+                            onClick={() => !isSelf && router.push(`/builder?mix=${p.slug}:50,${q.slug}:50`)}
                             className="font-inter text-center"
                             style={{
                               width: CELL_WIDTH,
