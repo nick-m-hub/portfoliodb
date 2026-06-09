@@ -1,4 +1,5 @@
 import CorrelationMatrixClient from './CorrelationMatrixClient';
+import { getAllPortfolioStrategies } from '@/lib/db';
 
 export const metadata = {
   title: 'Portfolio Correlation Matrix | PortfolioDB',
@@ -20,7 +21,8 @@ export const metadata = {
   },
 };
 
-export default function CorrelationMatrixPage() {
+export default async function CorrelationMatrixPage() {
+  const allStrategies = await getAllPortfolioStrategies() ?? [];
   return (
     <main className="w-full overflow-x-hidden">
       <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-10">
@@ -32,7 +34,7 @@ export default function CorrelationMatrixPage() {
             How closely do these strategies actually move together? Each cell shows the historical correlation between two portfolios&apos; monthly returns — green means they tend to move independently (good for diversification), red means they tend to move in lockstep (largely redundant to hold both). Filter by category, search to highlight a portfolio, or hover any cell for details. Click a cell to compare the two side by side.
           </p>
         </div>
-        <CorrelationMatrixClient />
+        <CorrelationMatrixClient allStrategies={allStrategies} />
       </div>
     </main>
   );

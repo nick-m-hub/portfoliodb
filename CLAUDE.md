@@ -67,7 +67,7 @@ Stores manual metadata only. No calculated stats.
 | id                 | uuid        | Auto-generated — never manually entered         |
 | slug               | text        | Unique. Must match WordPress URL slugs exactly  |
 | name               | text        |                                                 |
-| category           | text        | 'Buy and Hold', 'Tactical', or 'Robo-Advisor'  |
+| category           | text        | 'Buy and Hold' or 'Tactical'                    |
 | trade_frequency    | text        |                                                 |
 | min_timeline_years | integer     |                                                 |
 | risk_level         | integer     | 1–5 only (check constraint enforced)            |
@@ -399,10 +399,10 @@ portfoliodb/
         DrawdownAnalyzerClient.jsx   # Client component — 4 crash presets (dot-com, 2008, COVID, 2022) + custom month range inputs; fetches /api/drawdown-analysis?from=YYYY-MM&to=YYYY-MM; results table sorted by total return or max drawdown; vs US 60/40 delta on every row; medals for top 3
       portfolio-map/
         page.js                      # Portfolio Map page (server, SSG) — fetches lean columns from portfolio_stats (slug, name, category, cagr, annualized_volatility, sharpe_ratio, max_drawdown); static description explains all controls; passes data to PortfolioMapClient
-        PortfolioMapClient.jsx       # Client component — Recharts ScatterChart plotting all portfolios by volatility or max drawdown (X) vs CAGR (Y). Controls: X-axis toggle (Volatility / Max Drawdown), period toggle (Full History / 20 Years / 10 Years), category filter pills (Buy and Hold / Tactical / Robo-Advisor), search/highlight box. Period data fetched from /api/portfolio-map-stats with client-side cache. Logged-in users' saved mixes appear as orange overlay dots (fetched via /api/builder-returns + computeStats). DotShape and MixDotShape defined outside component for stable Recharts references. Click portfolio dot → /portfolios/[slug]; click mix dot → /builder?mix=...
+        PortfolioMapClient.jsx       # Client component — Recharts ScatterChart plotting all portfolios by volatility or max drawdown (X) vs CAGR (Y). Controls: X-axis toggle (Volatility / Max Drawdown), period toggle (Full History / 20 Years / 10 Years), category filter pills (Buy and Hold / Tactical), search/highlight box. Period data fetched from /api/portfolio-map-stats with client-side cache. Logged-in users' saved mixes appear as orange overlay dots (fetched via /api/builder-returns + computeStats). DotShape and MixDotShape defined outside component for stable Recharts references. Click portfolio dot → /portfolios/[slug]; click mix dot → /builder?mix=...
       correlation/
-        page.js                      # Correlation Matrix page shell (server, static metadata) — renders CorrelationMatrixClient
-        CorrelationMatrixClient.jsx  # Client component — fetches the full pairwise matrix from /api/correlation-matrix on mount; renders an HTML table heatmap with inline numeric correlation values in uniform cells. Category pills filter columns (x-axis) only — rows always show all portfolios. "Select portfolios" picker narrows columns further (overrides pills when active). Fixed-height info panel above grid (h-[68px], truncated names) prevents layout shift. Cursor tooltip floats next to mouse with full pair names + correlation label + value; flips away from viewport edges. Click any off-diagonal cell → /compare?slugs=a,b. See "Correlation Matrix layout notes" for full implementation details.
+        page.js                      # Correlation Matrix page shell (server, static metadata) — fetches getAllPortfolioStrategies() server-side and passes as allStrategies prop to CorrelationMatrixClient
+        CorrelationMatrixClient.jsx  # Client component — fetches the full pairwise matrix from /api/correlation-matrix on mount; renders an HTML table heatmap with inline numeric correlation values in uniform cells. Category pills filter columns (x-axis) only — rows always show all portfolios. "Select strategies" picker filters columns to portfolios tagged with selected strategies. "Select portfolios" picker narrows columns to exact portfolio set. Priority stack: portfolio picker > strategy filter > category pills. "Clear all" button appears when any filter is active, resets all three. Fixed-height info panel above grid (h-[68px], truncated names) prevents layout shift. Cursor tooltip floats next to mouse with full pair names + correlation label + value; flips away from viewport edges. Click any off-diagonal cell → /compare?slugs=a,b. See "Correlation Matrix layout notes" for full implementation details.
     api/
       builder-holdings/
         route.js                     # GET ?slugs=a,b,c — returns allocations (with color fallback) + current tactical signals for the requested slugs only. Called client-side by BuilderClient when 2+ portfolios are selected. Replaces the server-side getAllAllocations()+getCurrentSignals() that used to load on every /builder page open.
@@ -564,7 +564,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Logo uses `<Image src="/portfoliodb-icon.svg">` (file lives in `public/`); the copy in `components/` is the original source
 
 ### FilterBar.jsx (home page)
-- No longer uses assetClasses prop — categories are hardcoded (Buy and Hold, Robo-Advisor, Tactical)
+- No longer uses assetClasses prop — categories are hardcoded (Buy and Hold, Tactical)
 - Category: native `<select>` dropdown (single select)
 - Risk Tolerance: pill buttons 1–5 (single select)
 - Max Drawdown: number-only text input
@@ -872,8 +872,10 @@ Reworked from the original diverging-color heatmap (see Backlog/Completed entry 
 - **CRITICAL — uniform cell sizing requires an explicit `<table>` width.** With `table-layout: fixed` and `width: auto`, browsers treat each `<th>`/`<td>`'s inline `width` as a *proportion* for distributing the table's container-constrained width — NOT a literal pixel value. With 76 columns wanting 48px each (3,840px total) inside a narrower scroll container, every cell silently shrank to ~23.6px regardless of the specified width, `<colgroup>` overrides, or `table-layout` mode (this cost significant debugging time — confirmed via `getComputedStyle` that no stylesheet rule was overriding it). **Fix:** set the table's own `width`/`minWidth` explicitly to `ROW_LABEL_WIDTH + colPortfolios.length * CELL_WIDTH`, forcing it past the container width so it overflows into the scrollable wrapper and every column renders at its true specified size. `CELL_WIDTH = 48`, `CELL_HEIGHT = 34`, `ROW_LABEL_WIDTH = 240`, `COL_LABEL_HEIGHT = 230`.
 - **Fully-vertical column headers** via `writingMode: 'vertical-rl'` + `transform: 'rotate(180deg)'` (top-to-bottom reading) — chosen over angled labels specifically so every header cell renders at the same width, which was the other half of the "make all cells the same size" fix.
 - **Matrix height:** scroll wrapper uses `maxHeight: '85vh'` (bumped up from an initial `70vh` per Nick's "make it significantly taller" request).
-- **Category pills filter columns only (x-axis), not rows (June 2026):** Deselecting a category removes it from the column headers but keeps all those portfolios visible in the row labels, so you can still read their correlations against the remaining column set. `rowPortfolios` always uses `allIndices` (all portfolios); `colIndices` applies `activeCategories` filter. The "Select portfolios" picker still overrides the category filter for columns when active (pills are dimmed when the picker has a selection).
-- **"Select portfolios" picker — asymmetric row/column display:** A dropdown button (`pickerOpen`/`selectedSlugs` state, `pickerRef` for click-outside-to-close) opens a searchable checkbox list of all 75 portfolios. Selecting any narrows the **columns only** — `colPortfolios` — while **rows always show all portfolios** (`rowPortfolios`). This lets a user pin a small set across the top and scan every portfolio's correlation against just that set without losing the full list down the side. The `{ rowPortfolios, colPortfolios, matrix }` `useMemo` builds two independent index lists and a `matrix[i][j]` that maps `rowIndices[i]` × `colIndices[j]` back into `data.matrix`. Because rows and columns can be different lists, `isSelf` is determined by `p.slug === q.slug` (not `i === j`), and search-match highlighting uses a slug-keyed `matchSlugs` Set rather than index-based. Footnote shows `"{rowPortfolios.length} portfolios × {colPortfolios.length} selected"` when narrowed.
+- **Category pills filter columns only (x-axis), not rows (June 2026):** Deselecting a category removes it from the column headers but keeps all those portfolios visible in the row labels, so you can still read their correlations against the remaining column set. `rowPortfolios` always uses `allIndices` (all portfolios); `colIndices` applies `activeCategories` filter. Category pills are dimmed when either the strategy picker or portfolio picker has an active selection.
+- **"Select strategies" picker (June 2026):** Dropdown listing all unique strategy slugs (derived from `allStrategies` prop) with portfolio counts per strategy. `strategyToSlugs` Map (computed from prop) gives O(1) lookup of which portfolios belong to each strategy. `slugsForSelectedStrategies` useMemo unions all selected strategies' slug sets. Selecting strategies filters columns to portfolios tagged with any of the selected strategies (union, not intersection). Priority: portfolio picker wins over strategy filter when both are active. `ALL_STRATEGIES` sorted alphabetically; `strategyLabel()` formats slugs with special-case overrides (e.g. `factor-tilt` → `Factor Tilt`). `allStrategies` prop fetched server-side in `page.js` via `getAllPortfolioStrategies()`.
+- **"Select portfolios" picker — asymmetric row/column display:** A dropdown button (`pickerOpen`/`selectedSlugs` state, `pickerRef` for click-outside-to-close) opens a searchable checkbox list of all portfolios. Selecting any narrows the **columns only** — `colPortfolios` — while **rows always show all portfolios** (`rowPortfolios`). This lets a user pin a small set across the top and scan every portfolio's correlation against just that set without losing the full list down the side. The `{ rowPortfolios, colPortfolios, matrix }` `useMemo` builds two independent index lists and a `matrix[i][j]` that maps `rowIndices[i]` × `colIndices[j]` back into `data.matrix`. Because rows and columns can be different lists, `isSelf` is determined by `p.slug === q.slug` (not `i === j`), and search-match highlighting uses a slug-keyed `matchSlugs` Set rather than index-based. Footnote shows `"{rowPortfolios.length} portfolios × {colPortfolios.length} selected"` when narrowed.
+- **"Clear all" button (June 2026):** Appears in the controls row only when any filter is active (any category deselected, or strategy picker has selections, or portfolio picker has selections). Resets `activeCategories` to all categories, clears `selectedStrategies`, clears `selectedSlugs` in one click.
 - **Fixed-height info panel + cursor tooltip (June 2026):** The info panel above the matrix is fixed at `h-[68px]` with `overflow-hidden` and `truncate` on the name line so long portfolio name pairs never cause layout shift. A `position: fixed` cursor tooltip (`pointerEvents: none`, `zIndex: 200`) renders next to the mouse while hovering any cell — shows the full pair names (not truncated), correlation label, and value. `mousePos` state is updated via `onMouseMove` on the scroll container. Smart edge detection: if the tooltip would overflow the right or bottom edge of the viewport, it flips to the left/above the cursor instead (`mousePos.x + OFFSET + TOOLTIP_W > window.innerWidth ? mousePos.x - TOOLTIP_W - OFFSET : mousePos.x + OFFSET`). `TOOLTIP_W = 280`, `TOOLTIP_H = 90`, `OFFSET = 14`.
 - **`cellTextColor(r, minR, maxR)` (June 2026):** Companion to `cellColor` — uses the same relative `t` value (position in the dataset's min→max range) but maps to text-weight colors: `t=0` → dark green `#0d3d26`, `t=0.5` → neutral `#404943`, `t=1` → dark red `#b71c1c`. Used in both the info panel number and the cursor tooltip number so the displayed correlation value is colored to match its cell's green/neutral/red direction, rather than being hardcoded red for all positive values (which is every pair in this dataset).
 
@@ -932,7 +934,7 @@ Work through these phases in order whenever a new portfolio is added.
 
 ### Phase 2 — Automation
 
-**Buy and Hold / Robo-Advisor:** no code changes — Stage 1 reads allocations automatically.
+**Buy and Hold:** no code changes — Stage 1 reads allocations automatically.
 
 **Tactical:**
 - [ ] Write signal function in the appropriate module (rules_based.py, keller.py, etc.)
@@ -964,7 +966,7 @@ Work through these phases in order whenever a new portfolio is added.
 
 ## Monthly Data Update Workflow
 
-**Buy and Hold + Robo-Advisor portfolios** are updated automatically via the returns automation pipeline (see below). No manual inserts needed.
+**Buy and Hold portfolios** are updated automatically via the returns automation pipeline (see below). No manual inserts needed.
 
 **Tactical portfolios** are fully automated via the Stage 0 → Stage 1 → Stage 2 pipeline (see Tactical Portfolio Automation section below). No manual inserts needed.
 
@@ -974,7 +976,7 @@ The portfolio_stats view recalculates everything automatically after any insert.
 
 ## Monthly Returns Automation Pipeline (May 2026)
 
-Automates monthly return calculations for all Buy and Hold, Robo-Advisor, and Tactical portfolios. B&H/Robo-Advisor returns are calculated from static allocations; tactical returns are calculated from holdings stored by Stage 0.
+Automates monthly return calculations for all Buy and Hold and Tactical portfolios. Buy and Hold returns are calculated from static allocations; tactical returns are calculated from holdings stored by Stage 0.
 
 **Data provider:** EODHD (eodhd.com) — $19.99/month All World plan. Uses `adjusted_close` prices to account for dividends and splits.
 

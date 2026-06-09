@@ -46,7 +46,6 @@ function categoryBadgeLabel(category) {
   if (!category) return '';
   if (category === 'Buy and Hold') return 'BUY & HOLD';
   if (category === 'Tactical') return 'TACTICAL';
-  if (category === 'Robo-Advisor') return 'ROBO-ADVISOR';
   return category.toUpperCase();
 }
 

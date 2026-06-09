@@ -13,7 +13,6 @@ const TABS = [
 const CATEGORY_COLORS = {
   'Buy and Hold':  'bg-[#e8f5e9] text-[#27624a]',
   'Tactical':      'bg-[#e3f2fd] text-[#1565c0]',
-  'Robo-Advisor':  'bg-[#f3e5f5] text-[#7b1fa2]',
 };
 
 function fmt(value, suffix) {

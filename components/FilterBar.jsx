@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const CATEGORIES = ['Buy and Hold', 'Robo-Advisor', 'Tactical'];
+const CATEGORIES = ['Buy and Hold', 'Tactical'];
 
 export default function FilterBar() {
   const router = useRouter();

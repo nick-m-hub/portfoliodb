@@ -17,7 +17,6 @@ import { buildBlendedReturns, computeStats } from '@/lib/portfolioStats';
 const CATEGORY_CONFIG = {
   'Buy and Hold': { color: '#074a34' },
   'Tactical':     { color: '#1565c0' },
-  'Robo-Advisor': { color: '#7b1fa2' },
 };
 
 const PERIODS = [
@@ -30,7 +29,7 @@ const X_AXES = [
   { key: 'vol',   label: 'Volatility',    axisLabel: 'Annualized Volatility →', tooltipLabel: 'Volatility' },
   { key: 'maxdd', label: 'Max Drawdown',  axisLabel: 'Max Drawdown →',          tooltipLabel: 'Max Drawdown' },
 ];
-const ALL_CATEGORIES = ['Buy and Hold', 'Tactical', 'Robo-Advisor'];
+const ALL_CATEGORIES = ['Buy and Hold', 'Tactical'];
 const MIX_COLOR = '#e67e22'; // orange — distinct from all category colors
 
 // ─── Dot shapes ───────────────────────────────────────────────────────────────

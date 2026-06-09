@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 const CATEGORY_CONFIG = {
   'Buy and Hold': { color: '#074a34' },
   'Tactical':     { color: '#1565c0' },
-  'Robo-Advisor': { color: '#7b1fa2' },
 };
-const ALL_CATEGORIES = ['Buy and Hold', 'Tactical', 'Robo-Advisor'];
+const ALL_CATEGORIES = ['Buy and Hold', 'Tactical'];
 
 const CELL_WIDTH = 48; // px — uniform square-ish cells; values shown at a small font size
 const CELL_HEIGHT = 34;
@@ -67,7 +66,12 @@ function correlationLabel(r) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CorrelationMatrixClient() {
+function strategyLabel(slug) {
+  const overrides = { 'robo-advisor': 'Robo-Advisor', 'all-weather': 'All-Weather', 'bond-heavy': 'Bond-Heavy', 'factor-tilt': 'Factor Tilt', 'risk-parity': 'Risk Parity', 'rules-based': 'Rules-Based', 'target-date': 'Target Date' };
+  return overrides[slug] ?? slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+export default function CorrelationMatrixClient({ allStrategies = [] }) {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,36 @@ export default function CorrelationMatrixClient() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const pickerRef = useRef(null);
+  const [selectedStrategies, setSelectedStrategies] = useState(new Set());
+  const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
+  const strategyPickerRef = useRef(null);
+
+  // Derive sorted list of all unique strategies from the prop
+  const ALL_STRATEGIES = useMemo(
+    () => [...new Set(allStrategies.map((r) => r.strategy_slug))].sort(),
+    [allStrategies]
+  );
+
+  // Map strategy slug → Set of portfolio slugs that use it
+  const strategyToSlugs = useMemo(() => {
+    const map = new Map();
+    for (const { portfolio_slug, strategy_slug } of allStrategies) {
+      if (!map.has(strategy_slug)) map.set(strategy_slug, new Set());
+      map.get(strategy_slug).add(portfolio_slug);
+    }
+    return map;
+  }, [allStrategies]);
+
+  // Set of portfolio slugs matching any of the selected strategies
+  const slugsForSelectedStrategies = useMemo(() => {
+    if (selectedStrategies.size === 0) return new Set();
+    const result = new Set();
+    for (const strat of selectedStrategies) {
+      const slugs = strategyToSlugs.get(strat);
+      if (slugs) slugs.forEach((s) => result.add(s));
+    }
+    return result;
+  }, [selectedStrategies, strategyToSlugs]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -89,6 +123,15 @@ export default function CorrelationMatrixClient() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [pickerOpen]);
+
+  useEffect(() => {
+    if (!strategyPickerOpen) return;
+    function handleClick(e) {
+      if (strategyPickerRef.current && !strategyPickerRef.current.contains(e.target)) setStrategyPickerOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [strategyPickerOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,9 +164,12 @@ export default function CorrelationMatrixClient() {
     if (!data) return { rowPortfolios: [], colPortfolios: [], matrix: [] };
     const allIndices = data.portfolios.map((p, idx) => ({ p, idx }));
     const categoryFilteredForCols = allIndices.filter(({ p }) => activeCategories.has(p.category));
+    // Priority: portfolio picker > strategy filter > category pills
     const colIndices = selectedSlugs.size > 0
       ? allIndices.filter(({ p }) => selectedSlugs.has(p.slug))
-      : categoryFilteredForCols;
+      : selectedStrategies.size > 0
+        ? allIndices.filter(({ p }) => slugsForSelectedStrategies.has(p.slug))
+        : categoryFilteredForCols;
 
     const rowPortfolios = allIndices.map(({ p }) => p);
     const colPortfolios = colIndices.map(({ p }) => p);
@@ -131,10 +177,19 @@ export default function CorrelationMatrixClient() {
       colIndices.map(({ idx: j }) => data.matrix[i][j])
     );
     return { rowPortfolios, colPortfolios, matrix };
-  }, [data, activeCategories, selectedSlugs]);
+  }, [data, activeCategories, selectedSlugs, selectedStrategies, slugsForSelectedStrategies]);
 
   function togglePortfolioSelection(slug) {
     setSelectedSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }
+
+  function toggleStrategySelection(slug) {
+    setSelectedStrategies((prev) => {
       const next = new Set(prev);
       if (next.has(slug)) next.delete(slug);
       else next.add(slug);
@@ -220,8 +275,8 @@ export default function CorrelationMatrixClient() {
         {/* Category filter pills + portfolio picker */}
         <div className="flex flex-wrap items-center gap-2">
         <div
-          className={`flex flex-wrap gap-2 transition-opacity ${selectedSlugs.size > 0 ? 'opacity-40 pointer-events-none' : ''}`}
-          title={selectedSlugs.size > 0 ? 'Clear your portfolio selection to filter by category' : undefined}
+          className={`flex flex-wrap gap-2 transition-opacity ${selectedSlugs.size > 0 || selectedStrategies.size > 0 ? 'opacity-40 pointer-events-none' : ''}`}
+          title={selectedSlugs.size > 0 || selectedStrategies.size > 0 ? 'Clear your strategy or portfolio selection to filter by category' : undefined}
         >
           {ALL_CATEGORIES.map((cat) => {
             const active = activeCategories.has(cat);
@@ -246,6 +301,60 @@ export default function CorrelationMatrixClient() {
             );
           })}
         </div>
+
+          {/* Strategy picker — filter columns to portfolios with selected strategies */}
+          <div className="relative" ref={strategyPickerRef}>
+            <button
+              onClick={() => setStrategyPickerOpen((o) => !o)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-inter text-sm font-medium border transition-all ${
+                selectedStrategies.size > 0
+                  ? 'bg-primary border-primary text-on-primary'
+                  : 'bg-transparent border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>category</span>
+              {selectedStrategies.size > 0 ? `${selectedStrategies.size} ${selectedStrategies.size === 1 ? 'strategy' : 'strategies'}` : 'Select strategies'}
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                {strategyPickerOpen ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+
+            {strategyPickerOpen && (
+              <div className="absolute left-0 top-full mt-2 bg-white border border-outline-variant rounded-xl shadow-lg z-50 w-56 flex flex-col">
+                <div className="overflow-y-auto" style={{ maxHeight: '280px' }}>
+                  {ALL_STRATEGIES.map((slug) => {
+                    const checked = selectedStrategies.has(slug);
+                    const count = strategyToSlugs.get(slug)?.size ?? 0;
+                    return (
+                      <label
+                        key={slug}
+                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-surface-container-low cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleStrategySelection(slug)}
+                          className="accent-[#074a34] w-4 h-4 flex-shrink-0"
+                        />
+                        <span className="font-inter text-sm text-on-surface flex-1">{strategyLabel(slug)}</span>
+                        <span className="font-inter text-xs text-on-surface-variant flex-shrink-0">{count}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 border-t border-outline-variant">
+                  <span className="font-inter text-xs text-on-surface-variant">{selectedStrategies.size} selected</span>
+                  <button
+                    onClick={() => setSelectedStrategies(new Set())}
+                    disabled={selectedStrategies.size === 0}
+                    className="font-inter text-xs font-medium text-primary hover:underline disabled:text-outline disabled:no-underline disabled:cursor-default"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Portfolio picker — narrow the matrix to an exact set of portfolios */}
           <div className="relative" ref={pickerRef}>
@@ -320,6 +429,20 @@ export default function CorrelationMatrixClient() {
               </div>
             )}
           </div>
+        {/* Clear all filters */}
+        {(activeCategories.size < ALL_CATEGORIES.length || selectedStrategies.size > 0 || selectedSlugs.size > 0) && (
+          <button
+            onClick={() => {
+              setActiveCategories(new Set(ALL_CATEGORIES));
+              setSelectedStrategies(new Set());
+              setSelectedSlugs(new Set());
+            }}
+            className="font-inter text-sm font-medium text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+            Clear all
+          </button>
+        )}
         </div>
 
         {/* Name search */}
