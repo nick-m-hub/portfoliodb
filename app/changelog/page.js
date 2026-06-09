@@ -36,6 +36,10 @@ const CHANGELOG = [
       },
       {
         type: 'new',
+        text: 'Paul Merriman 4-Fund United States Portfolio added — equal 25% split across S&P 500, US Large Cap Value, US Small Cap Blend, and US Small Cap Value, with data going back to April 1993.',
+      },
+      {
+        type: 'new',
         text: 'JL Collins Wealth Preservation Portfolio added — 50% stocks, 25% real estate, 20% bonds, 5% cash, with data going back to 1996.',
       },
       {

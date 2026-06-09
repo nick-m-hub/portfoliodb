@@ -427,6 +427,8 @@ portfoliodb/
       Manrope-ExtraBold.ttf          # Manrope 800 — used by OG image routes
   scripts/
     update-descriptions.js           # Node.js script — reads all description-drafts/*.md and pushes to Supabase via service role key. Run with: node scripts/update-descriptions.js
+    auto-returns/
+      PROXY_CHAINS.md                # Standing proxy chain reference for all ETFs used in backtests — confirmed chains, approved chains, data floors, open problems. Read this before writing any new backfill script.
   proxy.js                           # Auth middleware (Next.js 16 — replaces deprecated middleware.js); exports proxy() + config; protects /account route; refreshes session cookies via supabase.auth.getUser()
   CLAUDE.md                          # This file
   TASKS.md                           # Migration task checklist
@@ -1020,23 +1022,46 @@ python3 stage2_promote.py --month 2026-04
 
 **New portfolios added June 2026:**
 - `jl-collins-wealth-preservation-portfolio` — 50% VTI / 25% VNQ / 20% BND / 5% BIL. Backfilled May 1996 – May 2026 via `backfill_jl_collins_wealth_preservation.py`. Proxy chain: VTSMX→VTI (Jun 2001), VGSIX→VNQ (Oct 2004), VBMFX→BND (Apr 2007), constant 0.35%/mo→SHY (Jul 2002)→BIL (May 2007) for cash. VGSIX (Vanguard REIT Index Investor) is the data floor — launched May 1996. Stage 1 handles going forward.
+- `paul-merriman-4-fund-portfolio-united-states` — 25% SPY / 25% IWD / 25% IWM / 25% IWN. Backfilled Apr 1993 – May 2026 via `backfill_paul_merriman_4fund_us.py`. Proxy chain: VFINX→SPY (Feb 1993), VWNDX→IWD (Jun 2000), NAESX→IWM (Jun 2000), DFSVX→IWN (Aug 2000). DFSVX (Apr 1993) is the data floor. First confirmed use of VWNDX and NAESX proxies. Stage 1 handles going forward.
 
-**Backtest proxy chains (established May 2026):**
-Use these when backfilling new B&H portfolios that hold these ETFs. See `reference_backtest_proxy_chains.md` in memory for full details.
+**Backtest proxy chains (expanded June 2026):**
+Full reference: `scripts/auto-returns/PROXY_CHAINS.md` (authoritative — includes notes, data floors, implementation pointers, and open problems).
+Summary also in `reference_backtest_proxy_chains.md` in Claude memory.
 
-| Live ETF | Proxy | Transition |
-|---|---|---|
-| VTI | VTSMX | Jun 2001 |
-| VNQ | VGSIX | Oct 2004 |
-| BND | VBMFX | Apr 2007 |
-| BIL | SHY (Jul 2002), constant 0.35%/mo before | May 2007 |
-| IWN | DFSVX | Aug 2000 |
-| EFA | PRITX | Sep 2001 |
-| EEM | FEMKX | May 2003 |
-| AVDV | DLS (Jul 2006–Sep 2019), then DISVX (pre Jul 2006) | Oct 2019 |
+Status legend: CONFIRMED = used in an existing script. APPROVED = approved by Nick, verify EODHD on first use.
 
-`backfill_ben_felix_model_portfolio.py` is the reference implementation for multi-proxy backfills.
-DISVX EODHD data starts Jul 1995 — practical floor for any portfolio with an AVDV/international small-cap value allocation.
+| Live ETF | Proxy | Transition | Status | Data Floor |
+|---|---|---|---|---|
+| SPY | VFINX | Feb 1993 | CONFIRMED | Dec 1991 |
+| VTI | VTSMX | Jun 2001 | CONFIRMED | Jun 2001 |
+| IWN | DFSVX | Aug 2000 | CONFIRMED | Aug 2000 |
+| EFA | PRITX | Sep 2001 | CONFIRMED | Sep 2001 |
+| EEM | FEMKX | May 2003 | CONFIRMED | May 2003 |
+| AVDV | DISVX → DLS → AVDV | Oct 2019 / Jul 2006 | CONFIRMED | **Jul 1995** |
+| VNQ | VGSIX | Oct 2004 | CONFIRMED | May 1996 |
+| BND | VBMFX | Apr 2007 | CONFIRMED | Jun 1986 |
+| BIL | SHY (Jul 2002) → constant 0.35%/mo | May 2007 | CONFIRMED | any |
+| GLD | XAUUSD.FOREX (EODHD forex feed) | Dec 2004 | APPROVED | Dec 1979 |
+| QQQ | NDX.INDX (EODHD index feed) | Apr 1999 | APPROVED | Oct 1985 |
+| IWD | VWNDX (Vanguard Windsor) | Jun 2000 | CONFIRMED | Jan 1980 |
+| IWM | NAESX (Vanguard Small Cap Index) | Jun 2000 | CONFIRMED | Jul 1980 |
+| IWF | VWUSX (Vanguard US Growth) | Jun 2000 | APPROVED | Nov 1985 |
+| IWO | VEXPX (Vanguard Explorer) | Aug 2000 | APPROVED | Jun 1986 |
+| AGG | VBMFX (same as BND) | Oct 2003 | APPROVED | Jun 1986 |
+| IEF | VFITX (Vanguard Intermediate-Term Treasury) | Aug 2002 | APPROVED | Oct 1991 |
+| TLT | VUSTX (Vanguard Long-Term Treasury) | Aug 2002 | APPROVED | May 1986 |
+| HYG | VWEHX (Vanguard High-Yield Corporate) | May 2007 | APPROVED | Dec 1978 |
+| LQD | VWESX (Vanguard Long-Term Investment Grade) | Aug 2002 | APPROVED | Jul 1973 |
+| VGK | VEURX (Vanguard European Stock Index) | Apr 2005 | APPROVED | Jun 1990 |
+| VT | MSCI ACWI Index daily data | Jul 2008 | CONFIRMED | Jan 1999 |
+
+**Key notes:**
+- AVDV/DISVX at Jul 1995 is the shortest floor among resolved proxies — binding constraint for any portfolio with international small-cap value
+- GLD/XAUUSD.FOREX and QQQ/NDX.INDX use non-.US exchange suffixes — fetch with a raw URL, not `fetch_ticker_prices()` which appends .US
+- LQD/VWESX: VWESX is longer-duration than LQD; returns diverge in rate-change environments
+- USERX (gold miners fund) is NOT a suitable GLD proxy — tracks mining stocks, not bullion
+- DBC has no proxy — floor-only at Mar 2006
+- `backfill_ben_felix_model_portfolio.py` is the reference implementation for multi-proxy backfills
 
 **Key decisions:**
 - Stage 1 calculates tactical returns separately in Step 5b using `tactical_monthly_holdings` (run Stage 0 first). Stage 2 promotes all pending rows regardless of category — tactical and B&H together.
@@ -1343,7 +1368,7 @@ Descriptions are stored as a single text value. Use the two-character sequence `
 
 ### Valid internal portfolio links
 When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
-`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`, `jl-collins-wealth-preservation-portfolio`
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`, `jl-collins-wealth-preservation-portfolio`, `paul-merriman-4-fund-portfolio-united-states`
 
 Do NOT link to: `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
 
