@@ -50,9 +50,21 @@ GTAA_AGG_UNIVERSE  = ["IWD", "MTUM", "IWN", "IWM", "EFA", "EEM",
 
 CASH = "BIL"  # safe haven for all timing strategies
 
+# Ben Felix Model Portfolio — Timing
+# Same factor weights as the buy-and-hold version; each sleeve goes to BIL when below SMA.
+BEN_FELIX_TIMING_WEIGHTS = {
+    "SPY":  0.30,   # US Large Cap
+    "VTI":  0.30,   # US Total Market
+    "EFA":  0.16,   # International Developed
+    "IWN":  0.10,   # US Small Cap Value
+    "EEM":  0.08,   # Emerging Markets
+    "AVDV": 0.06,   # International Small Cap Value
+}
+
 # All tickers this module needs — stage0_signals.py unions these into the fetch list
 ALL_TICKERS = list({CASH} | set(IVY_UNIVERSE) | set(GTAA5_UNIVERSE)
-                         | set(GTAA13_UNIVERSE) | set(GTAA_AGG_UNIVERSE))
+                         | set(GTAA13_UNIVERSE) | set(GTAA_AGG_UNIVERSE)
+                         | set(BEN_FELIX_TIMING_WEIGHTS.keys()))
 
 
 # ---------------------------------------------------------------------------
@@ -264,3 +276,21 @@ def gtaa_agg6(target_month, price_cache):
         target_month=target_month,
         price_cache=price_cache,
     )
+
+
+# ---------------------------------------------------------------------------
+# Ben Felix Model Portfolio — Timing
+#
+# Weights: SPY 30%, VTI 30%, EFA 16%, IWN 10%, EEM 8%, AVDV 6%
+# Rule: hold each asset at target weight if price ≥ 10-month SMA; else BIL
+# ---------------------------------------------------------------------------
+
+def ben_felix_timing(target_month, price_cache):
+    sd = _signal_date(target_month)
+    combined = {}
+    for ticker, weight in BEN_FELIX_TIMING_WEIGHTS.items():
+        data = price_cache.get(ticker, [])
+        above = _above_sma(data, sd)
+        ticker_out = ticker if above is True else CASH
+        combined[ticker_out] = round(combined.get(ticker_out, 0.0) + weight, 8)
+    return {t: round(w, 6) for t, w in combined.items()}

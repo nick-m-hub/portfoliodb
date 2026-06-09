@@ -43,8 +43,9 @@ SIGNAL_REGISTRY = {
     "diversified-gem-dual-momentum":           dual_momentum.diversified_gem,
     "composite-dual-momentum":                 dual_momentum.composite_dm,
     "accelerating-dual-momentum":              dual_momentum.accelerating_dm,
-    # GTAA family (Meb Faber)
+    # GTAA family (Meb Faber) + Ben Felix Timing (same 10-month SMA rule)
     "ivy-portfolio-timing":                                         gtaa.ivy_timing,
+    "ben-felix-model-portfolio-timing":                             gtaa.ben_felix_timing,
     "ivy-portfolio-rotation":                                       gtaa.ivy_rotation,
     "global-tactical-asset-allocation-5-gtaa-5-meb-faber":         gtaa.gtaa5,
     "global-tactical-asset-allocation-13-gtaa-13-meb-faber":       gtaa.gtaa13,
