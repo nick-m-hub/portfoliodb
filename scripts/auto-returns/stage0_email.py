@@ -231,6 +231,13 @@ def build_email_html(month_str, market_context, rebalanced, unchanged_names):
             </td>
           </tr>
           <tr>
+            <td style="padding:12px 24px 4px;">
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#404943;background:#f0f4f0;border-radius:8px;padding:12px 16px;">
+                Have a custom mix saved in the Portfolio Builder? <a href="https://www.portfoliodb.com/account" style="color:#074a34;font-weight:bold;">Visit your account page</a> to see this month's blended holdings for your saved portfolios.
+              </p>
+            </td>
+          </tr>
+          <tr>
             <td>{rebalanced_section}</td>
           </tr>
           <tr>

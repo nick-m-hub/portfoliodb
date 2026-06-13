@@ -136,6 +136,12 @@ export default async function MembershipPage() {
               </p>
             </div>
 
+            <div className="px-5 pt-3 pb-1">
+              <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed bg-surface-container-low rounded-lg px-4 py-3">
+                Have a custom mix saved in the Portfolio Builder? <Link href="/account" className="text-primary font-semibold">Visit your account page</Link>{' '}to see this month&apos;s blended holdings for your saved portfolios.
+              </p>
+            </div>
+
             <div className="px-5 py-4">
               <p className="font-inter text-[13px] font-bold text-primary border-b-2 border-primary pb-1.5 mb-3">Rebalanced this month (3)</p>
               <div className="space-y-4">
