@@ -92,6 +92,11 @@ export default async function MembershipPage() {
               body: 'Exact percentage targets for every asset class in each covered portfolio, updated to reflect the latest signal.',
             },
             {
+              icon: 'insights',
+              heading: 'Brief market context',
+              body: 'A short, data-driven summary of what drove this month\'s changes across the signal set — built from the actual portfolio moves, not speculation.',
+            },
+            {
               icon: 'task_alt',
               heading: 'Clear hold / rebalance guidance',
               body: 'A plain verdict for each portfolio — hold as-is, or rebalance — so you know immediately whether any action is needed.',
@@ -118,33 +123,61 @@ export default async function MembershipPage() {
         <h2 className="font-manrope text-[20px] font-semibold text-on-surface mb-4">What a signal looks like</h2>
 
         <div className="border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-          <div className="bg-surface-container-low border-b border-outline-variant px-5 py-3 flex items-center gap-3">
-            <span className="material-symbols-outlined text-[18px] text-primary">mark_email_unread</span>
-            <p className="font-inter text-[13px] font-semibold text-on-surface leading-tight">April 2025 Trading Signals</p>
-            <span className="ml-auto font-inter text-[11px] text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-full">Example</span>
+          <div className="bg-primary px-5 py-4">
+            <p className="font-inter text-[11px] font-bold text-on-primary tracking-wider">PORTFOLIODB SIGNALS</p>
+            <p className="font-inter text-[15px] text-on-primary mt-1">January 2025 monthly update</p>
           </div>
 
           <div className="bg-surface-container-lowest divide-y divide-surface-variant">
-            {[
-              { name: 'Accelerating Dual Momentum', holdings: [{ ticker: 'SCZ', pct: '100%' }] },
-              { name: 'Composite Dual Momentum', holdings: [{ ticker: 'GLD', pct: '25%' }, { ticker: 'HYG', pct: '25%' }, { ticker: 'REM', pct: '25%' }, { ticker: 'SPY', pct: '25%' }] },
-              { name: 'GEM Dual Momentum', holdings: [{ ticker: 'SPY', pct: '100%' }] },
-            ].map(({ name, holdings }) => (
-              <div key={name} className="px-5 py-4">
-                <p className="font-inter text-[13px] font-semibold text-on-surface mb-2">{name}</p>
-                <div className="flex flex-wrap gap-2">
-                  {holdings.map(({ ticker, pct }) => (
-                    <span key={ticker} className="inline-flex items-center gap-1.5 bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 text-[12px]">
-                      <span className="font-semibold text-primary font-mono">{ticker}</span>
-                      <span className="text-on-surface-variant">{pct}</span>
-                    </span>
-                  ))}
-                </div>
+            <div className="px-5 py-4">
+              <p className="font-inter text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Market context</p>
+              <p className="font-inter text-[13px] text-on-surface leading-relaxed">
+                Several rotation strategies pulled back risk this month, increasing cash (BIL) and trimming long-term Treasuries (IEF), while a few portfolios leaned further into U.S. equities (SPY).
+              </p>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="font-inter text-[13px] font-bold text-primary border-b-2 border-primary pb-1.5 mb-3">Rebalanced this month (3)</p>
+              <div className="space-y-4">
+                {[
+                  {
+                    name: 'Accelerating Dual Momentum',
+                    summary: 'Shifted fully out of equities into international developed small-caps as relative momentum faded.',
+                    holdings: [{ ticker: 'SCZ', pct: '100%' }],
+                  },
+                  {
+                    name: 'Composite Dual Momentum',
+                    summary: 'Reduced equity exposure and added high-yield bonds and gold as momentum broadened defensively.',
+                    holdings: [{ ticker: 'GLD', pct: '25%' }, { ticker: 'HYG', pct: '25%' }, { ticker: 'REM', pct: '25%' }, { ticker: 'SPY', pct: '25%' }],
+                  },
+                  {
+                    name: 'GEM Dual Momentum',
+                    summary: 'Rotated back into U.S. equities after international stocks lost their momentum edge.',
+                    holdings: [{ ticker: 'SPY', pct: '100%' }],
+                  },
+                ].map(({ name, summary, holdings }) => (
+                  <div key={name}>
+                    <p className="font-inter text-[13px] font-semibold text-on-surface mb-1">{name}</p>
+                    <p className="font-inter text-[12px] text-on-surface-variant italic mb-2 leading-relaxed">{summary}</p>
+                    <div className="space-y-0.5">
+                      {holdings.map(({ ticker, pct }) => (
+                        <p key={ticker} className="font-mono text-[12px] text-on-surface">
+                          <span className="font-bold">{ticker}</span>
+                          <span className="text-on-surface-variant"> &mdash; {pct}</span>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <p className="px-5 py-3 font-inter text-[12px] text-on-surface-variant italic">
-              + {signalCount - 3} more portfolios in the full signal email
-            </p>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="font-inter text-[13px] font-bold text-primary border-b-2 border-primary pb-1.5 mb-2">No change this month ({signalCount - 3})</p>
+              <p className="font-inter text-[12px] text-on-surface-variant leading-relaxed">
+                Golden Butterfly &middot; Permanent Portfolio &middot; Ray Dalio&apos;s All Weather Portfolio &middot; GTAA 5 &middot; and {signalCount - 7} more
+              </p>
+            </div>
           </div>
         </div>
 

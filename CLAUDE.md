@@ -1178,6 +1178,55 @@ Correct rules (GestaltU implementation):
 
 ---
 
+## Signal Email Automation (June 2026)
+
+`scripts/auto-returns/stage0_email.py` generates and sends the monthly Signals trading email. It runs in two stages, both manual `workflow_dispatch` GitHub Actions — no terminal needed.
+
+**Stage 0 — Signals + Email Preview** (`.github/workflows/returns-stage0.yml`): trigger with `month` set (e.g. `2026-06`, required). Runs `stage0_signals.py` to calculate and store that month's tactical holdings, then runs `stage0_email.py --month 2026-06` (draft mode), which generates the email, saves it as a draft (`signal_emails.html_body`), and sends a preview to `NOTIFY_EMAIL`.
+
+**Review** the preview email.
+
+**Stage 0.5 — Send** (`.github/workflows/signal-email-send.yml`): trigger with the same `month`. Runs `stage0_email.py --month 2026-06 --send`, which loads the saved draft (unchanged) and delivers it to every active Signals subscriber, logging `sent_at` + `recipient_count`.
+
+Stage 0.5's `force` checkbox resends a month already sent. To regenerate a draft (e.g. fix a mistake before sending), re-run `stage0_email.py --month YYYY-MM --force` locally — Stage 0 doesn't expose this since it always runs immediately after fresh signals.
+
+Equivalent local commands:
+```bash
+python3 stage0_email.py --month 2026-06            # draft + preview
+python3 stage0_email.py --month 2026-06 --send     # send saved draft to subscribers
+python3 stage0_email.py --month 2026-06 --force    # regenerate draft / resend
+```
+
+**What it does (draft run):**
+1. Fetches `tactical_monthly_holdings` for the target month and the prior month for every portfolio where `kofi_link IS NOT NULL`
+2. Diffs each portfolio's holdings (entered/exited/changed tickers). **If a portfolio has no prior-month row at all** (newly added to tracking, e.g. `ben-felix-model-portfolio-timing` or `the-trend-is-our-friend-global` in their first tracked month), it's treated as "no change" rather than a fabricated rotation — there's nothing to diff against.
+3. Sends all rebalanced portfolios' diff data (tickers + percentages only, no external data) to `claude-haiku-4-5` in one call, asking for: (a) a 2-4 sentence "market context" paragraph identifying the overall theme(s) across this month's changes, and (b) a one-line summary per rebalanced portfolio. Claude is instructed to use only the data provided — it does not invent news or causes.
+4. Builds a branded HTML email (table-based layout for email client compatibility): green header bar, market context paragraph, **"Rebalanced this month"** section (each portfolio's one-line summary + full `TICKER — XX%` holdings), compact **"No change this month"** section (portfolio names only — no need to repeat unchanged holdings), footer with manage-subscription + support links.
+5. Saves the HTML as a draft in `signal_emails` (`sent_at = NULL`) and sends a preview to `NOTIFY_EMAIL` via Resend.
+
+**What it does (send run, `--send`):**
+6. Loads the saved draft HTML, sends it individually to every email in `user_subscriptions` where `plan = 'signals' AND status = 'active'`, then updates the `signal_emails` row with `sent_at` and `recipient_count`. Idempotent — re-running a month already sent without `--force` exits early.
+
+**Sender:** `PortfolioDB <support@portfoliodb.com>` via Resend (`RESEND_API_KEY`, already in `.env.local` and verified domain — see Email Infrastructure below). Individual sends (not BCC) since recipient count is well under Resend's free-tier limits (<100 members as of June 2026).
+
+**Table: signal_emails**
+
+| Column           | Type        | Notes                                  |
+|------------------|-------------|------------------------------------------|
+| id               | uuid        | Auto-generated                         |
+| month            | date        | First of month, unique — upsert conflict key |
+| market_context   | text        | The Claude-generated paragraph for that month |
+| html_body        | text        | Full generated email HTML — saved as a draft on the first run, sent as-is on `--send` |
+| sent_at          | timestamptz | NULL until the send run completes      |
+| recipient_count  | integer     | How many subscribers were successfully sent to |
+| created_at       | timestamptz | Auto-generated                         |
+
+**GitHub Actions secrets required** (in addition to the existing `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` used by Stage 0–2): `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `NOTIFY_EMAIL`.
+
+**Membership page:** "Brief market context" is back in the "What the Signals plan delivers each month" list in `app/membership/page.js`, and the "What a signal looks like" mock includes a sample market-context paragraph above the portfolio holdings.
+
+---
+
 ## Email Infrastructure (May 2026)
 
 ### Custom Email Addresses
@@ -1204,9 +1253,9 @@ Correct rules (GestaltU implementation):
 
 ---
 
-## Membership Page Notes (May 2026)
-- "Brief market context" removed from 'What you get each month' list pending signal email automation (Fix #11)
-- Mock email card in "What a signal looks like" section shows ticker/allocation pill badge format (not a generic table) — reflects actual signal email structure
+## Membership Page Notes (updated June 2026)
+- "Brief market context" restored to 'What you get each month' list (Fix #11, June 2026)
+- Mock email card in "What a signal looks like" section mirrors the real `stage0_email.py` HTML structure: green "PORTFOLIODB SIGNALS" header bar, market context paragraph, "Rebalanced this month (N)" section (portfolio name + italic one-line summary + `TICKER — XX%` text lines, not pill badges), "No change this month (N)" section (portfolio names only)
 - Monthly signal email format: portfolio name as heading, tickers as `TICKER — XX%` lines. Formatted via Claude prompt (see Fix #11 in TASKS.md)
 
 ## Tiers — Free Builder + Paid Signals (June 2026)

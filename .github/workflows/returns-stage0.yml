@@ -1,17 +1,21 @@
-name: Monthly Returns — Stage 0 Signals
+name: Monthly Returns — Stage 0 Signals + Email Preview
 
 # MANUAL TRIGGER ONLY — run this on the last trading day of each month.
-# Calculates tactical portfolio signals using that day's closing prices
-# and stores the resulting holdings in tactical_monthly_holdings.
+# Calculates tactical portfolio signals using that day's closing prices,
+# stores the resulting holdings in tactical_monthly_holdings, then generates
+# the monthly Signals email, saves it as a draft, and sends a preview to
+# NOTIFY_EMAIL.
+#
 # Stage 1 on the 3rd of next month picks these holdings up automatically.
+# Once you've reviewed the preview email, run "Monthly Signals Email — Send
+# (Stage 0.5)" with the same month to deliver it to subscribers.
 
 on:
   workflow_dispatch:
     inputs:
       month:
-        description: 'Month holdings are IN EFFECT (YYYY-MM, e.g. 2026-06 if run at end of May). Leave blank to auto-detect.'
-        required: false
-        default: ''
+        description: 'Month holdings are IN EFFECT (YYYY-MM, e.g. 2026-06 if run at end of May)'
+        required: true
 
 jobs:
   signals:
@@ -29,15 +33,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/auto-returns/requirements.txt
 
-      - name: Run Stage 0
+      - name: Run Stage 0 — Signals
         working-directory: scripts/auto-returns
-        run: |
-          if [ -n "${{ github.event.inputs.month }}" ]; then
-            python stage0_signals.py --month ${{ github.event.inputs.month }}
-          else
-            python stage0_signals.py
-          fi
+        run: python stage0_signals.py --month ${{ github.event.inputs.month }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+
+      - name: Run Stage 0 — Email Preview
+        working-directory: scripts/auto-returns
+        run: python stage0_email.py --month ${{ github.event.inputs.month }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}

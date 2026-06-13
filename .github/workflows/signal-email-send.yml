@@ -1,0 +1,51 @@
+name: Monthly Signals Email — Send (Stage 0.5)
+
+# MANUAL TRIGGER ONLY — the confirmation step.
+#
+# Run "Monthly Returns — Stage 0 Signals + Email Preview" first. It generates
+# the email, saves it as a draft, and sends a preview to NOTIFY_EMAIL.
+#
+# Once you've reviewed that preview and it looks good, run THIS workflow with
+# the same month to deliver the saved draft (unchanged) to every active
+# Signals subscriber and log the send.
+
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month holdings are IN EFFECT (YYYY-MM) — must match the Stage 0 run'
+        required: true
+      force:
+        description: 'Resend a month that was already sent'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/auto-returns/requirements.txt
+
+      - name: Send Signals email to subscribers
+        working-directory: scripts/auto-returns
+        run: |
+          ARGS="--month ${{ github.event.inputs.month }} --send"
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          python stage0_email.py $ARGS
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
