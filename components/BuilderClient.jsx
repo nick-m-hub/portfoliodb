@@ -2,12 +2,24 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import GrowthChart from '@/components/GrowthChart';
-import DrawdownChart from '@/components/DrawdownChart';
-import RollingReturnChart from '@/components/RollingReturnChart';
+import dynamic from 'next/dynamic';
+import ChartSkeleton from '@/components/ChartSkeleton';
 import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import CurrentSignals from '@/components/CurrentSignals';
+
+const GrowthChart = dynamic(() => import('@/components/GrowthChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={300} />,
+});
+const DrawdownChart = dynamic(() => import('@/components/DrawdownChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={280} />,
+});
+const RollingReturnChart = dynamic(() => import('@/components/RollingReturnChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={280} />,
+});
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 import { buildBlendedReturns, computeStats, RF_MONTHLY as _RF_MONTHLY } from '@/lib/portfolioStats';
 

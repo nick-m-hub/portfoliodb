@@ -1,5 +1,7 @@
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
-import PortfolioMapClient from './PortfolioMapClient';
+
+const PortfolioMapClient = dynamic(() => import('./PortfolioMapClient'));
 
 export const metadata = {
   title: 'Portfolio Risk vs. Return Map | PortfolioDB',

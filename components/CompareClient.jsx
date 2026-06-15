@@ -2,9 +2,15 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import AllocationDonut from '@/components/AllocationDonut';
-import CompareGrowthChart from '@/components/CompareGrowthChart';
+import ChartSkeleton from '@/components/ChartSkeleton';
+
+const CompareGrowthChart = dynamic(() => import('@/components/CompareGrowthChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={320} />,
+});
 
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22'];

@@ -1,7 +1,9 @@
 import { cookies } from 'next/headers';
+import nextDynamic from 'next/dynamic';
 import { getPortfolioNames, getMonthlyReturns, getPortfolio } from '@/lib/db';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import MonteCarloClient from '@/components/MonteCarloClient';
+
+const MonteCarloClient = nextDynamic(() => import('@/components/MonteCarloClient'));
 
 export const dynamic = 'force-dynamic';
 
