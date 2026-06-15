@@ -180,7 +180,7 @@ A second, parallel track alongside the 25-post calendar above — a "Month in Re
 
 ---
 
-### Post 4
+### Post 4 — ✅ Published 2026-06-15 (slug: `bogleheads-three-fund-vs-four-fund-portfolio`)
 **Title:** Bogleheads Three-Fund vs Four-Fund Portfolio: Which Is Right for You?
 
 **Primary keyword:** `bogleheads three fund portfolio vs four fund` — Comparative / informational
@@ -189,10 +189,10 @@ A second, parallel track alongside the 25-post calendar above — a "Month in Re
 
 **Outline:**
 1. What the three-fund portfolio is — US total market, international, US bonds; Vanguard philosophy; simplicity as a feature
-2. What the four-fund portfolio adds — emerging markets as a separate slice; the diversification argument and the historical return premium for EM
+2. What the four-fund portfolio adds — TIPS as a separate slice of the bond allocation; the inflation-protection argument
 3. Side-by-side backtested data — CAGR, max drawdown, Sharpe, best year, worst year for both from `portfolio_stats`
-4. When the fourth fund helped and when it didn't — rolling 10-year return windows; pull rolling_10yr_low and rolling_10yr_high for both; note any periods where EM dragged performance
-5. The decision framework — simplicity vs. completeness; three-fund is good enough; four-fund for those who specifically want EM exposure as a deliberate bet
+4. When the fourth fund helped and when it didn't — rolling 10-year return windows; pull rolling_10yr_low and rolling_10yr_high for both; note any periods where TIPS dragged performance
+5. The decision framework — simplicity vs. completeness; three-fund is good enough; four-fund for those who specifically want a built-in inflation hedge
 
 **Portfolios to reference:** `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `united-states-60-40-portfolio` (as a simpler benchmark)
 

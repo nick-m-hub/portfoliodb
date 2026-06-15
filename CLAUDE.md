@@ -1442,6 +1442,12 @@ REFRESH MATERIALIZED VIEW portfolio_stats;
 ```
 Then redeploy on Vercel.
 
+### Description drift incident (June 2026)
+
+A batch description update introduced regressions in 10 portfolios: 3 had an entirely wrong strategy description (`mama-bear-portfolio`, `papa-bear-portfolio`, `diversified-gem-dual-momentum`), 4 had duplicated "Copy-ready for Supabase" boilerplate text appended (`conservative-income-portfolio-schwab`, `the-trend-is-our-friend-global`, `trend-following-bonds-by-paul-novell`, `vigilant-asset-allocation-g4-aggressive`), and 3 had minor unintended diffs from the live version (`sandwich-portfolio`, `stokens-active-combined-asset`, `vigilant-asset-allocation-g12`). All 10 were restored from a backup of the `portfolio_stats` view taken before the regression, saved at `description-drafts/_view-backup-2026-06-15/`. Both `portfolios.description` (Supabase) and the corresponding `description-drafts/*.md` files were overwritten with the restored content. **`REFRESH MATERIALIZED VIEW portfolio_stats;` + a Vercel redeploy are still needed** for the restored descriptions to appear on the live SSG pages.
+
+**Exception -- `bogleheads-four-fund-portfolio`:** deliberately NOT restored from the backup. The backup's version described the fourth fund as a dedicated REIT sleeve, but the actual `allocations` table for this portfolio holds VTI/EFA/AGG/TIP -- the fourth fund is TIPS, not REITs. The REIT-based description was factually wrong about the underlying holdings, independent of the June 2026 regression. The current `portfolios.description` correctly describes the fourth fund as TIPS-based inflation protection. If this portfolio's description needs future edits, do not pull from `description-drafts/_view-backup-2026-06-15/` -- that copy has the incorrect REIT version.
+
 ## Reference Files
 
 - TASKS.md — complete step-by-step build checklist with Claude prompts
