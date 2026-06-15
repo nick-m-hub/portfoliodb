@@ -6,7 +6,6 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getPortfolioNames } from "@/lib/db";
-import MaterialSymbolsActivator from "@/components/MaterialSymbolsActivator";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -44,19 +43,11 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          rel="preload"
-          as="style"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
-        />
-        <link
-          id="material-symbols-css"
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
-          media="print"
         />
       </head>
       <body className="bg-surface text-on-surface font-inter min-h-screen flex flex-col">
-        <MaterialSymbolsActivator />
         <GoogleAnalytics />
         <Navbar portfolios={portfolios} />
         {children}
