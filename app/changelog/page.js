@@ -23,6 +23,10 @@ const CHANGELOG = [
     month: 'June 2026',
     entries: [
       {
+        type: 'new',
+        text: 'Financial Independence Calculator added — enter your income, savings rate, current savings, and target retirement spending to see a range of years to reach financial independence for any portfolio, based on 1,000 bootstrap simulations of historical returns. Toggle between Safe Withdrawal Rate (SWR) and Perpetual Withdrawal Rate (PWR) to set your FI Number.',
+      },
+      {
         type: 'improvement',
         text: 'Portfolio Builder is now free for any signed-in user — saved mixes, the full Performance Snapshot, charts, withdrawal rate analysis, and PDF export no longer require a paid plan. Just create a free account. Signals membership remains paid and adds monthly trade signals on top.',
       },

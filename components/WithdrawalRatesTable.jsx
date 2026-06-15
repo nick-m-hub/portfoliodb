@@ -135,13 +135,22 @@ export default function WithdrawalRatesTable({ rates, slug }) {
           Based on this portfolio&apos;s full return history using the Bengen rolling-window methodology.
         </p>
         {slug && (
-          <Link
-            href={`/monte-carlo-simulation?slug=${slug}`}
-            className="flex items-center gap-1.5 font-inter text-[13px] font-semibold text-primary hover:underline flex-shrink-0"
-          >
-            <span className="material-symbols-outlined text-[16px]">monitoring</span>
-            Run Monte Carlo →
-          </Link>
+          <div className="flex flex-wrap items-center gap-4 flex-shrink-0">
+            <Link
+              href={`/tools/financial-independence?slug=${slug}`}
+              className="flex items-center gap-1.5 font-inter text-[13px] font-semibold text-primary hover:underline"
+            >
+              <span className="material-symbols-outlined text-[16px]">savings</span>
+              Calculate years to FI →
+            </Link>
+            <Link
+              href={`/monte-carlo-simulation?slug=${slug}`}
+              className="flex items-center gap-1.5 font-inter text-[13px] font-semibold text-primary hover:underline"
+            >
+              <span className="material-symbols-outlined text-[16px]">monitoring</span>
+              Run Monte Carlo →
+            </Link>
+          </div>
         )}
       </div>
     </section>
