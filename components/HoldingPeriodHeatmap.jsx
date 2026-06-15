@@ -26,6 +26,7 @@ const LEGEND = [
 
 export default function HoldingPeriodHeatmap({ heatmapData }) {
   const [tooltip, setTooltip] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   if (!heatmapData) return null;
   const { startYears, holdingPeriods, data } = heatmapData;
@@ -58,26 +59,11 @@ export default function HoldingPeriodHeatmap({ heatmapData }) {
         ))}
       </div>
 
-      {/* Tooltip — always reserves space so the grid doesn't shift */}
-      <div className="mb-3 h-5 font-inter text-[13px] text-on-surface-variant">
-        {tooltip && (
-          <>
-            <span className="font-semibold text-on-surface">Jan {tooltip.startYear}</span>
-            {' · '}
-            <span>{tooltip.years}-year hold ({tooltip.startYear}–{tooltip.startYear + tooltip.years - 1})</span>
-            {' · '}
-            <span
-              className="font-bold"
-              style={{ color: tooltip.cagr >= 0 ? '#27624a' : '#b71c1c' }}
-            >
-              {tooltip.cagr >= 0 ? '+' : ''}{tooltip.cagr.toFixed(2)}% CAGR
-            </span>
-          </>
-        )}
-      </div>
-
       {/* Grid */}
-      <div className="overflow-x-auto -mx-6 md:-mx-8 px-6 md:px-8">
+      <div
+        className="overflow-x-auto -mx-6 md:-mx-8 px-6 md:px-8"
+        onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+      >
         <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
@@ -140,6 +126,36 @@ export default function HoldingPeriodHeatmap({ heatmapData }) {
       <p className="font-inter text-[11px] text-on-surface-variant mt-3">
         Numbers show annualised CAGR (%). Only full calendar years included. Cells with insufficient data are blank.
       </p>
+
+      {/* Cursor tooltip — floats next to the mouse over the grid */}
+      {tooltip && (() => {
+        const TOOLTIP_W = 300;
+        const TOOLTIP_H = 36;
+        const OFFSET = 14;
+        const left = mousePos.x + OFFSET + TOOLTIP_W > window.innerWidth
+          ? mousePos.x - TOOLTIP_W - OFFSET
+          : mousePos.x + OFFSET;
+        const top = mousePos.y + OFFSET + TOOLTIP_H > window.innerHeight
+          ? mousePos.y - TOOLTIP_H - OFFSET
+          : mousePos.y + OFFSET;
+        return (
+          <div
+            className="bg-white border border-outline-variant rounded-lg shadow-lg px-3 py-2 font-inter text-[13px] text-on-surface-variant whitespace-nowrap"
+            style={{ position: 'fixed', left, top, zIndex: 200, pointerEvents: 'none' }}
+          >
+            <span className="font-semibold text-on-surface">Jan {tooltip.startYear}</span>
+            {' · '}
+            <span>{tooltip.years}-year hold ({tooltip.startYear}–{tooltip.startYear + tooltip.years - 1})</span>
+            {' · '}
+            <span
+              className="font-bold"
+              style={{ color: tooltip.cagr >= 0 ? '#27624a' : '#b71c1c' }}
+            >
+              {tooltip.cagr >= 0 ? '+' : ''}{tooltip.cagr.toFixed(2)}% CAGR
+            </span>
+          </div>
+        );
+      })()}
     </section>
   );
 }
