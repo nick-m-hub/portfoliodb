@@ -33,11 +33,15 @@ export default async function AccountPage() {
   const cookieStore = await cookies();
   const supabase = createServerSupabaseClient(cookieStore);
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // proxy.js middleware already validated the session and refreshed cookies
+  // via auth.getUser() for this request — getSession() decodes that
+  // already-verified cookie locally without a second Auth server round trip.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) redirect('/login?next=/account');
 
-  // Fetch subscription, saved mixes, and current signals in parallel
-  const [{ data: subscription }, { data: savedMixes }, signals] = await Promise.all([
+  // Fetch subscription, saved mixes, current signals, and all allocations in parallel
+  const [{ data: subscription }, { data: savedMixes }, signals, allAllocationsData] = await Promise.all([
     supabase
       .from('user_subscriptions')
       .select('plan, billing_period, status, current_period_end')
@@ -52,10 +56,10 @@ export default async function AccountPage() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
     getCurrentSignals(),
+    getAllAllocations(),
   ]);
 
-  // Only fetch full allocations if the user has saved mixes (needed for blended holdings display)
-  const allAllocations = savedMixes?.length > 0 ? await getAllAllocations() : [];
+  const allAllocations = allAllocationsData ?? [];
 
   // Builder-tier features are free for any signed-in user — only an active
   // Signals subscription elevates someone past the Builder tier.
@@ -165,7 +169,7 @@ export default async function AccountPage() {
         <SavedMixList
           initialMixes={mixes}
           tier={tier}
-          allAllocations={allAllocations ?? []}
+          allAllocations={allAllocations}
           allSignals={signals ?? []}
         />
       </section>
