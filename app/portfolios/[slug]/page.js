@@ -100,6 +100,97 @@ function buildRollingReturnData(monthlyReturns, windowMonths) {
   return result;
 }
 
+// Average return by calendar month (Jan–Dec) for the seasonality chart
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function buildSeasonalityData(monthlyReturns) {
+  if (!monthlyReturns?.length) return [];
+  const buckets = Array.from({ length: 12 }, () => []);
+  for (const row of monthlyReturns) {
+    const mIdx = parseInt(row.date.slice(5, 7), 10) - 1;
+    buckets[mIdx].push(Number(row.monthly_return));
+  }
+  return MONTH_NAMES.map((month, i) => {
+    const returns = buckets[i];
+    if (!returns.length) return { month, avg: null, count: 0, positive: 0 };
+    const avg = returns.reduce((s, r) => s + r, 0) / returns.length;
+    return {
+      month,
+      avg: Math.round(avg * 100) / 100,
+      count: returns.length,
+      positive: returns.filter((r) => r > 0).length,
+    };
+  });
+}
+
+// List of all discrete drawdown events (peak → trough → recovery)
+function monthsBetween(a, b) {
+  const [ay, am] = a.split('-').map(Number);
+  const [by, bm] = b.split('-').map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+function buildDrawdownEvents(monthlyReturns, minDepthPct = 3) {
+  if (!monthlyReturns?.length) return [];
+  let value = 10000;
+  let peak = 10000;
+  let peakDate = monthlyReturns[0].date.slice(0, 7);
+  let inDrawdown = false;
+  let drawdownStart = null;
+  let troughDate = null;
+  let troughValue = null;
+  const events = [];
+  for (const row of monthlyReturns) {
+    value = value * (1 + row.monthly_return / 100);
+    const date = row.date.slice(0, 7);
+    if (value >= peak) {
+      if (inDrawdown) {
+        const depth = ((troughValue - peak) / peak) * 100;
+        if (Math.abs(depth) >= minDepthPct) {
+          events.push({
+            startDate: drawdownStart,
+            troughDate,
+            endDate: date,
+            depth: Math.round(depth * 100) / 100,
+            lengthMonths: monthsBetween(drawdownStart, troughDate),
+            recoveryMonths: monthsBetween(troughDate, date),
+          });
+        }
+        inDrawdown = false;
+      }
+      peak = value;
+      peakDate = date;
+    } else {
+      if (!inDrawdown) {
+        inDrawdown = true;
+        drawdownStart = peakDate;
+        troughDate = date;
+        troughValue = value;
+      } else if (value < troughValue) {
+        troughDate = date;
+        troughValue = value;
+      }
+    }
+  }
+  if (inDrawdown) {
+    const depth = ((troughValue - peak) / peak) * 100;
+    if (Math.abs(depth) >= minDepthPct) {
+      events.push({
+        startDate: drawdownStart,
+        troughDate,
+        endDate: null,
+        depth: Math.round(depth * 100) / 100,
+        lengthMonths: monthsBetween(drawdownStart, troughDate),
+        recoveryMonths: null,
+      });
+    }
+  }
+  return events.sort((a, b) => Math.abs(b.depth) - Math.abs(a.depth));
+}
+function formatMY(yyyyMM) {
+  if (!yyyyMM) return null;
+  const [y, m] = yyyyMM.split('-');
+  return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
+}
+
 // Compute holding period returns heatmap: for every (startYear, N) pair, annualised CAGR
 function buildHeatmapData(monthlyReturns) {
   if (!monthlyReturns?.length) return null;
@@ -199,6 +290,8 @@ export default async function PortfolioDetailPage({ params }) {
   };
 
   const heatmapData = buildHeatmapData(monthlyReturns);
+  const seasonalityData = buildSeasonalityData(monthlyReturns);
+  const drawdownEvents = buildDrawdownEvents(monthlyReturns);
   const withdrawalRates = buildWithdrawalRates(monthlyReturns);
   const last10yrReturns = monthlyReturns.slice(-120);
   const growthData10yr = monthlyReturns.length > 120 ? buildGrowthData(last10yrReturns) : [];
@@ -237,7 +330,9 @@ export default async function PortfolioDetailPage({ params }) {
     { id: 'withdrawal-rates', label: 'Withdrawal Rates' },
     ...(descriptionDetail ? [{ id: 'strategy',          label: 'Strategy' }] : []),
     { id: 'charts',           label: 'Charts' },
+    ...(drawdownEvents.length > 0 ? [{ id: 'drawdown-events', label: 'Drawdowns' }] : []),
     { id: 'heatmap',          label: 'Holding Period' },
+    ...(seasonalityData.length > 0 ? [{ id: 'seasonality', label: 'Seasonality' }] : []),
   ];
 
   return (
@@ -725,8 +820,57 @@ export default async function PortfolioDetailPage({ params }) {
               drawdownData={drawdownData}
               rollingDatasets={rollingDatasets}
               benchmarks={benchmarks}
+              seasonalityData={seasonalityData}
             />
           </div>
+
+          {/* ── Drawdown Events Table ── */}
+          {drawdownEvents.length > 0 && (
+            <div id="drawdown-events" className="lg:col-span-12">
+              <section className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
+                <div className="mb-6">
+                  <h2 className="font-manrope text-[22px] font-bold text-primary">Drawdown History</h2>
+                  <p className="font-inter text-[13px] text-on-surface-variant mt-1">
+                    All drawdowns ≥ 3% sorted by severity. Recovery time is measured from the trough back to the prior peak.
+                  </p>
+                </div>
+                <div className="overflow-x-auto -mx-8 px-8">
+                  <table className="w-full min-w-[560px] font-inter text-[13px]">
+                    <thead>
+                      <tr className="border-b border-outline-variant">
+                        <th className="text-left pb-3 pr-4 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Peak</th>
+                        <th className="text-left pb-3 pr-4 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Trough</th>
+                        <th className="text-left pb-3 pr-4 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Recovery</th>
+                        <th className="text-right pb-3 pr-4 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Depth</th>
+                        <th className="text-right pb-3 pr-4 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Peak → Trough</th>
+                        <th className="text-right pb-3 font-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Recovery Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drawdownEvents.map((ev, i) => (
+                        <tr key={i} className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-low transition-colors">
+                          <td className="py-3 pr-4 text-on-surface font-semibold">{formatMY(ev.startDate)}</td>
+                          <td className="py-3 pr-4 text-on-surface">{formatMY(ev.troughDate)}</td>
+                          <td className="py-3 pr-4">
+                            {ev.endDate
+                              ? <span className="text-on-surface">{formatMY(ev.endDate)}</span>
+                              : <span className="font-semibold text-[#b45309]">Ongoing</span>
+                            }
+                          </td>
+                          <td className="py-3 pr-4 text-right font-bold text-error">{ev.depth.toFixed(1)}%</td>
+                          <td className="py-3 pr-4 text-right text-on-surface-variant">{ev.lengthMonths} mo</td>
+                          <td className="py-3 text-right text-on-surface-variant">
+                            {ev.recoveryMonths != null ? `${ev.recoveryMonths} mo` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
           <div id="heatmap" className="lg:col-span-12">
             <HoldingPeriodHeatmap heatmapData={heatmapData} />
           </div>

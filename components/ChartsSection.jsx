@@ -16,6 +16,10 @@ const RollingReturnChart = dynamic(() => import('@/components/RollingReturnChart
   ssr: false,
   loading: () => <ChartSkeleton height={280} />,
 });
+const SeasonalityChart = dynamic(() => import('@/components/SeasonalityChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={220} />,
+});
 
 function mergeWithBenchmark(portfolioData, benchmarkData) {
   if (!benchmarkData?.length) return portfolioData;
@@ -54,6 +58,7 @@ export default function ChartsSection({
   drawdownData,
   rollingDatasets,
   benchmarks,
+  seasonalityData,
   section = 'all', // 'all' | 'growth' | 'charts'
 }) {
   const [selectedBenchmark, setSelectedBenchmark] = useState(null);
@@ -252,6 +257,29 @@ export default function ChartsSection({
             </p>
           </div>
           <RollingReturnChart datasets={activeRollingDatasets} benchmarkLabel={activeBenchmark?.label} />
+        </section>
+      )}
+
+      {/* Seasonality */}
+      {showCharts && seasonalityData?.length > 0 && (
+        <section id="seasonality" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+          <div className="mb-6">
+            <h2 className="font-manrope text-[22px] font-bold text-primary">Seasonality</h2>
+            <p className="font-inter text-[13px] text-on-surface-variant mt-1">
+              Average return for each calendar month across the full backtest history.
+            </p>
+          </div>
+          <SeasonalityChart data={seasonalityData} />
+          <div className="grid grid-cols-6 md:grid-cols-12 gap-2 mt-6 pt-4 border-t border-outline-variant">
+            {seasonalityData.map((d) => (
+              <div key={d.month} className="text-center">
+                <span className="block font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">{d.month}</span>
+                <span className={`font-manrope text-[13px] font-bold ${d.avg == null ? 'text-on-surface-variant' : d.avg >= 0 ? 'text-primary' : 'text-error'}`}>
+                  {d.avg == null ? '—' : `${d.avg >= 0 ? '+' : ''}${d.avg.toFixed(1)}%`}
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
     </>
