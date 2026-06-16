@@ -13,6 +13,7 @@ const staticPages = [
   { path: '/tools/drawdown-analyzer', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/portfolio-map',     changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/financial-independence', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/tools/lump-sum-vs-dca',    changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/correlation',       changeFrequency: 'monthly', priority: 0.7 },
   { path: '/strategies',              changeFrequency: 'monthly', priority: 0.8 },
   { path: '/blog',                    changeFrequency: 'weekly',  priority: 0.7 },

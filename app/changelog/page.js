@@ -24,6 +24,10 @@ const CHANGELOG = [
     entries: [
       {
         type: 'new',
+        text: 'Lump Sum vs. DCA Calculator added — see how investing all at once compared to spreading contributions over 3, 6, or 12 months, across every historical starting period for any portfolio. Shows win rate, median ending values, and a chart of the lump sum advantage over time.',
+      },
+      {
+        type: 'new',
         text: 'Financial Independence Calculator added — enter your income, savings rate, current savings, and target retirement spending to see a range of years to reach financial independence for any portfolio, based on 1,000 bootstrap simulations of historical returns. Toggle between Safe Withdrawal Rate (SWR) and Perpetual Withdrawal Rate (PWR) to set your FI Number.',
       },
       {

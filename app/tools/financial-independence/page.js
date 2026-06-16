@@ -28,8 +28,14 @@ export const metadata = {
 export default async function FinancialIndependencePage({ searchParams }) {
   const { slug: slugParam } = await searchParams;
 
+  const DEFAULT_SLUG = 'united-states-60-40-portfolio';
   const allPortfolioNames = (await getPortfolioNames()) ?? [];
-  const slug = slugParam || allPortfolioNames[0]?.slug || '';
+  const slug =
+    slugParam && allPortfolioNames.some(p => p.slug === slugParam)
+      ? slugParam
+      : allPortfolioNames.some(p => p.slug === DEFAULT_SLUG)
+        ? DEFAULT_SLUG
+        : allPortfolioNames[0]?.slug || '';
 
   let initialReturns = [];
   let initialPortfolio = null;

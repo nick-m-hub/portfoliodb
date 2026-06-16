@@ -19,6 +19,14 @@ _Avoid_: contribution rate
 **Annual Income**:
 A user input on the Financial Independence Calculator, used only to derive the annual contribution amount (Annual Income × Savings Rate). Not otherwise used by the simulation.
 
+**Investment Horizon** (Lump Sum vs. DCA tool):
+The total window from the first dollar deployed to the measurement date — shared identically by both strategies. A 10-year horizon means both lump sum and DCA are measured at the same end date, 10 years after the first investment. Distinct from "holding period after DCA completes" — the DCA period is contained *within* the Investment Horizon, not added on top of it.
+_Avoid_: holding period (ambiguous — implies time after deployment ends), investment period
+
+**DCA Period** (Lump Sum vs. DCA tool):
+The number of months over which the total investment amount is spread in equal beginning-of-month installments. Always shorter than the Investment Horizon. Options: 3, 6, or 12 months.
+_Avoid_: contribution period, averaging period
+
 **AI Picks**:
 The 3 portfolios surfaced by the AI Recommendation feature on the database page, pinned above the regular sorted grid in a distinct "AI Recommendations" section. Produced by submitting a natural-language goal description to the AI; replaced when the user submits a new query; dismissed explicitly via "Clear AI picks."
 _Avoid_: AI results, recommendations (too generic — use "AI Picks" when referring to the pinned cards specifically)
