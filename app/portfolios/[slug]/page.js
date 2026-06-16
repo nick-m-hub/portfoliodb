@@ -14,6 +14,7 @@ import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 import PortfolioJumpNav from '@/components/PortfolioJumpNav';
 import SeasonalitySection from '@/components/SeasonalitySection';
+import AnalyzeMenu from '@/components/AnalyzeMenu';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -422,20 +423,7 @@ export default async function PortfolioDetailPage({ params }) {
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Database
             </Link>
-            <Link
-              href={`/compare?slugs=${slug}`}
-              className="hidden lg:flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">compare_arrows</span>
-              Compare This Portfolio
-            </Link>
-            <Link
-              href={`/monte-carlo-simulation?slug=${slug}`}
-              className="hidden lg:flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-full font-inter text-[14px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">monitoring</span>
-              Monte Carlo Simulation
-            </Link>
+            <AnalyzeMenu slug={slug} />
             {portfolio.m1_link && (
               <a
                 href={portfolio.m1_link}
