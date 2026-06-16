@@ -13,6 +13,7 @@ import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 import PortfolioJumpNav from '@/components/PortfolioJumpNav';
+import SeasonalitySection from '@/components/SeasonalitySection';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
@@ -820,7 +821,6 @@ export default async function PortfolioDetailPage({ params }) {
               drawdownData={drawdownData}
               rollingDatasets={rollingDatasets}
               benchmarks={benchmarks}
-              seasonalityData={seasonalityData}
             />
           </div>
 
@@ -874,6 +874,12 @@ export default async function PortfolioDetailPage({ params }) {
           <div id="heatmap" className="lg:col-span-12">
             <HoldingPeriodHeatmap heatmapData={heatmapData} />
           </div>
+
+          {seasonalityData.length > 0 && (
+            <div id="seasonality-wrapper" className="lg:col-span-12">
+              <SeasonalitySection data={seasonalityData} />
+            </div>
+          )}
         </div>
 
         {/* ── Related Portfolios ── */}
