@@ -19,6 +19,10 @@ _Avoid_: contribution rate
 **Annual Income**:
 A user input on the Financial Independence Calculator, used only to derive the annual contribution amount (Annual Income × Savings Rate). Not otherwise used by the simulation.
 
+**AI Picks**:
+The 3 portfolios surfaced by the AI Recommendation feature on the database page, pinned above the regular sorted grid in a distinct "AI Recommendations" section. Produced by submitting a natural-language goal description to the AI; replaced when the user submits a new query; dismissed explicitly via "Clear AI picks."
+_Avoid_: AI results, recommendations (too generic — use "AI Picks" when referring to the pinned cards specifically)
+
 **Years to FI**:
 The headline output of the Financial Independence Calculator — the simulation year (rounded up) in which portfolio value first reaches the FI Number, reported as a 10th/50th/90th percentile range across bootstrap simulations. If Current Savings already meets or exceeds the FI Number at the start, reported as "Already FI" instead of running the simulation.
 _Avoid_: time to retirement (when referring to this specific calculated value)

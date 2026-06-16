@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { getPortfolios, getAllAllocations, getSignalPortfolioCount } from '@/lib/db';
-import AIRecommend from '@/components/AIRecommend';
 import FilterBar from '@/components/FilterBar';
 import TopStrategies from '@/components/TopStrategies';
 import EmailCapture from '@/components/EmailCapture';
@@ -175,14 +174,6 @@ export default async function Home() {
         {/* ── Email Capture ── */}
         <section className="col-span-12">
           <EmailCapture />
-        </section>
-
-        {/* ── AI Recommend ── */}
-        <section className="col-span-12">
-          <p className="font-inter text-[13px] text-on-surface-variant text-center mb-4 font-medium">
-            Not sure which portfolio fits you?
-          </p>
-          <AIRecommend />
         </section>
 
         {/* ── Premium ── */}

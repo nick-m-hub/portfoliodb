@@ -50,22 +50,27 @@ function categoryBadgeLabel(category) {
 }
 
 // ── Portfolio Card (Grid View) ──────────────────────────────────────────────
-function PortfolioCard({ portfolio }) {
+function PortfolioCard({ portfolio, aiReason, outsideFilters }) {
   const { allocations = [] } = portfolio;
 
   return (
     <Link
       href={`/portfolios/${portfolio.slug}`}
-      className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-4"
+      className={`bg-surface-container-lowest border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-4 ${aiReason ? 'border-[#71a38b]/60' : 'border-outline-variant'}`}
     >
       {/* Top row: badge + backtest */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="bg-[#D1E4D8] text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-inter">
           {categoryBadgeLabel(portfolio.category)}
         </span>
         {portfolio.total_months && (
           <span className="text-[10px] font-bold text-outline uppercase tracking-widest font-inter">
             {backtestYears(portfolio.total_months)}
+          </span>
+        )}
+        {outsideFilters && (
+          <span className="text-[10px] font-semibold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded font-inter ml-auto">
+            Outside your filters
           </span>
         )}
       </div>
@@ -138,6 +143,12 @@ function PortfolioCard({ portfolio }) {
           </div>
         </div>
       )}
+
+      {aiReason && (
+        <p className="font-inter text-[13px] text-on-surface-variant leading-relaxed border-t border-outline-variant pt-3 mt-auto">
+          {aiReason}
+        </p>
+      )}
     </Link>
   );
 }
@@ -201,6 +212,43 @@ function strategyLabel(slug) {
 
 export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
   const searchParams = useSearchParams();
+
+  // AI Recommend state
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [aiPicks, setAiPicks] = useState(null);
+
+  async function handleAiSubmit(e) {
+    e.preventDefault();
+    if (!aiQuery.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiPicks(null);
+    try {
+      const res = await fetch('/api/screener', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: aiQuery.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAiError(data.error || 'Something went wrong. Please try again.');
+        return;
+      }
+      setAiPicks(data.recommendations);
+    } catch {
+      setAiError('Could not reach the server. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function clearAiPicks() {
+    setAiPicks(null);
+    setAiQuery('');
+    setAiError(null);
+  }
 
   // Initialise filters from URL params (set by the home page FilterBar)
   const [view, setView] = useState('grid'); // 'grid' | 'list'
@@ -301,6 +349,8 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
     return result;
   }, [portfolios, categoryFilters, riskFilters, bucketFilters, strategyFilters, maxDrawdownFilter, sortBy]);
 
+  const filteredSlugs = useMemo(() => new Set(filtered.map((p) => p.slug)), [filtered]);
+
   const hasFilters = categoryFilters.length > 0 || riskFilters.length > 0 || bucketFilters.length > 0 || strategyFilters.length > 0 || maxDrawdownFilter != null;
 
   return (
@@ -344,6 +394,61 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
             </button>
           </div>
         </header>
+
+        {/* ── AI Input Bar ── */}
+        <div className="mb-8">
+          <form
+            onSubmit={handleAiSubmit}
+            className="relative flex flex-col md:flex-row items-center gap-3 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-2 shadow-sm"
+          >
+            <div className="flex-1 flex items-center gap-3 px-4 w-full">
+              <span className="material-symbols-outlined text-[#71a38b] flex-shrink-0">auto_awesome</span>
+              <input
+                type="text"
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                placeholder="Describe your goal — e.g. 'I'm retiring in 20 years and want to avoid big losses'…"
+                className="flex-1 bg-transparent font-inter text-[15px] text-on-surface placeholder:text-on-surface-variant/60 placeholder:italic focus:outline-none"
+                disabled={aiLoading}
+              />
+              {aiPicks && (
+                <button
+                  type="button"
+                  onClick={clearAiPicks}
+                  className="flex items-center gap-1 font-inter text-[13px] font-medium text-on-surface-variant hover:text-on-surface transition-colors whitespace-nowrap flex-shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  Clear AI picks
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={aiLoading || !aiQuery.trim()}
+              className="w-full md:w-auto bg-[#71a38b] text-white font-inter font-semibold py-2.5 px-6 rounded-lg hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {aiLoading ? (
+                <>
+                  <span className="material-symbols-outlined text-[20px]">progress_activity</span>
+                  Thinking…
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[20px]">magic_button</span>
+                  Find portfolios
+                </>
+              )}
+            </button>
+          </form>
+          {aiError && (
+            <p className="mt-2 text-[13px] text-error font-inter">{aiError}</p>
+          )}
+          {!aiPicks && !aiError && (
+            <p className="mt-2 text-[12px] text-on-surface-variant font-inter italic">
+              Our AI analyzes 50+ years of historical data to find your best match.
+            </p>
+          )}
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* ── Sidebar Filters ── */}
@@ -466,6 +571,41 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
               {showFilters ? 'Hide Filters' : 'Filters'}
               {hasFilters && <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">ON</span>}
             </button>
+
+            {/* ── AI Picks Section ── */}
+            {aiPicks && aiPicks.length > 0 && (
+              <div className="mb-8">
+                <div className="flex justify-between items-end mb-5 border-b border-[#71a38b]/30 pb-3">
+                  <h2 className="font-manrope text-[20px] font-semibold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#71a38b]">auto_awesome</span>
+                    AI Recommendations
+                  </h2>
+                  <span className="font-inter text-sm bg-[#dbe8e0] text-[#4f6d5a] px-3 py-1 rounded-full">
+                    Matched to your goal
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {aiPicks.map((pick) => {
+                    const portfolio = portfolios.find((p) => p.slug === pick.slug);
+                    if (!portfolio) return null;
+                    const outsideFilters = hasFilters && !filteredSlugs.has(pick.slug);
+                    return (
+                      <PortfolioCard
+                        key={pick.slug}
+                        portfolio={portfolio}
+                        aiReason={pick.reason}
+                        outsideFilters={outsideFilters}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="mt-8 pt-6 border-t border-outline-variant">
+                  <p className="font-inter text-[13px] font-semibold text-on-surface-variant uppercase tracking-wider">
+                    All strategies
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Result count + sort */}
             <div className="flex items-center justify-between mb-5">

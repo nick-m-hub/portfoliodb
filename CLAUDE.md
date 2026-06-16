@@ -290,7 +290,7 @@ Key formula approach:
 ```
 portfoliodb/
   app/
-    page.tsx                         # Homepage (server component) — H1: "75+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span). Fetches allPortfolios + allAllocations + signalCount. Stat strip below H1: portfolioCount (dynamic), yearsOfData (new Date().getFullYear()-1970), signalCount (dynamic), 'free to use' (static). Section order: Hero → TopStrategies → Tools Strip → EmailCapture → AIRecommend → Premium. TOOLS constant defines 4 tool cards (Builder, Monte Carlo, Correlation Matrix, FI Calculator). Premium copy rewritten with 4 specific bullets (no AI reference).
+    page.tsx                         # Homepage (server component) — H1: "75+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span). Fetches allPortfolios + allAllocations + signalCount. Stat strip below H1: portfolioCount (dynamic), yearsOfData (new Date().getFullYear()-1970), signalCount (dynamic), 'free to use' (static). Section order: Hero → TopStrategies → Tools Strip → EmailCapture → Premium. TOOLS constant defines 4 tool cards (Builder, Monte Carlo, Correlation Matrix, FI Calculator). Premium copy rewritten with 4 specific bullets (no AI reference). AIRecommend removed from homepage (June 2026) — consolidated to the database page where it can show results inline.
     layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar, Vercel Analytics
     globals.css                      # Tailwind v4 @theme design tokens
     database/
@@ -356,7 +356,7 @@ portfoliodb/
     NavSearch.jsx                    # Navbar search box (client) — search icon by default; click opens floating panel with input + results
     MobileMoreMenu.jsx               # Mobile "More ▾" dropdown (client) — toggles Compare, Builder, Monte Carlo, Membership, Account links; click-outside to close
     FilterBar.jsx                    # Home page filter bar (client) — navigates to /database; max drawdown is a 4-option dropdown (No limit / <10% / <20% / <30%), not a free-text input
-    AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language; repositioned below EmailCapture in homepage (no longer in hero); results section padding fixed (removed extra px-8/max-w)
+    AIRecommend.jsx                  # AI "find portfolios" search bar (client) — component exists but is no longer used on the homepage (June 2026). AI Recommend logic is now embedded directly in DatabaseClient.jsx.
     TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side; "Browse all portfolios in the database →" link below cards
     DatabaseClient.jsx               # Database page UI with filters/sort/grid/list (client)
     ScreenerClient.jsx               # Screener page UI with sliders/table/export/column-picker (client)
@@ -581,6 +581,10 @@ All must also be set in Vercel project settings for production (except SUPABASE_
   pre-fill filters (from the home page FilterBar)
 - Wrapped in `<Suspense>` in database/page.js (required by useSearchParams)
 - Risk levels 1–2 = Conservative, 3 = Moderate, 4–5 = Aggressive
+- **AI input bar (June 2026):** Full-width bar sits between the page header and the sidebar+grid layout. Submits to `POST /api/screener` (same endpoint as the old homepage AIRecommend). State: `aiQuery`, `aiLoading`, `aiError`, `aiPicks`. Replaces previous picks on re-submit; "Clear AI picks" link appears inline in the bar when picks are showing and resets all AI state.
+- **AI Picks section (June 2026):** When `aiPicks` is non-null, a distinct "AI Recommendations" section (header + `auto_awesome` icon + "Matched to your goal" badge) pins 3 `PortfolioCard` components above the regular grid, separated by a divider. AI Picks are looked up from the full `portfolios` prop by slug — they ignore active filters. Any pick whose slug is absent from `filteredSlugs` (the active filtered set) shows an "Outside your filters" tag in its card header. See ADR `docs/adr/0001-ai-picks-ignore-active-filters.md` for the rationale.
+- `filteredSlugs` useMemo: `new Set(filtered.map(p => p.slug))` — used for O(1) outside-filters detection per AI pick.
+- `PortfolioCard` accepts optional `aiReason` (string) and `outsideFilters` (bool) props — `aiReason` renders below the allocation bar; `outsideFilters` renders a tag in the top badge row; card border turns green (`border-[#71a38b]/60`) when `aiReason` is set.
 - Sidebar filters: Category (pill buttons), Risk Level (checkboxes),
   Asset Exposure (EQ/FI/CMD/RE/ALT bucket buttons), Strategy (bucket buttons
   from portfolio_strategies table), Max Drawdown (text input)
