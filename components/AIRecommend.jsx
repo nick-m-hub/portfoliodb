@@ -42,7 +42,7 @@ export default function AIRecommend() {
   return (
     <>
       {/* ── Search bar ── */}
-      <div className="w-full max-w-4xl mt-4">
+      <div className="w-full max-w-4xl mx-auto">
         <form
           onSubmit={handleSubmit}
           className="relative flex flex-col md:flex-row items-center gap-3 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-2 shadow-sm"
@@ -90,7 +90,7 @@ export default function AIRecommend() {
 
       {/* ── AI Results (appear below the hero when ready) ── */}
       {recommendations && recommendations.length > 0 && (
-        <div className="w-full max-w-[1280px] px-8 mt-12 text-left">
+        <div className="w-full mt-8 text-left">
           {/* Header */}
           <div className="flex justify-between items-end mb-6 border-b border-[#71a38b]/30 pb-3">
             <h2 className="font-manrope text-[22px] font-semibold text-on-surface flex items-center gap-2">

@@ -82,18 +82,22 @@ export default function FilterBar() {
         <label htmlFor="filter-max-dd" className="font-inter text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
           Max Drawdown
         </label>
-        <div className="flex items-center gap-1.5 w-full">
-          <span className="font-inter text-sm text-on-surface-variant">&lt;</span>
-          <input
+        <div className="relative w-full">
+          <select
             id="filter-max-dd"
-            type="text"
-            inputMode="decimal"
             value={maxDrawdown}
-            onChange={(e) => setMaxDrawdown(e.target.value.replace(/[^\d.]/g, ''))}
-            placeholder="e.g. 20"
-            className="w-20 font-inter text-sm text-on-surface bg-transparent border-b border-outline-variant focus:border-primary focus:outline-none py-0.5 placeholder:text-on-surface-variant/50"
-          />
-          <span className="font-inter text-sm text-on-surface-variant">%</span>
+            onChange={(e) => setMaxDrawdown(e.target.value)}
+            className="w-full appearance-none font-inter text-sm bg-transparent focus:outline-none pr-6 cursor-pointer text-on-surface"
+            style={{ color: maxDrawdown ? undefined : 'var(--color-on-surface-variant)' }}
+          >
+            <option value="">No limit</option>
+            <option value="10">Less than 10%</option>
+            <option value="20">Less than 20%</option>
+            <option value="30">Less than 30%</option>
+          </select>
+          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-sm">
+            expand_more
+          </span>
         </div>
       </div>
 

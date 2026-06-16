@@ -131,6 +131,16 @@ export default function TopStrategies({ sections }) {
           </Link>
         ))}
       </div>
+
+      <div className="text-center mt-8">
+        <a
+          href="/database"
+          className="font-inter text-[14px] font-medium text-[#27624a] hover:text-primary transition-colors inline-flex items-center gap-1.5"
+        >
+          Browse all portfolios in the database
+          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </a>
+      </div>
     </section>
   );
 }

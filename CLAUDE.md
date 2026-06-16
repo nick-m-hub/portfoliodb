@@ -290,7 +290,7 @@ Key formula approach:
 ```
 portfoliodb/
   app/
-    page.tsx                         # Homepage (server component) — H1: "70+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span)
+    page.tsx                         # Homepage (server component) — H1: "75+ Portfolio Strategies, / Backtested Since 1970" ('Backtested Since 1970' in text-[#27624a] span). Fetches allPortfolios + allAllocations + signalCount. Stat strip below H1: portfolioCount (dynamic), yearsOfData (new Date().getFullYear()-1970), signalCount (dynamic), 'free to use' (static). Section order: Hero → TopStrategies → Tools Strip → EmailCapture → AIRecommend → Premium. TOOLS constant defines 4 tool cards (Builder, Monte Carlo, Correlation Matrix, FI Calculator). Premium copy rewritten with 4 specific bullets (no AI reference).
     layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar, Vercel Analytics
     globals.css                      # Tailwind v4 @theme design tokens
     database/
@@ -355,9 +355,9 @@ portfoliodb/
     portfoliodb-icon.svg             # Site logo SVG (also copied to public/ for Next.js Image)
     NavSearch.jsx                    # Navbar search box (client) — search icon by default; click opens floating panel with input + results
     MobileMoreMenu.jsx               # Mobile "More ▾" dropdown (client) — toggles Compare, Builder, Monte Carlo, Membership, Account links; click-outside to close
-    FilterBar.jsx                    # Home page filter bar (client) — navigates to /database
-    AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language (e.g. 'saving for retirement in 20 years')
-    TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side
+    FilterBar.jsx                    # Home page filter bar (client) — navigates to /database; max drawdown is a 4-option dropdown (No limit / <10% / <20% / <30%), not a free-text input
+    AIRecommend.jsx                  # AI "find portfolios" search bar (client) — placeholder uses goal-based language; repositioned below EmailCapture in homepage (no longer in hero); results section padding fixed (removed extra px-8/max-w)
+    TopStrategies.jsx                # Homepage "Top Strategies by" section (client) — dropdown toggles Sharpe/CAGR/Min Drawdown; data pre-computed server-side; "Browse all portfolios in the database →" link below cards
     DatabaseClient.jsx               # Database page UI with filters/sort/grid/list (client)
     ScreenerClient.jsx               # Screener page UI with sliders/table/export/column-picker (client)
     AllocationDonut.jsx              # SVG donut chart — server-renderable, no JS
@@ -542,7 +542,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Client component — compact horizontal card with email input + "Send me the report" button
 - Posts to `/api/subscribe` (Next.js API route) which calls MailerLite API server-side
 - Three states: idle, loading (spinner), success (confirmation message), error (inline message)
-- Placed on: homepage (above Top Strategies, directly below the hero), membership page (above price callout), portfolio detail pages (below Related Portfolios)
+- Placed on: homepage (below Tools Strip, above AI Recommend — June 2026 reorder), membership page (above price callout), portfolio detail pages (below Related Portfolios)
 - Current copy: "Free Report" badge + `picture_as_pdf` icon; headline is the actual report title "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years"; subline "Download the free PDF — plus get monthly portfolio insights from PortfolioDB."
 - Lead magnet: "How Index Fund Portfolios Performed in the Two Worst Crashes of the Last 25 Years" PDF, delivered via MailerLite automation
 
@@ -573,7 +573,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - No longer uses assetClasses prop — categories are hardcoded (Buy and Hold, Tactical)
 - Category: native `<select>` dropdown (single select)
 - Risk Tolerance: pill buttons 1–5 (single select)
-- Max Drawdown: number-only text input
+- Max Drawdown: dropdown select with 4 options — No limit (value=""), Less than 10% (value="10"), Less than 20% (value="20"), Less than 30% (value="30")
 - On submit: navigates to `/database?risk=N&max_drawdown=N&cat=Name`
 
 ### DatabaseClient.jsx
@@ -733,6 +733,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Data is pre-computed server-side in `page.tsx` using `getAllAllocations()` + array sort; no client-side fetching
 - Dropdown is a styled native `<select>` with `appearance-none` + Material Symbols `expand_more` arrow overlay
 - Primary stat, icon, and secondary stats all update based on selected metric
+- "Browse all portfolios in the database →" centered link below the 3 cards (June 2026)
 
 ### MonteCarloClient.jsx (Monte Carlo Simulation — /monte-carlo-simulation)
 
@@ -1333,7 +1334,7 @@ To add a portfolio to the signal set: set any non-null value in the `kofi_link` 
 - "Portfolios currently in the signal set" section lists all covered portfolios alphabetically, each linking to their detail page
 - "What a signal looks like" mock email shows 3 hardcoded portfolios; "+ N more" count is dynamic: `{signalCount - 3}` — updates automatically as portfolios are added
 - Builder card CTA links to `/login?next=/builder` (free, no Memberful); Signals CTA links directly to its Memberful checkout URL (see Tiers section above)
-- Homepage has one membership touchpoint: the Premium section (below Top Strategies), with headline "Monthly Signals for {signalCount} Portfolios" (live count). The compact callout banner was removed May 2026.
+- Homepage has one membership touchpoint: the Premium section (last section, below AI Recommend), with headline "Monthly Signals for {signalCount} Portfolios" (live count) and 4 specific bullets. The compact callout banner was removed May 2026. Homepage section order (June 2026): Hero → Top Strategies → Tools Strip → Email Capture → AI Recommend → Premium.
 
 ---
 
