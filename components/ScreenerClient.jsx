@@ -22,6 +22,13 @@ const ALL_COLUMNS = [
   { key: 'ulcer_performance_index', label: 'UPI',           group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['UPI'],              format: v => v != null ? v.toFixed(2) : '—',                              className: 'text-on-surface' },
   { key: 'cagr_gfc',                label: 'GFC CAGR',      group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['GFC CAGR'],         format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
   { key: 'cagr_dotcom',             label: 'Dotcom CAGR',   group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Dotcom CAGR'],      format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'cagr_1yr',                label: '1yr CAGR',      group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['1yr CAGR'],         format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'cagr_3yr',                label: '3yr CAGR',      group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['3yr CAGR'],         format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-primary font-bold' },
+  { key: 'annualized_volatility',   label: 'Volatility',    group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Ann. Volatility'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'pct_profitable_months',   label: '% Profitable',  group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Profitable Months'],format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
+  { key: 'best_month',              label: 'Best Month',    group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Best Month'],       format: v => v != null ? `+${v.toFixed(1)}%` : '—',                       className: 'text-[#27624a] font-semibold' },
+  { key: 'worst_month',             label: 'Worst Month',   group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Worst Month'],      format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-error font-semibold' },
+  { key: 'longest_drawdown_months', label: 'Longest DD',    group: 'performance', defaultOn: false, definition: STAT_DEFINITIONS['Longest Drawdown'], format: v => v != null ? `${v}mo` : '—',                                   className: 'text-on-surface' },
   // Rolling Returns
   { key: 'rolling_1yr_low',         label: '1yr Low',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—',   className: 'text-error' },
   { key: 'rolling_1yr_avg',         label: '1yr Avg',       group: 'rolling',     defaultOn: false, definition: STAT_DEFINITIONS['Rolling Returns'],  format: v => v != null ? `${v.toFixed(1)}%` : '—',                        className: 'text-on-surface' },
@@ -241,15 +248,18 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   // Sliders
   const [minCagr, setMinCagr] = useState(0);
   const [minSharpe, setMinSharpe] = useState(-0.5);
-  const [maxDrawdown, setMaxDrawdown] = useState(80);
-  const [minWorstYear, setMinWorstYear] = useState(-70);
+  const [maxDrawdown, setMaxDrawdown] = useState(60);
+  const [minWorstYear, setMinWorstYear] = useState(-45);
   const [minCagr10yr, setMinCagr10yr] = useState(-5);
   const [minSortino, setMinSortino] = useState(-0.5);
   const [maxUlcer, setMaxUlcer] = useState(14);
   const [minRolling1yr, setMinRolling1yr] = useState(-50);
-  const [minRolling3yr, setMinRolling3yr] = useState(-30);
-  const [minRolling5yr, setMinRolling5yr] = useState(-25);
-  const [minRolling10yr, setMinRolling10yr] = useState(-15);
+  const [minRolling3yr, setMinRolling3yr] = useState(-20);
+  const [minRolling5yr, setMinRolling5yr] = useState(-10);
+  const [minRolling10yr, setMinRolling10yr] = useState(-5);
+  const [maxVolatility, setMaxVolatility] = useState(20);
+  const [minProfitableMonths, setMinProfitableMonths] = useState(0);
+  const [maxLongestDrawdown, setMaxLongestDrawdown] = useState(75);
 
   // Filters
   const [bucketFilters, setBucketFilters] = useState([]);
@@ -284,15 +294,17 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
   }
 
   function clearFilters() {
-    setMinCagr(0); setMinSharpe(-0.5); setMaxDrawdown(80); setMinWorstYear(-70);
+    setMinCagr(0); setMinSharpe(-0.5); setMaxDrawdown(60); setMinWorstYear(-45);
     setMinCagr10yr(-5); setMinSortino(-0.5); setMaxUlcer(14);
-    setMinRolling1yr(-50); setMinRolling3yr(-30); setMinRolling5yr(-25); setMinRolling10yr(-15);
+    setMinRolling1yr(-50); setMinRolling3yr(-20); setMinRolling5yr(-10); setMinRolling10yr(-5);
+    setMaxVolatility(20); setMinProfitableMonths(0); setMaxLongestDrawdown(75);
     setBucketFilters([]); setAssetClassFilters([]); setPage(1);
   }
 
-  const hasFilters = minCagr > 0 || minSharpe > -0.5 || maxDrawdown < 80
-    || minWorstYear > -70 || minCagr10yr > -5 || minSortino > -0.5 || maxUlcer < 14
-    || minRolling1yr > -50 || minRolling3yr > -30 || minRolling5yr > -25 || minRolling10yr > -15
+  const hasFilters = minCagr > 0 || minSharpe > -0.5 || maxDrawdown < 60
+    || minWorstYear > -45 || minCagr10yr > -5 || minSortino > -0.5 || maxUlcer < 14
+    || minRolling1yr > -50 || minRolling3yr > -20 || minRolling5yr > -10 || minRolling10yr > -5
+    || maxVolatility < 20 || minProfitableMonths > 0 || maxLongestDrawdown < 75
     || bucketFilters.length > 0 || assetClassFilters.length > 0;
 
   const filtered = useMemo(() => {
@@ -304,6 +316,9 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
       if (p.cagr_10yr != null && p.cagr_10yr < minCagr10yr) return false;
       if (p.sortino_ratio != null && p.sortino_ratio < minSortino) return false;
       if (p.ulcer_index != null && p.ulcer_index > maxUlcer) return false;
+      if (p.annualized_volatility != null && p.annualized_volatility > maxVolatility) return false;
+      if (p.pct_profitable_months != null && p.pct_profitable_months < minProfitableMonths) return false;
+      if (p.longest_drawdown_months != null && p.longest_drawdown_months > maxLongestDrawdown) return false;
       if (p.rolling_1yr_low != null && p.rolling_1yr_low < minRolling1yr) return false;
       if (p.rolling_3yr_low != null && p.rolling_3yr_low < minRolling3yr) return false;
       if (p.rolling_5yr_low != null && p.rolling_5yr_low < minRolling5yr) return false;
@@ -326,6 +341,7 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
 
     return result;
   }, [portfolios, minCagr, minSharpe, maxDrawdown, minWorstYear, minCagr10yr, minSortino, maxUlcer,
+      maxVolatility, minProfitableMonths, maxLongestDrawdown,
       minRolling1yr, minRolling3yr, minRolling5yr, minRolling10yr, bucketFilters, assetClassFilters,
       sortCol, sortDir]);
 
@@ -431,20 +447,26 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Performance Benchmarks
               </span>
-              <FilterSlider label="CAGR (Min)" definition={STAT_DEFINITIONS['CAGR']} value={minCagr} min={0} max={20} step={0.5}
+              <FilterSlider label="CAGR (Min)" definition={STAT_DEFINITIONS['CAGR']} value={minCagr} min={0} max={16} step={0.5}
                 onChange={v => { setMinCagr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
-              <FilterSlider label="Sharpe Ratio (Min)" definition={STAT_DEFINITIONS['Sharpe Ratio']} value={minSharpe} min={-0.5} max={2} step={0.05}
+              <FilterSlider label="Sharpe Ratio (Min)" definition={STAT_DEFINITIONS['Sharpe Ratio']} value={minSharpe} min={-0.5} max={1.0} step={0.05}
                 onChange={v => { setMinSharpe(v); setPage(1); }} format={v => v.toFixed(2)} />
-              <FilterSlider label="Max Drawdown (Limit)" definition={STAT_DEFINITIONS['Max Drawdown']} value={maxDrawdown} min={5} max={80} step={1}
+              <FilterSlider label="Max Drawdown (Limit)" definition={STAT_DEFINITIONS['Max Drawdown']} value={maxDrawdown} min={5} max={60} step={1}
                 onChange={v => { setMaxDrawdown(v); setPage(1); }} format={v => `-${v}%`} />
-              <FilterSlider label="Worst Year (Min)" definition={STAT_DEFINITIONS['Worst Year']} value={minWorstYear} min={-70} max={0} step={1}
+              <FilterSlider label="Worst Year (Min)" definition={STAT_DEFINITIONS['Worst Year']} value={minWorstYear} min={-45} max={0} step={1}
                 onChange={v => { setMinWorstYear(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v}%`} />
-              <FilterSlider label="10yr CAGR (Min)" definition={STAT_DEFINITIONS['10yr CAGR']} value={minCagr10yr} min={-5} max={20} step={0.5}
+              <FilterSlider label="10yr CAGR (Min)" definition={STAT_DEFINITIONS['10yr CAGR']} value={minCagr10yr} min={-5} max={15} step={0.5}
                 onChange={v => { setMinCagr10yr(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
-              <FilterSlider label="Sortino Ratio (Min)" definition={STAT_DEFINITIONS['Sortino Ratio']} value={minSortino} min={-0.5} max={3} step={0.05}
+              <FilterSlider label="Sortino Ratio (Min)" definition={STAT_DEFINITIONS['Sortino Ratio']} value={minSortino} min={-0.5} max={0.25} step={0.01}
                 onChange={v => { setMinSortino(v); setPage(1); }} format={v => v.toFixed(2)} />
               <FilterSlider label="Ulcer Index (Max)" definition={STAT_DEFINITIONS['Ulcer Index']} value={maxUlcer} min={0} max={14} step={0.5}
                 onChange={v => { setMaxUlcer(v); setPage(1); }} format={v => v.toFixed(1)} />
+              <FilterSlider label="Volatility (Max)" definition={STAT_DEFINITIONS['Ann. Volatility']} value={maxVolatility} min={2} max={20} step={0.5}
+                onChange={v => { setMaxVolatility(v); setPage(1); }} format={v => `${v.toFixed(1)}%`} />
+              <FilterSlider label="Profitable Months (Min)" definition={STAT_DEFINITIONS['Profitable Months']} value={minProfitableMonths} min={0} max={70} step={1}
+                onChange={v => { setMinProfitableMonths(v); setPage(1); }} format={v => `${v}%`} />
+              <FilterSlider label="Longest Drawdown (Max)" definition={STAT_DEFINITIONS['Longest Drawdown']} value={maxLongestDrawdown} min={20} max={75} step={1}
+                onChange={v => { setMaxLongestDrawdown(v); setPage(1); }} format={v => `${v}mo`} />
             </div>
 
             {/* Rolling Returns */}
@@ -452,13 +474,13 @@ export default function ScreenerClient({ portfolios, assetClasses }) {
               <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block">
                 Rolling Returns (Min)
               </span>
-              <FilterSlider label="1yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling1yr} min={-50} max={20} step={1}
+              <FilterSlider label="1yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling1yr} min={-50} max={0} step={1}
                 onChange={v => { setMinRolling1yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="3yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling3yr} min={-30} max={15} step={1}
+              <FilterSlider label="3yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling3yr} min={-20} max={5} step={1}
                 onChange={v => { setMinRolling3yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="5yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling5yr} min={-25} max={15} step={1}
+              <FilterSlider label="5yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling5yr} min={-10} max={5} step={1}
                 onChange={v => { setMinRolling5yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
-              <FilterSlider label="10yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling10yr} min={-15} max={15} step={1}
+              <FilterSlider label="10yr Rolling (Min)" definition={STAT_DEFINITIONS['Rolling Returns']} value={minRolling10yr} min={-5} max={8} step={1}
                 onChange={v => { setMinRolling10yr(v); setPage(1); }} format={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} />
             </div>
 
