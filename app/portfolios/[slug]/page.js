@@ -14,6 +14,7 @@ import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 import PortfolioJumpNav from '@/components/PortfolioJumpNav';
 import SeasonalitySection from '@/components/SeasonalitySection';
+import StartDateSensitivitySection from '@/components/StartDateSensitivitySection';
 import AnalyzeMenu from '@/components/AnalyzeMenu';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -232,6 +233,55 @@ function buildHeatmapData(monthlyReturns) {
   return { startYears, holdingPeriods, data };
 }
 
+// Compute start-date sensitivity: two lines at each reference year —
+// "prev 10yr CAGR" and "next 10yr CAGR" — to show how much timing mattered.
+// Requires ≥20 years of data for at least one "next" point to exist.
+function buildStartDateSensitivityData(monthlyReturns) {
+  if (!monthlyReturns?.length) return null;
+
+  const returnMap = new Map();
+  for (const row of monthlyReturns) {
+    returnMap.set(row.date.slice(0, 7), Number(row.monthly_return));
+  }
+
+  const firstYear = parseInt(monthlyReturns[0].date.slice(0, 4));
+  const lastYear  = parseInt(monthlyReturns[monthlyReturns.length - 1].date.slice(0, 4));
+
+  function cagr10yr(startYear) {
+    let compound = 1;
+    for (let y = startYear; y < startYear + 10; y++) {
+      for (let m = 1; m <= 12; m++) {
+        const key = `${y}-${String(m).padStart(2, '0')}`;
+        const ret = returnMap.get(key);
+        if (ret === undefined) return null;
+        compound *= (1 + ret / 100);
+      }
+    }
+    return (Math.pow(compound, 12 / 120) - 1) * 100;
+  }
+
+  const cutoffYear = lastYear - 9;
+  const points = [];
+  for (let y = firstYear + 10; y <= lastYear; y++) {
+    const prev = cagr10yr(y - 10);
+    const next = y <= cutoffYear ? cagr10yr(y) : null;
+    if (prev === null) continue;
+    points.push({
+      year: y,
+      prev: Math.round(prev * 100) / 100,
+      next: next !== null ? Math.round(next * 100) / 100 : null,
+    });
+  }
+  if (points.length === 0) return null;
+
+  const withNext = points.filter((p) => p.next !== null);
+  if (withNext.length === 0) return null;
+
+  const luckiest   = withNext.reduce((best, p)  => p.next > best.next  ? p : best);
+  const unluckiest = withNext.reduce((worst, p) => p.next < worst.next ? p : worst);
+  return { points, cutoffYear, luckiest, unluckiest };
+}
+
 // Compute growth of $10,000 from monthly returns, downsampled to one point per year
 function buildGrowthData(monthlyReturns) {
   if (!monthlyReturns?.length) return [];
@@ -292,6 +342,7 @@ export default async function PortfolioDetailPage({ params }) {
   };
 
   const heatmapData = buildHeatmapData(monthlyReturns);
+  const startDateSensitivityData = buildStartDateSensitivityData(monthlyReturns);
   const seasonalityData = buildSeasonalityData(monthlyReturns);
   const drawdownEvents = buildDrawdownEvents(monthlyReturns);
   const withdrawalRates = buildWithdrawalRates(monthlyReturns);
@@ -334,6 +385,7 @@ export default async function PortfolioDetailPage({ params }) {
     { id: 'charts',           label: 'Charts' },
     ...(drawdownEvents.length > 0 ? [{ id: 'drawdown-events', label: 'Drawdowns' }] : []),
     { id: 'heatmap',          label: 'Holding Period' },
+    ...(startDateSensitivityData ? [{ id: 'start-date-sensitivity', label: 'Timing' }] : []),
     ...(seasonalityData.length > 0 ? [{ id: 'seasonality', label: 'Seasonality' }] : []),
   ];
 
@@ -579,6 +631,10 @@ export default async function PortfolioDetailPage({ params }) {
                 {portfolio.longest_drawdown_months != null && portfolio.longest_drawdown_months > 0 && (
                   <StatRow icon="hourglass_bottom" label="Longest Drawdown" value={`${portfolio.longest_drawdown_months} months`} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Longest Drawdown']}
                     benchmarkValue={benchmark6040?.longest_drawdown_months != null ? `${benchmark6040.longest_drawdown_months} mo` : null} />
+                )}
+                {portfolio.rolling_10yr_high != null && portfolio.rolling_10yr_low != null && (
+                  <StatRow icon="tune" label="Timing Sensitivity" value={`${(portfolio.rolling_10yr_high - portfolio.rolling_10yr_low).toFixed(1)}pp`} valueClass="text-on-surface" definition={STAT_DEFINITIONS['Timing Sensitivity']}
+                    benchmarkValue={benchmark6040?.rolling_10yr_high != null && benchmark6040?.rolling_10yr_low != null ? `${(benchmark6040.rolling_10yr_high - benchmark6040.rolling_10yr_low).toFixed(1)}pp` : null} />
                 )}
                 <StatRow icon="sync" label="Trade Frequency" value={portfolio.trade_frequency || 'Buy & Hold'} />
                 <StatRow icon="shield" label="Risk Level" value={
@@ -862,6 +918,12 @@ export default async function PortfolioDetailPage({ params }) {
           <div id="heatmap" className="lg:col-span-12">
             <HoldingPeriodHeatmap heatmapData={heatmapData} />
           </div>
+
+          {startDateSensitivityData && (
+            <div className="lg:col-span-12">
+              <StartDateSensitivitySection data={startDateSensitivityData} />
+            </div>
+          )}
 
           {seasonalityData.length > 0 && (
             <div id="seasonality-wrapper" className="lg:col-span-12">

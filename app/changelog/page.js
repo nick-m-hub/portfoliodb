@@ -24,6 +24,10 @@ const CHANGELOG = [
     entries: [
       {
         type: 'new',
+        text: 'Start Date Sensitivity chart added to every portfolio page — see how a 10-year holding period would have played out depending on when you started investing, with "Luckiest" and "Unluckiest" start annotations. The spread between best and worst is also shown as a Timing Sensitivity stat in the Performance Snapshot and as a column in the Portfolio Screener.',
+      },
+      {
+        type: 'new',
         text: 'Lump Sum vs. DCA Calculator added — see how investing all at once compared to spreading contributions over 3, 6, or 12 months, across every historical starting period for any portfolio. Shows win rate, median ending values, and a chart of the lump sum advantage over time.',
       },
       {

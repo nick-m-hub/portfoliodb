@@ -53,6 +53,9 @@ export default async function DatabasePage() {
     ...p,
     allocations: allocationsBySlug[p.slug] ?? [],
     strategies: strategiesBySlug[p.slug] ?? [],
+    timing_sensitivity: (p.rolling_10yr_high != null && p.rolling_10yr_low != null)
+      ? Math.round((p.rolling_10yr_high - p.rolling_10yr_low) * 100) / 100
+      : null,
   }));
 
   return (
