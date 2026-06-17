@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
+export const revalidate = 86400;
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from'); // YYYY-MM

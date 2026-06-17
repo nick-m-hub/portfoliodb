@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { computeStats } from '@/lib/portfolioStats';
 
+export const revalidate = 86400;
+
 const PAGE = 1000;
 
 // Returns annualized cutoff date string for a given period

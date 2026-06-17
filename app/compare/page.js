@@ -38,27 +38,30 @@ export default async function ComparePage({ searchParams }) {
   const rawSlugs = typeof slugsParam === 'string' ? slugsParam.split(',').filter(Boolean) : [];
   const slugs = [...new Set(rawSlugs)].slice(0, 4);
 
-  const allPortfolioNames = await getPortfolioNames();
+  const allPortfolioNamesPromise = getPortfolioNames();
 
   if (!slugs.length) {
-    return <CompareClient allPortfolioNames={allPortfolioNames} portfolios={[]} />;
+    return <CompareClient allPortfolioNames={await allPortfolioNamesPromise} portfolios={[]} />;
   }
 
-  const portfolioResults = await Promise.all(
-    slugs.map(async (slug) => {
-      const [portfolio, allocations, monthlyReturns] = await Promise.all([
-        getPortfolio(slug),
-        getAllocations(slug),
-        getMonthlyReturns(slug),
-      ]);
-      if (!portfolio) return null;
-      return {
-        ...portfolio,
-        allocations: allocations ?? [],
-        growthData: buildGrowthData(monthlyReturns),
-      };
-    })
-  );
+  const [allPortfolioNames, portfolioResults] = await Promise.all([
+    allPortfolioNamesPromise,
+    Promise.all(
+      slugs.map(async (slug) => {
+        const [portfolio, allocations, monthlyReturns] = await Promise.all([
+          getPortfolio(slug),
+          getAllocations(slug),
+          getMonthlyReturns(slug),
+        ]);
+        if (!portfolio) return null;
+        return {
+          ...portfolio,
+          allocations: allocations ?? [],
+          growthData: buildGrowthData(monthlyReturns),
+        };
+      })
+    ),
+  ]);
 
   const portfolios = portfolioResults.filter(Boolean);
 
