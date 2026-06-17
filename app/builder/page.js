@@ -32,7 +32,13 @@ export default async function BuilderPage({ searchParams }) {
   const cookieStore = await cookies();
   const supabase = createServerSupabaseClient(cookieStore);
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession() reads the already-validated cookie (proxy.js called getUser() for us).
+  // getPortfolioNames() is independent of auth — start both in parallel.
+  const [{ data: { session } }, allPortfolios] = await Promise.all([
+    supabase.auth.getSession(),
+    getPortfolioNames(),
+  ]);
+  const user = session?.user ?? null;
 
   let tier = null;
   let savedCount = 0;
@@ -58,7 +64,6 @@ export default async function BuilderPage({ searchParams }) {
     savedCount = count ?? 0;
   }
 
-  const allPortfolios = await getPortfolioNames();
   const mixParam = params?.mix ?? null;
 
   return (
