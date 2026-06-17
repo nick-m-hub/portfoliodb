@@ -652,24 +652,25 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 ### ScreenerClient.jsx
 - Sidebar filters: Asset Classes (collapsible checkbox list, uses assetClasses prop),
   Performance Benchmarks sliders (CAGR, Sharpe, Max Drawdown, Worst Year, 10yr CAGR,
-  Sortino Ratio, Ulcer Index), Rolling Returns (Min) sliders (1yr/3yr/5yr/10yr),
-  Asset Exposure bucket buttons (EQ/FI/CMD/RE/ALT)
+  Sortino Ratio, Ulcer Index, Volatility Max, Profitable Months Min, Longest Drawdown Max),
+  Rolling Returns (Min) sliders (1yr/3yr/5yr/10yr), Asset Exposure bucket buttons (EQ/FI/CMD/RE/ALT)
 - Risk Profile filter was removed — risk column still shown in the results table
-- All slider defaults are set at the permissive end so all 70 portfolios show on load
-- Sortino default = -0.5 and Ulcer default = 14.0 (two portfolios have values outside
-  tighter ranges — do not tighten these defaults without checking the data first)
+- All slider defaults are set at the permissive end so all 76 portfolios show on load. Slider min/max values are calibrated to actual portfolio data — no dead zones beyond the real data range. Key defaults: CAGR 0–16% (max 16), Sharpe -0.5–1.0 (max 1.0), Max Drawdown 5–60% (default 60), Worst Year -45–0% (default -45), 10yr CAGR -5–15% (default -5), Sortino -0.5–0.25 (default -0.5), Ulcer 0–14 (default 14 intentional — 2 outlier portfolios above 8), Rolling 1yr -50–0%, 3yr -20–5%, 5yr -10–5%, 10yr -5–8%, Volatility 2–20% (default 20), Profitable Months 0–70% (default 0), Longest Drawdown 20–75 months (default 75).
+- Sortino max = 0.25 and Ulcer max = 14 (real portfolio ranges; Ulcer default intentionally at max to avoid filtering the 2 outlier portfolios by default — documented)
 - `assetBadges()` and `BADGE_STYLES` map allocations → colored EQ/FI/CMD/RE/ALT badges
   shown in the Asset Mix column of the results table
 - Receives `assetClasses` prop from portfolio-screener/page.js
 - Mobile: `showFilters` defaults to `true` (filters open on load). A sticky "Show Results (N)" pill button (`fixed bottom-4 left-4 right-4 lg:hidden z-50`) appears when filters are open — clicking it collapses filters so the user can see results.
 - Table min-width grows dynamically based on number of visible columns (base 420px + 90px per column)
-- **Column picker:** "Columns" button next to Export CSV opens a dropdown with 23 toggleable
+- **Column picker:** "Columns" button next to Export CSV opens a dropdown with 30 toggleable
   columns — Performance Benchmarks (CAGR, Max DD, Sharpe on by default; Sortino, Worst Year,
-  Best Year, 10yr CAGR, Ulcer Index, UPI, GFC CAGR, Dotcom CAGR off by default) and Rolling
-  Returns (1yr/3yr/5yr/10yr Low/Avg/High, all off by default). +N badge shows extra active
-  columns. "Reset to defaults" link appears when defaults are changed. All visible columns are
-  sortable. CSV export reflects currently visible columns. `ALL_COLUMNS` array in the component
-  is the single source of truth for available columns.
+  Best Year, 10yr CAGR, Ulcer Index, UPI, GFC CAGR, Dotcom CAGR, 1yr CAGR, 3yr CAGR,
+  Ann. Volatility, Profitable Months, Best Month, Worst Month, Longest Drawdown off by default)
+  and Rolling Returns (1yr/3yr/5yr/10yr Low/Avg/High, all off by default). +N badge shows extra
+  active columns. "Reset to defaults" link appears when defaults are changed. All visible columns
+  are sortable. CSV export reflects currently visible columns. `ALL_COLUMNS` array in the component
+  is the single source of truth for available columns. If you add a new screener column or filter,
+  also add the field to `getPortfolios()` in `lib/db.js` (its explicit column list must stay in sync).
 
 ### PricingToggle.jsx (Membership Page — /membership)
 
