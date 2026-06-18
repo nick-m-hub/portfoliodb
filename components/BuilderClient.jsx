@@ -150,6 +150,106 @@ function riskParityWeights(selections, portfolioReturns) {
   return rounded.map((w) => String(w));
 }
 
+// Max Sharpe weights — projected gradient ascent over the common date window.
+// Maximises (portMu - RF_MONTHLY) / portSigma subject to w_i >= 0, sum(w) = 1.
+// Returns null if data is insufficient (caller falls back silently).
+function maxSharpeWeights(selections, portfolioReturns) {
+  const maps = {};
+  for (const { slug } of selections) {
+    maps[slug] = {};
+    for (const r of (portfolioReturns[slug] || [])) {
+      maps[slug][r.date] = Number(r.monthly_return);
+    }
+  }
+
+  const dateSets = selections.map(({ slug }) => new Set(Object.keys(maps[slug])));
+  if (dateSets.some((s) => s.size === 0)) return null;
+  const commonDates = [...dateSets[0]].filter((d) => dateSets.every((s) => s.has(d))).sort();
+  if (commonDates.length < 12) return null;
+
+  const n = selections.length;
+  const T = commonDates.length;
+
+  // Returns matrix: R[i][t] = monthly return of portfolio i at time t
+  const R = selections.map(({ slug }) => commonDates.map((d) => maps[slug][d]));
+
+  // Mean monthly returns
+  const mu = R.map((rets) => rets.reduce((s, r) => s + r, 0) / T);
+
+  // Sample covariance matrix
+  const cov = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => {
+      let sum = 0;
+      for (let t = 0; t < T; t++) sum += (R[i][t] - mu[i]) * (R[j][t] - mu[j]);
+      return sum / Math.max(T - 1, 1);
+    })
+  );
+
+  // Portfolio Sharpe given weights (in 0–1 space)
+  function sharpeOf(w) {
+    let portMu = 0;
+    let portVar = 0;
+    for (let i = 0; i < n; i++) {
+      portMu += w[i] * mu[i];
+      for (let j = 0; j < n; j++) portVar += w[i] * w[j] * cov[i][j];
+    }
+    const sigma = Math.sqrt(Math.max(portVar, 0));
+    return sigma === 0 ? 0 : (portMu - RF_MONTHLY) / sigma;
+  }
+
+  // Gradient of Sharpe w.r.t. w
+  function grad(w) {
+    let portMu = 0;
+    let portVar = 0;
+    for (let i = 0; i < n; i++) {
+      portMu += w[i] * mu[i];
+      for (let j = 0; j < n; j++) portVar += w[i] * w[j] * cov[i][j];
+    }
+    const sigma = Math.sqrt(Math.max(portVar, 1e-12));
+    const s = (portMu - RF_MONTHLY) / sigma;
+    // (Sigma @ w)[i]
+    return w.map((_, i) => {
+      const sigmaWi = w.reduce((sum, wj, j) => sum + cov[i][j] * wj, 0);
+      return ((mu[i] - RF_MONTHLY) - s * sigmaWi) / sigma;
+    });
+  }
+
+  // Project onto probability simplex: w_i >= 0, sum(w) = 1
+  function projectSimplex(w) {
+    const sorted = [...w].sort((a, b) => b - a);
+    let cumsum = 0;
+    let rho = 0;
+    for (let i = 0; i < n; i++) {
+      cumsum += sorted[i];
+      if (sorted[i] - (cumsum - 1) / (i + 1) > 0) rho = i;
+    }
+    let s = 0;
+    for (let i = 0; i <= rho; i++) s += sorted[i];
+    const theta = (s - 1) / (rho + 1);
+    return w.map((wi) => Math.max(0, wi - theta));
+  }
+
+  // Projected gradient ascent
+  let w = Array(n).fill(1 / n);
+  const step = 0.01;
+  for (let iter = 0; iter < 1000; iter++) {
+    const g = grad(w);
+    const wNext = projectSimplex(w.map((wi, i) => wi + step * g[i]));
+    const delta = wNext.reduce((s, wi, i) => s + Math.abs(wi - w[i]), 0);
+    w = wNext;
+    if (delta < 1e-7) break;
+  }
+
+  // Convert to percentage, round to 1 decimal, last slot absorbs remainder
+  const raw = w.map((wi) => wi * 100);
+  const rounded = raw.map((wt) => Math.round(wt * 10) / 10);
+  const rSum = rounded.reduce((s, wt) => s + wt, 0);
+  const diff = Math.round((100 - rSum) * 10) / 10;
+  rounded[rounded.length - 1] = Math.round((rounded[rounded.length - 1] + diff) * 10) / 10;
+
+  return rounded.map((wt) => String(wt));
+}
+
 // Format "YYYY-MM-DD" → "Jan 2010"
 function fmtDate(dateStr) {
   if (!dateStr) return '';
@@ -873,37 +973,42 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
             </div>
           )}
 
-          {/* Auto-allocate pills */}
+          {/* Auto-allocate dropdown */}
           {selections.length >= 2 && allDataLoaded && !isLoading && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <div className="mt-2 flex items-center gap-1.5">
               <span className="font-inter text-[11px] text-on-surface-variant">Auto-allocate:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const weights = equalWeights(selections.length);
-                  setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
-                }}
-                className="font-inter text-[11px] px-2.5 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors"
-              >
-                Equal Weight
-              </button>
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const weights = riskParityWeights(selections, portfolioReturns);
-                    if (!weights) return;
-                    setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+              <div className="relative">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const mode = e.target.value;
+                    if (mode === 'equal') {
+                      const weights = equalWeights(selections.length);
+                      setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                    } else if (mode === 'risk-parity') {
+                      const weights = riskParityWeights(selections, portfolioReturns);
+                      if (weights) setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                    } else if (mode === 'max-sharpe') {
+                      const weights = maxSharpeWeights(selections, portfolioReturns);
+                      if (weights) setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                    }
                   }}
-                  className="font-inter text-[11px] px-2.5 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors"
+                  className="font-inter text-[11px] appearance-none pl-2.5 pr-6 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
-                  Risk Parity
-                </button>
-                <StatTooltip
-                  label=""
-                  definition="Weights each portfolio so each contributes equal risk to the blend. Higher-volatility portfolios receive smaller allocations."
-                />
+                  <option value="" disabled>Choose…</option>
+                  <option value="equal">Equal Weight</option>
+                  <option value="risk-parity">Risk Parity</option>
+                  <option value="max-sharpe">Max Sharpe</option>
+                </select>
+                <span
+                  className="material-symbols-outlined pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-on-surface-variant"
+                  style={{ fontSize: '12px' }}
+                >expand_more</span>
               </div>
+              <StatTooltip
+                label=""
+                definition={<>Equal Weight: splits allocation evenly.<br/>Risk Parity: weights by inverse volatility so each portfolio contributes equal risk.<br/>Max Sharpe: optimises weights for the best historical risk-adjusted return.</>}
+              />
             </div>
           )}
 
