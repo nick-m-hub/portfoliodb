@@ -15,7 +15,7 @@ export default function StartDateSensitivitySection({ data }) {
   const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
 
   return (
-    <section id="start-date-sensitivity" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+    <section id="start-date-sensitivity" className="bg-surface-container-lowest p-4 md:p-8 rounded-xl border border-outline-variant shadow-sm overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
         <div>
           <h2 className="font-manrope text-[22px] font-bold text-primary">Start Date Sensitivity</h2>
@@ -23,7 +23,7 @@ export default function StartDateSensitivitySection({ data }) {
             10-year annualized return depending on when you started investing. Nominal returns.
           </p>
         </div>
-        <div className="flex gap-6 shrink-0">
+        <div className="grid grid-cols-3 w-full gap-2 md:flex md:w-auto md:gap-6 md:shrink-0">
           <div className="text-right">
             <span className="block font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Luckiest Start</span>
             <span className="font-manrope text-[20px] font-bold text-[#27624a]">{fmt(luckiest.next)}</span>
