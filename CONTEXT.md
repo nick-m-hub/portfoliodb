@@ -27,6 +27,10 @@ _Avoid_: holding period (ambiguous — implies time after deployment ends), inve
 The number of months over which the total investment amount is spread in equal beginning-of-month installments. Always shorter than the Investment Horizon. Options: 3, 6, or 12 months.
 _Avoid_: contribution period, averaging period
 
+**Timing Sensitivity** (Performance Snapshot label) / **Start Date Sensitivity** (chart section heading):
+The same stat shown in two contexts. Measures how much a portfolio's 10-year outcome varied depending on when an investor happened to start — computed as `rolling_10yr_high − rolling_10yr_low` (the spread between the best and worst 10-year annualized returns across every possible start month in the portfolio's history). Displayed as "Timing Sensitivity" in the Performance Snapshot stat row (space-constrained) and "Start Date Sensitivity" as the heading of the full-width chart section. All values are nominal (not inflation-adjusted), consistent with every other return figure on the site. Requires ≥10 years of history for the scalar; ≥20 years for the chart section to render. The chart plots two lines at each reference year: Prev 10 Yrs CAGR (red) and Next 10 Yrs CAGR (teal), with "Luckiest" and "Unluckiest" annotations at the max and min of the Next 10 Yrs line.
+_Avoid_: timing luck (colloquial, not a defined term), start date risk, entry point sensitivity
+
 **AI Picks**:
 The 3 portfolios surfaced by the AI Recommendation feature on the database page, pinned above the regular sorted grid in a distinct "AI Recommendations" section. Produced by submitting a natural-language goal description to the AI; replaced when the user submits a new query; dismissed explicitly via "Clear AI picks."
 _Avoid_: AI results, recommendations (too generic — use "AI Picks" when referring to the pinned cards specifically)

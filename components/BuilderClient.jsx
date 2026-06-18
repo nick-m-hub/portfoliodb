@@ -7,6 +7,7 @@ import ChartSkeleton from '@/components/ChartSkeleton';
 import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import CurrentSignals from '@/components/CurrentSignals';
+import StatTooltip from '@/components/StatTooltip';
 
 const GrowthChart = dynamic(() => import('@/components/GrowthChart'), {
   ssr: false,
@@ -108,6 +109,45 @@ function equalWeights(n) {
   const weights = Array(n).fill(String(base));
   weights[n - 1] = String(100 - base * (n - 1));
   return weights;
+}
+
+// Risk parity weights — inverse-volatility, computed over the common date window.
+// Returns null if data is insufficient or any portfolio has zero volatility (caller falls back).
+function riskParityWeights(selections, portfolioReturns) {
+  const maps = {};
+  for (const { slug } of selections) {
+    maps[slug] = {};
+    for (const r of (portfolioReturns[slug] || [])) {
+      maps[slug][r.date] = Number(r.monthly_return);
+    }
+  }
+
+  const dateSets = selections.map(({ slug }) => new Set(Object.keys(maps[slug])));
+  if (dateSets.some((s) => s.size === 0)) return null;
+  const commonDates = [...dateSets[0]].filter((d) => dateSets.every((s) => s.has(d)));
+  if (commonDates.length < 12) return null;
+
+  // Monthly stdDev per portfolio over common window (annualising cancels in the ratio)
+  const vols = selections.map(({ slug }) => {
+    const returns = commonDates.map((d) => maps[slug][d]);
+    const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
+    const variance = returns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / Math.max(returns.length - 1, 1);
+    return Math.sqrt(variance);
+  });
+
+  if (vols.some((v) => v === 0)) return null;
+
+  const invVols = vols.map((v) => 1 / v);
+  const total = invVols.reduce((s, v) => s + v, 0);
+  const rawWeights = invVols.map((v) => (v / total) * 100);
+
+  // Round to 1 decimal; last slot absorbs rounding remainder
+  const rounded = rawWeights.map((w) => Math.round(w * 10) / 10);
+  const rSum = rounded.reduce((s, w) => s + w, 0);
+  const diff = Math.round((100 - rSum) * 10) / 10;
+  rounded[rounded.length - 1] = Math.round((rounded[rounded.length - 1] + diff) * 10) / 10;
+
+  return rounded.map((w) => String(w));
 }
 
 // Format "YYYY-MM-DD" → "Jan 2010"
@@ -830,6 +870,40 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Auto-allocate pills */}
+          {selections.length >= 2 && allDataLoaded && !isLoading && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <span className="font-inter text-[11px] text-on-surface-variant">Auto-allocate:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const weights = equalWeights(selections.length);
+                  setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                }}
+                className="font-inter text-[11px] px-2.5 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors"
+              >
+                Equal Weight
+              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const weights = riskParityWeights(selections, portfolioReturns);
+                    if (!weights) return;
+                    setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                  }}
+                  className="font-inter text-[11px] px-2.5 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors"
+                >
+                  Risk Parity
+                </button>
+                <StatTooltip
+                  label=""
+                  definition="Weights each portfolio so each contributes equal risk to the blend. Higher-volatility portfolios receive smaller allocations."
+                />
+              </div>
             </div>
           )}
 

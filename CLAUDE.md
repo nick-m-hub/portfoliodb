@@ -783,6 +783,7 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - Search box filters `allPortfolioNames` client-side; selecting adds the portfolio and redistributes weights equally; max 6 portfolios
 - Weight inputs: `inputMode="decimal"`, "↑N%" fill-remaining shortcut, total indicator turns green at exactly 100%
 - `equalWeights(n)` — floor(100/n) per slot, last slot absorbs rounding
+- **Auto-allocate pill row** (visible when `selections.length >= 2 && allDataLoaded && !isLoading`): **Equal Weight** and **Risk Parity** pills. `riskParityWeights(selections, portfolioReturns)` finds the common date intersection, computes monthly stdDev per portfolio over that window, takes inverse-vol weights normalised to 100%, rounds to 1 decimal (last slot absorbs remainder). Falls back silently if any portfolio has zero variance or < 12 common months. Free to all users (no tier gate). `StatTooltip` provides the ⓘ info icon next to the Risk Parity pill. Pills are stateless (no active-mode highlight).
 
 **Computation pipeline** (all `useMemo`, fire when `isReady` becomes true):
 - `blendedReturns` — intersection of date sets across all portfolios, weighted monthly return per common month
