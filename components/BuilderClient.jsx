@@ -150,9 +150,10 @@ function riskParityWeights(selections, portfolioReturns) {
   return rounded.map((w) => String(w));
 }
 
-// Max Sharpe weights — projected gradient ascent over the common date window.
-// Maximises (portMu - RF_MONTHLY) / portSigma subject to w_i >= 0, sum(w) = 1.
-// Returns null if data is insufficient (caller falls back silently).
+// Max Sharpe weights — analytical Markowitz tangency portfolio via covariance matrix inversion.
+// Tries all 2^n non-empty subsets of assets (long-only: each subset's unconstrained solution must
+// have all positive weights). Picks the feasible subset with the highest Sharpe. Exact for n ≤ 6.
+// Returns null if data is insufficient or no feasible solution exists (caller falls back silently).
 function maxSharpeWeights(selections, portfolioReturns) {
   const maps = {};
   for (const { slug } of selections) {
@@ -170,13 +171,10 @@ function maxSharpeWeights(selections, portfolioReturns) {
   const n = selections.length;
   const T = commonDates.length;
 
-  // Returns matrix: R[i][t] = monthly return of portfolio i at time t
   const R = selections.map(({ slug }) => commonDates.map((d) => maps[slug][d]));
-
-  // Mean monthly returns
   const mu = R.map((rets) => rets.reduce((s, r) => s + r, 0) / T);
+  const muEx = mu.map((m) => m - RF_MONTHLY);
 
-  // Sample covariance matrix
   const cov = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) => {
       let sum = 0;
@@ -185,69 +183,80 @@ function maxSharpeWeights(selections, portfolioReturns) {
     })
   );
 
-  // Portfolio Sharpe given weights (in 0–1 space)
-  function sharpeOf(w) {
-    let portMu = 0;
-    let portVar = 0;
+  // Gauss-Jordan elimination with partial pivoting — solves Ax = b, returns x or null if singular.
+  function solveLinear(A, b) {
+    const m = b.length;
+    const M = A.map((row, i) => [...row, b[i]]);
+    for (let col = 0; col < m; col++) {
+      let maxRow = col;
+      for (let row = col + 1; row < m; row++) {
+        if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+      }
+      [M[col], M[maxRow]] = [M[maxRow], M[col]];
+      if (Math.abs(M[col][col]) < 1e-12) return null;
+      for (let row = 0; row < m; row++) {
+        if (row === col) continue;
+        const f = M[row][col] / M[col][col];
+        for (let j = col; j <= m; j++) M[row][j] -= f * M[col][j];
+      }
+    }
+    return M.map((row, i) => row[m] / row[i]);
+  }
+
+  // Try every non-empty subset; keep the feasible one (all z > 0) with highest Sharpe.
+  let bestSharpe = -Infinity;
+  let bestW = null;
+
+  for (let mask = 1; mask < (1 << n); mask++) {
+    const active = [];
+    for (let i = 0; i < n; i++) if (mask & (1 << i)) active.push(i);
+
+    const subCov = active.map((i) => active.map((j) => cov[i][j]));
+    const subMuEx = active.map((i) => muEx[i]);
+    const z = solveLinear(subCov, subMuEx);
+    if (!z || z.some((zi) => zi < -1e-9)) continue;
+
+    const total = z.reduce((s, zi) => s + zi, 0);
+    if (total <= 1e-12) continue;
+
+    const w = Array(n).fill(0);
+    active.forEach((origIdx, k) => { w[origIdx] = z[k] / total; });
+
+    let portMu = 0, portVar = 0;
     for (let i = 0; i < n; i++) {
       portMu += w[i] * mu[i];
       for (let j = 0; j < n; j++) portVar += w[i] * w[j] * cov[i][j];
     }
     const sigma = Math.sqrt(Math.max(portVar, 0));
-    return sigma === 0 ? 0 : (portMu - RF_MONTHLY) / sigma;
+    if (sigma === 0) continue;
+    const sharpe = (portMu - RF_MONTHLY) / sigma;
+
+    if (sharpe > bestSharpe) { bestSharpe = sharpe; bestW = w.map((wi) => wi * 100); }
   }
 
-  // Gradient of Sharpe w.r.t. w
-  function grad(w) {
-    let portMu = 0;
-    let portVar = 0;
-    for (let i = 0; i < n; i++) {
-      portMu += w[i] * mu[i];
-      for (let j = 0; j < n; j++) portVar += w[i] * w[j] * cov[i][j];
-    }
-    const sigma = Math.sqrt(Math.max(portVar, 1e-12));
-    const s = (portMu - RF_MONTHLY) / sigma;
-    // (Sigma @ w)[i]
-    return w.map((_, i) => {
-      const sigmaWi = w.reduce((sum, wj, j) => sum + cov[i][j] * wj, 0);
-      return ((mu[i] - RF_MONTHLY) - s * sigmaWi) / sigma;
-    });
+  if (!bestW) return null;
+
+  // Apply 5% minimum weight floor: clamp any allocation below 5% up to 5%,
+  // then remove the excess proportionally from above-floor weights.
+  const MIN_W = 5;
+  let w = bestW;
+  for (let pass = 0; pass < n; pass++) {
+    const below = w.map((wi, i) => wi < MIN_W - 1e-9 ? i : -1).filter((i) => i >= 0);
+    if (below.length === 0) break;
+    below.forEach((i) => { w[i] = MIN_W; });
+    const excess = w.reduce((s, wi) => s + wi, 0) - 100;
+    const above = w.map((wi, i) => wi > MIN_W + 1e-9 ? i : -1).filter((i) => i >= 0);
+    if (above.length === 0) { w = Array(n).fill(100 / n); break; }
+    const aboveSum = above.reduce((s, i) => s + w[i], 0);
+    above.forEach((i) => { w[i] -= excess * (w[i] / aboveSum); });
   }
 
-  // Project onto probability simplex: w_i >= 0, sum(w) = 1
-  function projectSimplex(w) {
-    const sorted = [...w].sort((a, b) => b - a);
-    let cumsum = 0;
-    let rho = 0;
-    for (let i = 0; i < n; i++) {
-      cumsum += sorted[i];
-      if (sorted[i] - (cumsum - 1) / (i + 1) > 0) rho = i;
-    }
-    let s = 0;
-    for (let i = 0; i <= rho; i++) s += sorted[i];
-    const theta = (s - 1) / (rho + 1);
-    return w.map((wi) => Math.max(0, wi - theta));
-  }
-
-  // Projected gradient ascent
-  let w = Array(n).fill(1 / n);
-  const step = 0.01;
-  for (let iter = 0; iter < 1000; iter++) {
-    const g = grad(w);
-    const wNext = projectSimplex(w.map((wi, i) => wi + step * g[i]));
-    const delta = wNext.reduce((s, wi, i) => s + Math.abs(wi - w[i]), 0);
-    w = wNext;
-    if (delta < 1e-7) break;
-  }
-
-  // Convert to percentage, round to 1 decimal, last slot absorbs remainder
-  const raw = w.map((wi) => wi * 100);
-  const rounded = raw.map((wt) => Math.round(wt * 10) / 10);
-  const rSum = rounded.reduce((s, wt) => s + wt, 0);
+  const rounded = w.map((wi) => Math.round(wi * 10) / 10);
+  const rSum = rounded.reduce((s, wi) => s + wi, 0);
   const diff = Math.round((100 - rSum) * 10) / 10;
   rounded[rounded.length - 1] = Math.round((rounded[rounded.length - 1] + diff) * 10) / 10;
 
-  return rounded.map((wt) => String(wt));
+  return rounded.map((wi) => String(wi));
 }
 
 // Format "YYYY-MM-DD" → "Jan 2010"
