@@ -126,7 +126,7 @@ Respond with ONLY valid JSON in this exact format, no markdown fences, no other 
 
     response = client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=1024,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -136,7 +136,16 @@ Respond with ONLY valid JSON in this exact format, no markdown fences, no other 
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
 
-    parsed = json.loads(text)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        truncated = response.stop_reason == "max_tokens"
+        raise RuntimeError(
+            f"Claude returned malformed JSON for {len(rebalanced)} rebalanced portfolios "
+            f"(stop_reason={response.stop_reason}"
+            f"{', likely truncated by max_tokens' if truncated else ''}): {e}\n"
+            f"--- raw response ---\n{text}"
+        ) from e
 
     # Map summaries back to slugs by name
     name_to_slug = {p["name"]: p["slug"] for p in rebalanced}
