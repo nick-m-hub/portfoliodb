@@ -61,9 +61,13 @@ function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs,
   const isSignalsMember = tier === 'signals';
   const holdings = computeBlended(selections, allocBySlug, signalBySlug, tacticalSlugs);
 
-  if (holdings.length === 0) return null;
-
+  // CR-1 (July 2026): non-Signals members never receive tactical signal data, so
+  // `holdings` only contains the buy-and-hold portion of the mix for them. That
+  // portion is public allocation data — shown unblurred — with a note explaining
+  // the tactical remainder is hidden.
   const locked = hasTactical && !isSignalsMember;
+
+  if (holdings.length === 0 && !locked) return null;
 
   return (
     <div className="mt-3 pt-3 border-t border-outline-variant">
@@ -71,25 +75,26 @@ function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs,
         Blended holdings
       </p>
 
-      {/* Ticker chips — blurred if locked */}
-      <div className={`flex flex-wrap gap-1.5 transition-[filter] ${locked ? 'blur-sm select-none pointer-events-none' : ''}`}>
-        {holdings.map(({ ticker, weight }) => (
-          <span
-            key={ticker}
-            className="inline-flex items-center gap-1 font-inter text-[11px] font-medium bg-surface-container px-2 py-0.5 rounded-full text-on-surface"
-          >
-            <span className="font-semibold">{ticker}</span>
-            <span className="text-on-surface-variant">{fmtW(weight)}</span>
-          </span>
-        ))}
-      </div>
+      {holdings.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {holdings.map(({ ticker, weight }) => (
+            <span
+              key={ticker}
+              className="inline-flex items-center gap-1 font-inter text-[11px] font-medium bg-surface-container px-2 py-0.5 rounded-full text-on-surface"
+            >
+              <span className="font-semibold">{ticker}</span>
+              <span className="text-on-surface-variant">{fmtW(weight)}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Inline upgrade prompt for Builder members with tactical portfolios */}
       {locked && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${holdings.length > 0 ? 'mt-2' : ''}`}>
           <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: '13px' }}>lock</span>
           <span className="font-inter text-[11px] text-on-surface-variant">
-            Tactical holdings visible with{' '}
+            This mix includes tactical holdings — visible with{' '}
             <Link href="/membership" className="text-primary hover:underline">
               Signals membership
             </Link>
@@ -102,13 +107,16 @@ function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs,
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function SavedMixList({ initialMixes, tier, allAllocations = [], allSignals = [] }) {
+export default function SavedMixList({ initialMixes, tier, allAllocations = [], allSignals = [], tacticalSlugs: tacticalSlugsProp = [] }) {
   const [mixes, setMixes]           = useState(initialMixes);
   const [confirmId, setConfirmId]   = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError]           = useState(null);
 
-  // Pre-compute lookup maps once for all cards
+  // Pre-compute lookup maps once for all cards.
+  // tacticalSlugs comes from the server (kofi_link, public info) rather than
+  // from allSignals — non-Signals members receive allSignals=[] (CR-1), but the
+  // "tactical holdings hidden" note still needs to know which slugs are tactical.
   const { allocBySlug, signalBySlug, tacticalSlugs } = useMemo(() => {
     const allocBySlug = {};
     for (const a of allAllocations) {
@@ -116,9 +124,11 @@ export default function SavedMixList({ initialMixes, tier, allAllocations = [], 
       allocBySlug[a.portfolio_slug].push(a);
     }
     const signalBySlug = Object.fromEntries(allSignals.map((s) => [s.slug, s]));
-    const tacticalSlugs = new Set(allSignals.map((s) => s.slug));
+    const tacticalSlugs = new Set(
+      tacticalSlugsProp.length ? tacticalSlugsProp : allSignals.map((s) => s.slug)
+    );
     return { allocBySlug, signalBySlug, tacticalSlugs };
-  }, [allAllocations, allSignals]);
+  }, [allAllocations, allSignals, tacticalSlugsProp]);
 
   async function handleDelete(id) {
     setDeletingId(id);

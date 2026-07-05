@@ -3,12 +3,33 @@ import { useEffect, useState } from 'react';
 import SignalTeaser from './SignalTeaser';
 import Link from 'next/link';
 
+// sessionStorage cache key — signals only change monthly, so keying by the
+// current calendar month means at most one fetch per portfolio per month per
+// tab. Navigating between covered portfolios de-blurs instantly from cache.
+function cacheKey(slug) {
+  return `pdb-signals-${slug}-${new Date().toISOString().slice(0, 7)}`;
+}
+
 export default function SignalTeaserWrapper({ slug }) {
   const [state, setState] = useState('loading'); // 'loading' | 'locked' | 'unlocked'
   const [holdings, setHoldings] = useState([]);
   const [date, setDate] = useState(null);
 
   useEffect(() => {
+    // Instant reveal from this tab's cache (CR-22)
+    try {
+      const cached = sessionStorage.getItem(cacheKey(slug));
+      if (cached) {
+        const json = JSON.parse(cached);
+        setHoldings(json.holdings ?? []);
+        setDate(json.date ?? null);
+        setState('unlocked');
+        return;
+      }
+    } catch {
+      // sessionStorage unavailable (private browsing) — fall through to fetch
+    }
+
     async function check() {
       const res = await fetch(`/api/current-holdings/${slug}`);
       if (!res.ok) { setState('locked'); return; }
@@ -17,8 +38,13 @@ export default function SignalTeaserWrapper({ slug }) {
       setHoldings(json.holdings ?? []);
       setDate(json.date ?? null);
       setState('unlocked');
+      try {
+        sessionStorage.setItem(cacheKey(slug), JSON.stringify(json));
+      } catch {
+        // best-effort cache — ignore quota/private-browsing errors
+      }
     }
-    check();
+    check().catch(() => setState('locked'));
   }, [slug]);
 
   if (state === 'loading' || state === 'locked') {

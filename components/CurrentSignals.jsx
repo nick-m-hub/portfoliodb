@@ -135,28 +135,27 @@ export default function CurrentSignals({
     );
   }
 
-  // ── Account: full signal portfolio grid ────────────────────────────────────
-  if (signals.length === 0) {
+  // ── Account: locked state for non-Signals members ──────────────────────────
+  // CR-1 (July 2026): non-members never receive real signal data — the server
+  // sends an empty `signals` array. The blurred grid below is a pure placeholder
+  // (skeleton bars, no data), so nothing sensitive exists in the DOM.
+  if (!isSignalsMember) {
     return (
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-8 text-center">
-        <p className="font-inter text-[14px] text-on-surface-variant">
-          No signals available yet — check back after the last trading day of the month.
-        </p>
-      </div>
-    );
-  }
+      <div className="relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 blur-sm select-none pointer-events-none" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4">
+              <div className="h-3.5 w-2/3 bg-surface-container rounded mb-4" />
+              {[0, 1, 2].map((j) => (
+                <div key={j} className="flex items-center justify-between gap-3 py-2 border-b border-outline-variant last:border-0">
+                  <div className="h-3 w-12 bg-surface-container rounded" />
+                  <div className="h-3 w-8 bg-surface-container rounded" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
 
-  return (
-    <div className="relative">
-      {/* Grid — blurred for non-signals members */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 transition-[filter] ${!isSignalsMember ? 'blur-sm select-none pointer-events-none' : ''}`}>
-        {signals.map((s) => (
-          <SignalCard key={s.slug} name={s.name} date={s.date} holdings={s.holdings} />
-        ))}
-      </div>
-
-      {/* Lock overlay */}
-      {!isSignalsMember && (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-surface-container-lowest/80 px-6">
           <span className="material-symbols-outlined text-[36px] text-primary mb-2">lock</span>
           <p className="font-manrope font-bold text-[16px] text-on-surface mb-1 text-center">
@@ -175,7 +174,26 @@ export default function CurrentSignals({
             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // ── Account: full signal portfolio grid (Signals members) ──────────────────
+  if (signals.length === 0) {
+    return (
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-8 text-center">
+        <p className="font-inter text-[14px] text-on-surface-variant">
+          No signals available yet — check back after the last trading day of the month.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {signals.map((s) => (
+        <SignalCard key={s.slug} name={s.name} date={s.date} holdings={s.holdings} />
+      ))}
     </div>
   );
 }

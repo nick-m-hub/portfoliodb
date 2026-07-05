@@ -1,14 +1,7 @@
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/supabase';
-
 // Service-role client — used only for the subscription email-fallback link
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-}
+import { getAdminClient } from '@/lib/supabaseAdmin';
 
 export async function POST(request) {
   const cookieStore = await cookies();

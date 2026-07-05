@@ -1,14 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-
-// ─── Service-role Supabase client (bypasses RLS) ──────────────────────────────
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-}
+import { getAdminClient } from '@/lib/supabaseAdmin';
 
 // ─── Verify HMAC-SHA256 signature from Memberful ─────────────────────────────
 function verifySignature(rawBody, signature) {

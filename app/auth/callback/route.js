@@ -1,15 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 // Service-role client for linking subscriptions (bypasses RLS)
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-}
+import { getAdminClient } from '@/lib/supabaseAdmin';
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);

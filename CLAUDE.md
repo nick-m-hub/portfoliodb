@@ -176,6 +176,8 @@ RLS: users can read/insert/delete only their own rows. Builder tier enforces a m
 5. Nick edits the two `[ADD YOUR TAKE HERE]` slots, then flips to `status = 'published'` and sets `published_at` — goes live immediately
 6. Mark the post as published in `content-calendar.md`
 
+**Important (confirmed June 2026):** Nick's edits in step 5 happen directly in Supabase (`content` column via SQL Editor, per his SQL workflow preference), not in the local `blog-drafts/[slug].md` file. The local file reflects only Claude's original draft and will drift out of sync once Nick edits and publishes. After any review/publish cycle, re-fetch the live `blog_posts` row (same pattern as Option A below, selecting `content,status,published_at`) and overwrite the local draft file to match before treating the local copy as current.
+
 **Option A — temp Node script (preferred, no manual SQL needed):**
 ```js
 // run with: node scripts/fetch-stats-temp.js
@@ -248,6 +250,13 @@ Key formula approach:
 ---
 
 ## Key Architecture Decisions
+
+- **Paid data never leaves the server for a non-entitled request (CR-1, July 2026).**
+  Signal holdings (`tactical_monthly_holdings`) are locked by RLS (no read
+  policies; service-role only via `lib/supabaseAdmin.js`), and every route/page
+  verifies an active Signals subscription before fetching them. Blur/lock
+  overlays are styling on placeholder data only — NEVER render real paid data
+  behind a CSS blur, since it remains readable in the DOM/page source.
 
 - portfolio_value is NEVER manually entered or stored. It is always
   auto-calculated by the portfolio_stats view from monthly_return entries.
@@ -372,7 +381,7 @@ portfoliodb/
     Footer.jsx                       # Site-wide footer (server) — copyright, nav links (Membership, ToS, Privacy Policy, Methodology, Glossary, Support)
     StatTooltip.jsx                  # Stat info tooltip (client) — label + info icon + fixed-position hover/click tooltip card; re-exports STAT_DEFINITIONS from lib/statDefinitions.js
     SignalTeaser.jsx                 # Blurred placeholder signal rows + lock overlay + "See membership options" link — static, no data fetching; only rendered on covered portfolios (kofi_link IS NOT NULL)
-    SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side. Date display uses { timeZone: 'UTC' } — date-only strings from Supabase (e.g. 2026-06-01) parse as UTC midnight and roll back a day in US timezones without this.
+    SignalTeaserWrapper.jsx          # Client component — wraps SignalTeaser; on mount checks auth + active Signals subscription via /api/current-holdings/[slug]; if Signals member shows real holdings with date label; otherwise renders SignalTeaser (locked). Keeps portfolio pages SSG — auth check is entirely client-side. CR-22 (July 2026): caches the API response in sessionStorage keyed by slug + current calendar month (signals only change monthly), so navigating between covered portfolios de-blurs instantly with no fetch; fetch failures fall back to the locked teaser. Date display uses { timeZone: 'UTC' } — date-only strings from Supabase (e.g. 2026-06-01) parse as UTC midnight and roll back a day in US timezones without this.
     HoldingPeriodHeatmap.jsx         # Client component — triangular CAGR heatmap (start year × holding period), color-coded 8-band scale, cursor-following hover tooltip (position: fixed, edge-flip). Rendered full-width on portfolio detail pages.
     PortfolioJumpNav.jsx             # Client component — sticky in-page jump nav on portfolio detail pages. Dynamically measures Navbar height on mount + resize (works for both mobile 86px and desktop 49px). Up to 9 section pills with scroll-spy active highlighting; smooth scroll on click. navSections array computed server-side so conditional pills only appear when those sections render. CRITICAL: pill DOM order must match the physical page order — if a section's id appears inside a parent section that comes earlier in the DOM, the scroll spy will misfire (the child element's offsetTop will be lower than later sibling sections, causing it to "win" the active check prematurely). See Seasonality fix (June 2026).
     SeasonalityChart.jsx             # Recharts BarChart component — 12 bars (Jan–Dec), green for positive months, red for negative. Custom tooltip shows avg %, count, and positive/negative ratio. Used inside SeasonalitySection.jsx.
@@ -385,7 +394,7 @@ portfoliodb/
     PricingToggle.jsx                # Client component — Builder card shows "Free" + "Sign in free" CTA (→ /login?next=/builder, no Memberful URL); Signals card keeps monthly/annual billing toggle (defaults to annual) with "Save ~25%" badge and 2 Memberful checkout URLs (Signals Monthly 147941, Signals Annual 147942); "Most Popular" badge on Signals card; signalCount prop for dynamic feature bullet
     LoginForm.jsx                    # Client component — email magic link + Google OAuth; both pass next param through callback URL; "Check your email" sent-state after OTP
     SignOutButton.jsx                # Client component — calls supabase.auth.signOut(), router.push('/'), router.refresh()
-    SavedMixList.jsx                 # Client component — displays saved mixes with inline delete confirmation (no window.confirm); buildLoadUrl() generates /builder?mix=slug:weight,... URLs; empty state + Builder tier (x/3) counter with upgrade link; shows blended holdings per mix card (Signals tier = real data; Builder tier = blurred with upgrade prompt); accepts allAllocations + allSignals props from account/page.js
+    SavedMixList.jsx                 # Client component — displays saved mixes with inline delete confirmation (no window.confirm); buildLoadUrl() generates /builder?mix=slug:weight,... URLs; empty state + Builder tier (x/3) counter with upgrade link; shows blended holdings per mix card (Signals tier = full blend incl. tactical; others = buy-and-hold portion only, unblurred, + "tactical holdings hidden" lock note — CR-1); accepts allAllocations + allSignals + tacticalSlugs props from account/page.js (tacticalSlugs derived from kofi_link since non-members receive allSignals=[])
     CurrentSignals.jsx               # Client component — two contexts: (1) 'builder': renders a single blended holdings list computed from the mix's weights × each portfolio's current holdings/allocations; tactical portions blurred for non-Signals members; (2) 'account': grid of all signal portfolios with current month holdings (blurred with lock overlay for non-Signals). Props: context, blendedHoldings (builder), signals (account), tier
     CompareClient.jsx                # Portfolio Comparison page UI (client) — portfolio search/add, pills, header cards, stats table, allocation donuts, growth chart
     CompareGrowthChart.jsx           # Multi-line Recharts LineChart for comparison (client) — one colored line per portfolio, connectNulls=false — lazy-loaded via next/dynamic (ssr: false) in CompareClient.jsx
@@ -416,10 +425,10 @@ portfoliodb/
         LumpSumResultsChart.jsx      # Client component — single % advantage LineChart (lsValue/dcaValue - 1) * 100 per starting period. Green ReferenceArea above y=0, red below. Dynamic Y domain with 8% padding rounded to nearest 5. Custom tooltip: "Lump sum +X% ahead" or "DCA +X% ahead". X axis shows year only (tickFormatter: v => v.slice(0,4)).
     api/
       builder-holdings/
-        route.js                     # GET ?slugs=a,b,c — returns allocations (with color fallback) + current tactical signals for the requested slugs only. Called client-side by BuilderClient when 2+ portfolios are selected. Replaces the server-side getAllAllocations()+getCurrentSignals() that used to load on every /builder page open.
+        route.js                     # GET ?slugs=a,b,c — returns allocations (with color fallback, public) + current tactical signals for the requested slugs. Called client-side by BuilderClient when 2+ portfolios are selected. CR-1 (July 2026): the signals portion is only returned to authenticated users with an active Signals subscription — checked via isSignalsMember() (uses getUser(), so it stays safe if the middleware matcher is narrowed) in parallel with the public fetches; everyone else gets signals: []. Holdings read via the service-role client (RLS locked).
       current-holdings/
         [slug]/
-          route.js                   # GET — verifies auth + active Signals subscription; returns current month holdings from tactical_monthly_holdings for one portfolio slug; used by SignalTeaserWrapper
+          route.js                   # GET — Signals members only; returns current month holdings from tactical_monthly_holdings for one portfolio slug; used by SignalTeaserWrapper. CR-22 (July 2026): uses getSession() (proxy.js middleware already validated the request — this route MUST stay in the middleware matcher if it is ever narrowed) and runs the subscription check + holdings fetch in parallel (speculative fetch, discarded on 403) — one sequential DB step total. Holdings read via the service-role client (RLS locked).
       drawdown-analysis/
         route.js                     # GET ?from=YYYY-MM&to=YYYY-MM — fetches all monthly_returns in date window, computes total return + max drawdown per portfolio, joins portfolio names/categories, returns sorted results array. `export const revalidate = 86400` caches each unique date-range response for 24h (historical return data never changes).
       portfolio-map-stats/
@@ -427,7 +436,8 @@ portfoliodb/
       correlation-matrix/
         route.js                     # GET — computes the full pairwise Pearson correlation matrix across all portfolios. `export const revalidate = 86400` caches the response for 24h (monthly_returns only changes once a month). Step 1: metadata from portfolio_stats. Step 2–3: row count + parallel paginated fetch of all monthly_returns (same .range() pattern as portfolio-map-stats, but unfiltered — full history). Step 4: groups into Map<date, return> per slug for O(1) overlap lookup. Step 5: for each pair, intersects the two date-maps and runs pearsonCorrelation() — null if fewer than MIN_OVERLAP_MONTHS (24) overlapping months. Portfolios with < 24 months of total history are excluded entirely. Returns `{ portfolios: [{slug, name, category}], matrix: number[][] }` (matrix[i][j] = correlation or null, diagonal = 1).
   lib/
-    supabase.js                      # Supabase client init — legacy createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
+    supabase.js                      # Supabase client init — anon-key createClient (for lib/db.js) + createBrowserSupabaseClient() + createServerSupabaseClient(cookieStore) via @supabase/ssr
+    supabaseAdmin.js                 # getAdminClient() — lazy service-role client (bypasses RLS). SERVER ONLY — never import from a client component. Used by lib/db.js getCurrentSignals(), builder-holdings, current-holdings, memberful webhook, builder-save fallback link, auth callback link
     db.js                            # All database query functions (see below)
     statDefinitions.js               # Plain JS (no 'use client') — STAT_DEFINITIONS object with definitions for 19 stat keys; importable by both server and client components
     withdrawalRates.js               # Plain JS — `buildWithdrawalRates(monthlyReturns)` computes SWR + PWR for 4 durations × 2 inflation modes using Bengen rolling-window binary search (20 steps). Called server-side in portfolio detail page. Returns `{ 20: { swr_nominal, swr_real, pwr_nominal, pwr_real }, 25: ..., 30: ..., 40: ... }` or null per duration when data is insufficient.
@@ -463,7 +473,7 @@ portfoliodb/
 | `getAllPortfolioStrategies()` | All rows from portfolio_strategies (portfolio_slug + strategy_slug) |
 | `getAllSlugs()`         | Slug column only from portfolios table (for generateStaticParams)  |
 | `getPortfolioNames()`  | name + slug + kofi_link from portfolios table, alphabetical — kofi_link used by BuilderClient to identify tactical/signal portfolios. Wrapped in `unstable_cache(fn, ['portfolio-names'])` (June 2026) since `app/layout.tsx` calls it on every request. No `revalidate` option — caches indefinitely until next deploy (new portfolios always require a redeploy anyway); passing `revalidate` here would silently turn every page rendering the root layout into ISR. |
-| `getCurrentSignals()`  | Current month's holdings for all signal-set portfolios (kofi_link IS NOT NULL) from tactical_monthly_holdings. Fetches the signal portfolio list and the single latest stored date (avoids Supabase's 1,000-row cap as history accumulates) **in parallel** (June 2026 — Stage 0 writes all tactical portfolios for a month together, so an unfiltered latest-date query is equivalent to filtering by signal slugs), then fetches all holdings for that date only. Weights stored as decimal fractions (0–1) in DB, multiplied by 100 before returning. Returns: [{ slug, name, date, holdings: [{ ticker, weight }] }] |
+| `getCurrentSignals()`  | Current month's holdings for all signal-set portfolios (kofi_link IS NOT NULL) from tactical_monthly_holdings. Fetches the signal portfolio list and the single latest stored date (avoids Supabase's 1,000-row cap as history accumulates) **in parallel** (June 2026 — Stage 0 writes all tactical portfolios for a month together, so an unfiltered latest-date query is equivalent to filtering by signal slugs), then fetches all holdings for that date only. Weights stored as decimal fractions (0–1) in DB, multiplied by 100 before returning. Returns: [{ slug, name, date, holdings: [{ ticker, weight }] }]. **CR-1 (July 2026): reads holdings via the service-role client (`lib/supabaseAdmin.js`) — RLS on tactical_monthly_holdings denies anon reads. Does NO entitlement check itself — callers MUST verify an active Signals subscription first.** |
 | `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
 | `getSignalPortfolios()` | name + slug for all portfolios where kofi_link IS NOT NULL, alphabetical — used by membership page |
 | `getSignalPortfolioCount()` | Count of portfolios where kofi_link IS NOT NULL — used by homepage banner and membership page H1 |
@@ -700,20 +710,20 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 
 ### SavedMixList.jsx (Account Page — /account)
 
-- Client component — props: `initialMixes` (array), `tier` ('builder' | 'signals'), `allAllocations` (array), `allSignals` (array from getCurrentSignals)
+- Client component — props: `initialMixes` (array), `tier` ('builder' | 'signals'), `allAllocations` (array), `allSignals` (array from getCurrentSignals — empty for non-Signals users since CR-1), `tacticalSlugs` (array of signal-covered slugs from kofi_link, public info)
 - `buildLoadUrl(selections)` builds `/builder?mix=${encodeURIComponent(slug:weight,slug:weight)}` URLs — clicking a mix opens it pre-loaded in the Builder
 - Delete: shows inline "Delete? Yes / Cancel" confirmation per row (no `window.confirm`)
 - Empty state: "No saved mixes yet" with "Go to Builder" CTA
 - Builder tier: shows `{mixes.length}/3 mixes used` counter with upgrade link when 3 are saved
 - Delete calls `DELETE /api/portfolios/[id]` and removes the mix from local state on success
-- **Blended holdings** shown inside each mix card below the weight pills — same computation as BuilderClient's `blendedHoldings` useMemo (portfolio weight × holding weight, summed by ticker). Signals tier sees real ticker chips; Builder tier sees blurred chips + "Tactical holdings visible with Signals membership" inline prompt. `allocBySlug`, `signalBySlug`, and `tacticalSlugs` are pre-computed once via useMemo and shared across all mix cards.
+- **Blended holdings** shown inside each mix card below the weight pills — same computation as BuilderClient's `blendedHoldings` useMemo (portfolio weight × holding weight, summed by ticker). **CR-1 (July 2026):** Signals tier sees the full blend (incl. tactical); non-Signals users only ever receive the buy-and-hold portion (public allocation data, shown unblurred) plus a "this mix includes tactical holdings" lock note — no real signal data reaches their DOM. `tacticalSlugs` comes from the server prop (kofi_link) rather than allSignals, since non-members receive `allSignals=[]`. `allocBySlug`, `signalBySlug`, and `tacticalSlugs` are pre-computed once via useMemo and shared across all mix cards.
 
 ### app/account/page.js (Account Page — /account)
 
 - Server component with `export const dynamic = 'force-dynamic'` (no caching — always shows fresh data)
 - Redirects unauthenticated users to `/login?next=/account`
 - **Session check (June 2026):** uses `supabase.auth.getSession()`, not `getUser()` — `proxy.js` middleware already calls `auth.getUser()` for every request (including `/account`) and refreshes the session cookie, so the page can decode that already-verified cookie locally via `getSession()` without a second Auth-server round trip.
-- Fetches subscription + saved mixes + `getCurrentSignals()` + `getAllAllocations()` in parallel via `Promise.all` (June 2026 — `getAllAllocations()` used to run conditionally *after* this `Promise.all` only when saved mixes existed; now always runs inside it, in parallel)
+- Fetches subscription + saved mixes + `getAllAllocations()` (public) + `getPortfolioNames()` (cached; supplies kofi_link → tacticalSlugs) in parallel via `Promise.all`. **CR-1 (July 2026): `getCurrentSignals()` is only called AFTER the tier is known, and only when `tier === 'signals'`** — non-members get `signals = []` and never receive real signal data in the page payload. Side benefit: the account page skips the signals queries entirely for non-Signals users (smaller payload, fewer round trips).
 - Subscription query: `status IN ('active', 'cancelled')`, ordered by `created_at DESC`, `limit(1)` — gets most recent active or cancelled plan
 - **`tier` (June 2026):** computed as `subscription?.plan === 'signals' ? 'signals' : 'builder'` — every signed-in user gets at least `'builder'` for free; only an active Signals subscription elevates further. The Plan section's `subscription ? ... : ...` branch still reflects only *paid* Memberful subscriptions (for billing/cancellation display) — it is independent of feature access now.
 - Plan card (only rendered when a paid `subscription` row exists) shows: tier badge (`Builder`/`Signals`), billing period, status (cancelled shows red "Cancelled" pill), "Access until [date]" for all statuses (not "Renews" — Memberful doesn't fire a webhook on self-cancellation so status can't be determined in real time), "Reactivate" link for cancelled / "Manage subscription" link for active → `https://portfoliodb.memberful.com/account`
@@ -1148,6 +1158,7 @@ tactical_monthly_holdings (
 - `date` = first day of the month the holdings are IN EFFECT
 - Signals calculated end of month M-1 → holdings stored for month M → return calculated end of month M
 - Historical holdings not tracked — automation starts from current month forward
+- **RLS (CR-1, July 2026): this table is the paid Signals product — RLS is enabled with NO read policies, so anon/authenticated clients get nothing.** Only the service-role key can read it: site code goes through `lib/supabaseAdmin.js` (after verifying Signals entitlement), and the Python Stage 0/1 scripts already use the service key. Never add a public SELECT policy back, and never query this table with the anon client.
 
 **Monthly workflow (example: end of May):**
 1. **May 31 (last trading day)** — run Stage 0 → stores June holdings in `tactical_monthly_holdings` (dated June 1). Signal email goes out to members the same day.

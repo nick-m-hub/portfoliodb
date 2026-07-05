@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { getCurrentSignals, getAllAllocations } from '@/lib/db';
+import { getCurrentSignals, getAllAllocations, getPortfolioNames } from '@/lib/db';
 import SignOutButton from '@/components/SignOutButton';
 import SavedMixList from '@/components/SavedMixList';
 import CurrentSignals from '@/components/CurrentSignals';
@@ -40,8 +40,9 @@ export default async function AccountPage() {
   const user = session?.user;
   if (!user) redirect('/login?next=/account');
 
-  // Fetch subscription, saved mixes, current signals, and all allocations in parallel
-  const [{ data: subscription }, { data: savedMixes }, signals, allAllocationsData] = await Promise.all([
+  // Fetch subscription, saved mixes, all allocations (public data), and portfolio
+  // names (cached; provides kofi_link → tactical slugs) in parallel.
+  const [{ data: subscription }, { data: savedMixes }, allAllocationsData, portfolioNames] = await Promise.all([
     supabase
       .from('user_subscriptions')
       .select('plan, billing_period, status, current_period_end')
@@ -55,8 +56,8 @@ export default async function AccountPage() {
       .select('id, name, selections, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
-    getCurrentSignals(),
     getAllAllocations(),
+    getPortfolioNames(),
   ]);
 
   const allAllocations = allAllocationsData ?? [];
@@ -65,6 +66,16 @@ export default async function AccountPage() {
   // Signals subscription elevates someone past the Builder tier.
   const tier = subscription?.plan === 'signals' ? 'signals' : 'builder';
   const mixes = savedMixes ?? [];
+
+  // CR-1 (July 2026): signals are the paid product — only fetch them for Signals
+  // members. Non-members get an empty array and see a placeholder + lock overlay
+  // (rendered from no real data) instead of blurred real data.
+  const signals = tier === 'signals' ? await getCurrentSignals() : [];
+
+  // Which portfolios are tactical (signal-covered) — public info from kofi_link.
+  // SavedMixList needs this to show the "tactical holdings hidden" note even
+  // when no signal data is present.
+  const tacticalSlugs = (portfolioNames ?? []).filter((p) => p.kofi_link).map((p) => p.slug);
 
   return (
     <main className="w-full max-w-3xl mx-auto px-4 sm:px-8 py-12 font-inter text-on-surface">
@@ -171,6 +182,7 @@ export default async function AccountPage() {
           tier={tier}
           allAllocations={allAllocations}
           allSignals={signals ?? []}
+          tacticalSlugs={tacticalSlugs}
         />
       </section>
 
