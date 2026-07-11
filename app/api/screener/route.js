@@ -5,11 +5,15 @@ const client = new Anthropic();
 
 export async function POST(request) {
   try {
-    const { goal } = await request.json();
+    const body = await request.json();
 
-    if (!goal || typeof goal !== 'string' || goal.trim().length === 0) {
+    if (!body?.goal || typeof body.goal !== 'string' || body.goal.trim().length === 0) {
       return Response.json({ error: 'Please provide a goal.' }, { status: 400 });
     }
+
+    // CR-5: hard cap on input size — this endpoint spends real money per call
+    // (Anthropic API), so never let an arbitrarily large goal inflate the prompt.
+    const goal = body.goal.trim().slice(0, 500);
 
     // Fetch all portfolio stats from Supabase
     const portfolios = await getPortfolios();
@@ -29,7 +33,9 @@ export async function POST(request) {
       risk_level: p.risk_level,
       min_timeline_years: p.min_timeline_years,
       trade_frequency: p.trade_frequency,
-      description: p.description,
+      // CR-5: description intentionally omitted — getPortfolios() doesn't
+      // select it (it never reached the prompt), and including 76 full
+      // descriptions would multiply the per-call token cost for little gain.
     }));
 
     const systemPrompt = `You are a portfolio analyst assistant for PortfolioDB, a database of investment portfolios.
@@ -55,7 +61,7 @@ Rules:
       messages: [
         {
           role: 'user',
-          content: `Here is the full portfolio database:\n${JSON.stringify(portfolioSummary, null, 2)}\n\nUser's goal: "${goal.trim()}"\n\nReturn the 3 best matching portfolios as JSON.`,
+          content: `Here is the full portfolio database:\n${JSON.stringify(portfolioSummary, null, 2)}\n\nUser's goal: "${goal}"\n\nReturn the 3 best matching portfolios as JSON.`,
         },
       ],
     });

@@ -48,9 +48,25 @@ export async function proxy(request) {
   return supabaseResponse;
 }
 
+// CR-8 (July 2026): only run the middleware where the session actually matters.
+// auth.getUser() here is a network round trip to Supabase Auth on every matched
+// request, so matching every route made each page view slower for any visitor
+// with a session cookie. These routes need it:
+//   - /account: protected route (redirect) + page uses getSession()
+//   - /builder: page uses getSession()
+//   - /api/current-holdings: route uses getSession() (CR-22 dependency — this
+//     route MUST stay in the matcher)
+//   - /api/builder-save, /api/portfolios: authed API routes (they use getUser()
+//     themselves, but the middleware also persists refreshed session cookies)
+// Everything else either has no auth or calls auth.getUser() directly
+// (e.g. /api/builder-holdings, /monte-carlo-simulation), which stays safe
+// without the middleware.
 export const config = {
   matcher: [
-    // Run on all routes except Next.js internals and static files
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/account/:path*',
+    '/builder/:path*',
+    '/api/builder-save',
+    '/api/portfolios/:path*',
+    '/api/current-holdings/:path*',
   ],
 };

@@ -40,8 +40,10 @@ export default async function LeaderboardPage() {
 
   // Pull last_updated from the first portfolio that has it
   const lastUpdated = portfolios.find((p) => p.last_updated)?.last_updated ?? null;
+  // CR-13: date-only strings parse as UTC midnight — format in UTC or US
+  // timezones display the previous month (the documented date quirk).
   const displayDate = lastUpdated
-    ? new Date(lastUpdated).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    ? new Date(lastUpdated).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
     : null;
 
   return (

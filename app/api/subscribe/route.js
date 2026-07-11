@@ -1,7 +1,13 @@
 export async function POST(request) {
-  const { email } = await request.json();
+  // CR-17: malformed JSON must return 400, not throw an unhandled 500
+  let email;
+  try {
+    ({ email } = await request.json());
+  } catch {
+    return Response.json({ error: 'Valid email required.' }, { status: 400 });
+  }
 
-  if (!email || !email.includes('@')) {
+  if (!email || typeof email !== 'string' || !email.includes('@') || email.length > 254) {
     return Response.json({ error: 'Valid email required.' }, { status: 400 });
   }
 

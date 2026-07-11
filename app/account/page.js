@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { getCurrentSignals, getAllAllocations, getPortfolioNames } from '@/lib/db';
+import { getEntitledSubscription, tierFromSubscription } from '@/lib/entitlements';
 import SignOutButton from '@/components/SignOutButton';
 import SavedMixList from '@/components/SavedMixList';
 import CurrentSignals from '@/components/CurrentSignals';
@@ -42,15 +43,11 @@ export default async function AccountPage() {
 
   // Fetch subscription, saved mixes, all allocations (public data), and portfolio
   // names (cached; provides kofi_link → tactical slugs) in parallel.
-  const [{ data: subscription }, { data: savedMixes }, allAllocationsData, portfolioNames] = await Promise.all([
-    supabase
-      .from('user_subscriptions')
-      .select('plan, billing_period, status, current_period_end')
-      .eq('user_id', user.id)
-      .in('status', ['active', 'cancelled'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+  // CR-2: getEntitledSubscription applies the shared paid-through rule
+  // (status IN active/cancelled AND current_period_end > now) — an expired
+  // subscription row no longer grants tier or shows as the current plan.
+  const [subscription, { data: savedMixes }, allAllocationsData, portfolioNames] = await Promise.all([
+    getEntitledSubscription(supabase, user.id),
     supabase
       .from('user_portfolios')
       .select('id, name, selections, created_at')
@@ -62,9 +59,9 @@ export default async function AccountPage() {
 
   const allAllocations = allAllocationsData ?? [];
 
-  // Builder-tier features are free for any signed-in user — only an active
+  // Builder-tier features are free for any signed-in user — only an entitled
   // Signals subscription elevates someone past the Builder tier.
-  const tier = subscription?.plan === 'signals' ? 'signals' : 'builder';
+  const tier = tierFromSubscription(subscription);
   const mixes = savedMixes ?? [];
 
   // CR-1 (July 2026): signals are the paid product — only fetch them for Signals
@@ -183,6 +180,7 @@ export default async function AccountPage() {
           allAllocations={allAllocations}
           allSignals={signals ?? []}
           tacticalSlugs={tacticalSlugs}
+          portfolioNames={portfolioNames ?? []}
         />
       </section>
 

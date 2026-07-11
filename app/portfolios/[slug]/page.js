@@ -33,8 +33,10 @@ export async function generateMetadata({ params }) {
   const nameForDesc = /portfolio$/i.test(portfolio.name)
     ? portfolio.name
     : `${portfolio.name} Portfolio`;
+  // CR-13: parse the year straight from the date string — new Date().getFullYear()
+  // runs in local time and is off by one at year boundaries in US timezones.
   const startYear = portfolio.last_updated && portfolio.total_months
-    ? new Date(portfolio.last_updated).getFullYear() - Math.floor(portfolio.total_months / 12)
+    ? Number(String(portfolio.last_updated).slice(0, 4)) - Math.floor(portfolio.total_months / 12)
     : null;
   const description = startYear
     ? `${nameForDesc} performance, allocations, and risk stats. CAGR ${portfolio.cagr?.toFixed(1)}%, max drawdown ${portfolio.max_drawdown?.toFixed(1)}%, Sharpe ${portfolio.sharpe_ratio?.toFixed(2)} since ${startYear}. Includes safe withdrawal rate analysis.`

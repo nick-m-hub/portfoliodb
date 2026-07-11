@@ -150,12 +150,14 @@ export async function POST(request) {
     }
     // Otherwise leave status untouched (plan change, period-end update, etc.)
 
+    // CR-11: plain update, not upsert. Memberful webhooks are unordered — if
+    // `updated` arrives before `created`/`activated`, an upsert would insert a
+    // row with NULL status (invisible to every tier query). A no-op update is
+    // safe: the later created/activated event carries the same data.
     const { error } = await supabase
       .from('user_subscriptions')
-      .upsert(
-        { memberful_member_id: memberId, ...updateFields },
-        { onConflict: 'memberful_member_id' }
-      );
+      .update(updateFields)
+      .eq('memberful_member_id', memberId);
 
     if (error) {
       console.error('[memberful] Update error:', error);
@@ -165,11 +167,15 @@ export async function POST(request) {
     console.log(`[memberful] ${event} — ${member.email} → ${plan} (${billingPeriod}), autorenew changed: ${JSON.stringify(changed?.autorenew)}`);
   }
 
-  // ── Subscription deactivated (cancelled but may still have access until period end) ──
+  // ── Subscription deactivated — the billing period actually expired ──────────
+  // CR-2: this event fires at period end (not on self-cancellation, which only
+  // toggles autorenew — handled in subscription.updated above), so it maps to
+  // 'expired', not 'cancelled'. Entitlement checks (lib/entitlements.js) treat
+  // 'cancelled' as still paid-through; 'expired' revokes access.
   else if (event === 'subscription.deactivated') {
     const { error } = await supabase
       .from('user_subscriptions')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .update({ status: 'expired', updated_at: new Date().toISOString() })
       .eq('memberful_member_id', memberId);
 
     if (error) {

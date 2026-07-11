@@ -1,5 +1,18 @@
 import { supabase } from '@/lib/supabase';
 
+// Perf 4.4 (July 2026): benchmark requests (US 60/40 / US Stocks / Global
+// Stocks) return identical data for every user, so they get a CDN cache
+// header. User-mix requests stay uncached — arbitrary slug combinations would
+// create an unbounded cache key space.
+const BENCHMARK_SLUGS = new Set([
+  'united-states-60-40-portfolio',
+  'us-stock-market',
+  'global-stock-market',
+]);
+const BENCHMARK_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+};
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const slugsParam = searchParams.get('slugs');
@@ -43,5 +56,6 @@ export async function GET(request) {
     });
   }
 
-  return Response.json(grouped);
+  const allBenchmarks = slugs.every((s) => BENCHMARK_SLUGS.has(s));
+  return Response.json(grouped, allBenchmarks ? { headers: BENCHMARK_CACHE_HEADERS } : undefined);
 }

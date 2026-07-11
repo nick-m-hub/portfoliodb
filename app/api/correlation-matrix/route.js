@@ -60,6 +60,13 @@ export async function GET() {
         .range(i * PAGE, (i + 1) * PAGE - 1)
     )
   );
+  // CR-6: a failed page must fail the whole request — silently treating it as
+  // empty would compute the matrix from partial data (and cache it for 24h).
+  const failedPage = pageResults.find((r) => r.error);
+  if (failedPage) {
+    return Response.json({ error: failedPage.error.message }, { status: 500 });
+  }
+
   const allRows = pageResults.flatMap((r) => r.data ?? []);
 
   // ── Step 4: group into Map<date, return> per slug for O(1) overlap lookup ─

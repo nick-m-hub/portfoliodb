@@ -1,14 +1,25 @@
 import { supabase } from '@/lib/supabase';
 
-export const revalidate = 86400;
+// CR-4 (July 2026): `export const revalidate` is a no-op on route handlers
+// that read request.url (always dynamically rendered). Caching is done with an
+// explicit Cache-Control header instead — Vercel's CDN caches per full URL
+// including the query string. Historical return data never changes, so a 24h
+// TTL is safe.
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400',
+};
+
+// Strict YYYY-MM within a sane year range — bounds the set of cacheable URLs
+// so bots can't mint unlimited cache keys / Supabase queries.
+const MONTH_RE = /^(19[7-9]\d|20\d{2})-(0[1-9]|1[0-2])$/;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from'); // YYYY-MM
   const to = searchParams.get('to');     // YYYY-MM
 
-  if (!from || !to) {
-    return Response.json({ error: 'from and to required' }, { status: 400 });
+  if (!from || !to || !MONTH_RE.test(from) || !MONTH_RE.test(to)) {
+    return Response.json({ error: 'from and to must be YYYY-MM' }, { status: 400 });
   }
 
   const fromDate = `${from}-01`;
@@ -87,5 +98,5 @@ export async function GET(request) {
   // Sort by total return descending
   results.sort((a, b) => b.totalReturn - a.totalReturn);
 
-  return Response.json({ results });
+  return Response.json({ results }, { headers: CACHE_HEADERS });
 }

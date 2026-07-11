@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { computeStats } from '@/lib/portfolioStats';
 
-export const revalidate = 86400;
+// CR-4 (July 2026): `export const revalidate` is a no-op on route handlers
+// that read request.url (always dynamically rendered). Caching is done with an
+// explicit Cache-Control header instead — Vercel's CDN caches per full URL.
+// Only 2 valid period values exist, so the cache key space is bounded.
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400',
+};
 
 const PAGE = 1000;
 
@@ -59,6 +65,13 @@ export async function GET(request) {
     )
   );
 
+  // CR-6: a failed page must fail the whole request — silently treating it as
+  // empty would compute the map from partial data (and cache it for 24h).
+  const failedPage = pageResults.find((r) => r.error);
+  if (failedPage) {
+    return Response.json({ error: failedPage.error.message }, { status: 500 });
+  }
+
   // Merge all pages into a single array
   const allRows = pageResults.flatMap((r) => r.data ?? []);
 
@@ -92,5 +105,5 @@ export async function GET(request) {
     });
   }
 
-  return Response.json(result);
+  return Response.json(result, { headers: CACHE_HEADERS });
 }

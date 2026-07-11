@@ -290,15 +290,29 @@ def send_email(api_key, to_email, subject, html):
 # ---------------------------------------------------------------------------
 
 def send_to_subscribers(supabase, resend_key, target_month, month_str, html):
-    """Send the draft HTML to every active Signals subscriber and log the result."""
+    """Send the draft HTML to every entitled Signals subscriber and log the result.
+
+    CR-2 (July 2026): mirrors lib/entitlements.js — 'cancelled' members are paid
+    through the end of their billing period and still get the email until
+    current_period_end passes; 'expired' members don't.
+    """
     subs_resp = (
         supabase.table("user_subscriptions")
-        .select("email")
+        .select("email, status, current_period_end")
         .eq("plan", "signals")
-        .eq("status", "active")
+        .in_("status", ["active", "cancelled"])
         .execute()
     )
-    recipient_emails = sorted({r["email"] for r in subs_resp.data if r.get("email")})
+    now = datetime.now(timezone.utc)
+    entitled = [
+        r for r in subs_resp.data
+        if r.get("email")
+        and (
+            not r.get("current_period_end")
+            or datetime.fromisoformat(r["current_period_end"].replace("Z", "+00:00")) > now
+        )
+    ]
+    recipient_emails = sorted({r["email"] for r in entitled})
 
     print(f"Sending {month_str} Signals email to {len(recipient_emails)} subscriber(s)...")
     subject = f"PortfolioDB Signals — {month_str}"

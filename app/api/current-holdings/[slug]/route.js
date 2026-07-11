@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { getAdminClient } from '@/lib/supabaseAdmin';
+import { getEntitledSubscription } from '@/lib/entitlements';
 import { cookies } from 'next/headers';
 
 // Returns the current month's tactical holdings for one portfolio — Signals
@@ -26,15 +27,10 @@ export async function GET(request, { params }) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Verify active Signals subscription and speculatively fetch holdings in parallel
-  const [{ data: sub }, { data, error }] = await Promise.all([
-    supabase
-      .from('user_subscriptions')
-      .select('plan, status')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .eq('plan', 'signals')
-      .maybeSingle(),
+  // Verify Signals entitlement (CR-2: cancelled-but-paid-through still counts,
+  // expired doesn't) and speculatively fetch holdings in parallel
+  const [sub, { data, error }] = await Promise.all([
+    getEntitledSubscription(supabase, user.id),
     getAdminClient()
       .from('tactical_monthly_holdings')
       .select('ticker, weight, date')
@@ -44,7 +40,7 @@ export async function GET(request, { params }) {
       .limit(20),
   ]);
 
-  if (!sub) {
+  if (sub?.plan !== 'signals') {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

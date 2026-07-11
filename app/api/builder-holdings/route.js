@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { supabase, createServerSupabaseClient } from '@/lib/supabase';
 import { getAdminClient } from '@/lib/supabaseAdmin';
+import { isSignalsEntitled } from '@/lib/entitlements';
 
 // Returns allocations + current tactical signals for a specific set of portfolio slugs.
 // Called client-side by BuilderClient when the user has 2+ portfolios selected.
@@ -11,7 +12,8 @@ import { getAdminClient } from '@/lib/supabaseAdmin';
 // Holdings are read via the service-role client because RLS on
 // tactical_monthly_holdings denies anon/authenticated reads.
 
-// True only for an authenticated user with an active Signals subscription.
+// True only for an authenticated user with an entitled Signals subscription
+// (CR-2: shared paid-through rule from lib/entitlements.js).
 // Uses getUser() (not getSession()) deliberately: this route must stay safe
 // even if the middleware matcher is later narrowed (CR-8) to exclude it.
 async function isSignalsMember() {
@@ -21,15 +23,7 @@ async function isSignalsMember() {
     const { data: { user } } = await authed.auth.getUser();
     if (!user) return false;
 
-    const { data: sub } = await authed
-      .from('user_subscriptions')
-      .select('plan')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .eq('plan', 'signals')
-      .maybeSingle();
-
-    return Boolean(sub);
+    return await isSignalsEntitled(authed, user.id);
   } catch {
     return false;
   }

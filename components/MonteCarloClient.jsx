@@ -65,7 +65,9 @@ const SEQUENCE_OPTIONS = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function boxMuller(mu, sigma) {
-  const u1 = Math.random();
+  // CR-16: Math.random() can return exactly 0 → Math.log(0) = -Infinity.
+  // 1 - Math.random() is in (0, 1], which keeps log() finite.
+  const u1 = 1 - Math.random();
   const u2 = Math.random();
   return mu + sigma * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
@@ -143,8 +145,13 @@ function runMonteCarlo({
   const bootstrapPool = yearBlocks;
 
   // Statistical params (mean/std of monthly returns)
+  // CR-3: sample variance (/ n−1), matching lib/portfolioStats.js and the
+  // portfolio_stats SQL view (Postgres stddev is sample stddev).
   const mean = allRates.reduce((a, b) => a + b, 0) / allRates.length;
-  const variance = allRates.reduce((acc, r) => acc + (r - mean) ** 2, 0) / allRates.length;
+  const variance =
+    allRates.length > 1
+      ? allRates.reduce((acc, r) => acc + (r - mean) ** 2, 0) / (allRates.length - 1)
+      : 0;
   const std = Math.sqrt(variance);
 
   function buildSequence() {

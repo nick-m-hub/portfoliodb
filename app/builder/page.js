@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { getPortfolioNames } from '@/lib/db';
 import BuilderClient from '@/components/BuilderClient';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { getEntitledSubscription, tierFromSubscription } from '@/lib/entitlements';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.portfoliodb.com';
 
@@ -44,23 +45,18 @@ export default async function BuilderPage({ searchParams }) {
   let savedCount = 0;
 
   if (user) {
-    const [{ data: subscription }, { count }] = await Promise.all([
-      supabase
-        .from('user_subscriptions')
-        .select('plan')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+    // CR-2: shared entitlement rule — a cancelled-but-paid-through Signals
+    // subscription keeps access until period end; an expired one doesn't.
+    const [subscription, { count }] = await Promise.all([
+      getEntitledSubscription(supabase, user.id),
       supabase
         .from('user_portfolios')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id),
     ]);
-    // Builder-tier features are free for any signed-in user — only an active
+    // Builder-tier features are free for any signed-in user — only an entitled
     // Signals subscription elevates someone past the Builder tier.
-    tier = subscription?.plan === 'signals' ? 'signals' : 'builder';
+    tier = tierFromSubscription(subscription);
     savedCount = count ?? 0;
   }
 

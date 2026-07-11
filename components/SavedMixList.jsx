@@ -107,7 +107,7 @@ function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs,
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function SavedMixList({ initialMixes, tier, allAllocations = [], allSignals = [], tacticalSlugs: tacticalSlugsProp = [] }) {
+export default function SavedMixList({ initialMixes, tier, allAllocations = [], allSignals = [], tacticalSlugs: tacticalSlugsProp = [], portfolioNames = [] }) {
   const [mixes, setMixes]           = useState(initialMixes);
   const [confirmId, setConfirmId]   = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -117,7 +117,7 @@ export default function SavedMixList({ initialMixes, tier, allAllocations = [], 
   // tacticalSlugs comes from the server (kofi_link, public info) rather than
   // from allSignals — non-Signals members receive allSignals=[] (CR-1), but the
   // "tactical holdings hidden" note still needs to know which slugs are tactical.
-  const { allocBySlug, signalBySlug, tacticalSlugs } = useMemo(() => {
+  const { allocBySlug, signalBySlug, tacticalSlugs, nameBySlug } = useMemo(() => {
     const allocBySlug = {};
     for (const a of allAllocations) {
       if (!allocBySlug[a.portfolio_slug]) allocBySlug[a.portfolio_slug] = [];
@@ -127,8 +127,11 @@ export default function SavedMixList({ initialMixes, tier, allAllocations = [], 
     const tacticalSlugs = new Set(
       tacticalSlugsProp.length ? tacticalSlugsProp : allSignals.map((s) => s.slug)
     );
-    return { allocBySlug, signalBySlug, tacticalSlugs };
-  }, [allAllocations, allSignals, tacticalSlugsProp]);
+    // CR-10: saved selections only store { slug, weight } — names are looked up
+    // at render time so mix pills always show current portfolio names.
+    const nameBySlug = Object.fromEntries(portfolioNames.map((p) => [p.slug, p.name]));
+    return { allocBySlug, signalBySlug, tacticalSlugs, nameBySlug };
+  }, [allAllocations, allSignals, tacticalSlugsProp, portfolioNames]);
 
   async function handleDelete(id) {
     setDeletingId(id);
@@ -232,7 +235,7 @@ export default function SavedMixList({ initialMixes, tier, allAllocations = [], 
                 className="inline-flex items-center font-inter text-[11px] font-medium px-2 py-0.5 rounded-full text-white"
                 style={{ backgroundColor: PORTFOLIO_COLORS[i % PORTFOLIO_COLORS.length] }}
               >
-                {s.weight}%{s.name ? ` ${s.name}` : ''}
+                {s.weight}% {nameBySlug[s.slug] ?? s.name ?? s.slug}
               </span>
             ))}
           </div>
