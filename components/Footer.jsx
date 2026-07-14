@@ -27,6 +27,7 @@ export default function Footer() {
             <Link
               key={label}
               href={href}
+              prefetch={false}
               className="font-inter text-sm text-on-surface-variant hover:text-primary hover:underline transition-all"
             >
               {label}

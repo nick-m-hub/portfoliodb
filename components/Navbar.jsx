@@ -16,6 +16,7 @@ export default function Navbar({ portfolios = [] }) {
           <div className="flex items-center gap-8">
             <Link
               href="/"
+              prefetch={false}
               className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 font-manrope"
             >
               <img src="/portfoliodb-icon.svg" alt="PortfolioDB" width={24} height={24} />
@@ -24,18 +25,21 @@ export default function Navbar({ portfolios = [] }) {
             <div className="hidden md:flex items-center gap-6">
               <Link
                 href="/database"
+                prefetch={false}
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
                 Database
               </Link>
               <Link
                 href="/portfolio-screener"
+                prefetch={false}
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
                 Screener
               </Link>
               <Link
                 href="/strategies"
+                prefetch={false}
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
                 Strategies
@@ -43,6 +47,7 @@ export default function Navbar({ portfolios = [] }) {
               <ToolsMenu />
               <Link
                 href="/membership"
+                prefetch={false}
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
               >
                 Membership
@@ -55,6 +60,7 @@ export default function Navbar({ portfolios = [] }) {
             <NavSearch portfolios={portfolios} />
             <Link
               href="/account"
+              prefetch={false}
               aria-label="Account"
               className="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0"
             >
@@ -68,18 +74,21 @@ export default function Navbar({ portfolios = [] }) {
         <div className="flex md:hidden items-center justify-between border-t border-outline-variant/40 py-2">
           <Link
             href="/database"
+            prefetch={false}
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
           >
             Database
           </Link>
           <Link
             href="/portfolio-screener"
+            prefetch={false}
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
           >
             Screener
           </Link>
           <Link
             href="/strategies"
+            prefetch={false}
             className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors font-inter"
           >
             Strategies

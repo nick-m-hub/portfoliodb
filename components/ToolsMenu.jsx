@@ -45,6 +45,7 @@ export default function ToolsMenu() {
             <Link
               key={href}
               href={href}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="flex flex-col px-4 py-2.5 hover:bg-surface-container-low transition-colors group"
             >
