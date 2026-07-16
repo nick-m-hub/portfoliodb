@@ -12,6 +12,7 @@ import { STAT_DEFINITIONS } from '@/lib/statDefinitions';
 import HoldingPeriodHeatmap from '@/components/HoldingPeriodHeatmap';
 import WithdrawalRatesTable from '@/components/WithdrawalRatesTable';
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
+import { buildGrowthData, buildDrawdownData, buildRollingDatasets, buildHeatmapData } from '@/lib/chartData';
 import PortfolioJumpNav from '@/components/PortfolioJumpNav';
 import SeasonalitySection from '@/components/SeasonalitySection';
 import StartDateSensitivitySection from '@/components/StartDateSensitivitySection';
@@ -80,30 +81,8 @@ function trimToRange(benchmarkReturns, portfolioReturns) {
 }
 
 // Compute drawdown (% decline from running peak) for each month
-function buildDrawdownData(monthlyReturns) {
-  if (!monthlyReturns?.length) return [];
-  let value = 10000;
-  let peak = 10000;
-  return monthlyReturns.map((row) => {
-    value = value * (1 + row.monthly_return / 100);
-    if (value > peak) peak = value;
-    const drawdown = ((value - peak) / peak) * 100;
-    return { label: row.date.slice(0, 7), value: Math.round(drawdown * 100) / 100 };
-  });
-}
-
-// Compute annualised rolling return for a given window (in months)
-function buildRollingReturnData(monthlyReturns, windowMonths) {
-  if (!monthlyReturns || monthlyReturns.length < windowMonths) return [];
-  const result = [];
-  for (let i = windowMonths - 1; i < monthlyReturns.length; i++) {
-    const window = monthlyReturns.slice(i - windowMonths + 1, i + 1);
-    const product = window.reduce((acc, row) => acc * (1 + row.monthly_return / 100), 1);
-    const annualized = (Math.pow(product, 12 / windowMonths) - 1) * 100;
-    result.push({ label: monthlyReturns[i].date.slice(0, 7), value: Math.round(annualized * 100) / 100 });
-  }
-  return result;
-}
+// buildGrowthData, buildDrawdownData, buildRollingDatasets, and buildHeatmapData
+// are imported from @/lib/chartData (CR-12 — shared with Compare + Builder).
 
 // Average return by calendar month (Jan–Dec) for the seasonality chart
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -196,45 +175,6 @@ function formatMY(yyyyMM) {
   return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
 }
 
-// Compute holding period returns heatmap: for every (startYear, N) pair, annualised CAGR
-function buildHeatmapData(monthlyReturns) {
-  if (!monthlyReturns?.length) return null;
-
-  const returnMap = new Map();
-  for (const row of monthlyReturns) {
-    returnMap.set(row.date.slice(0, 7), Number(row.monthly_return));
-  }
-
-  const firstYear = parseInt(monthlyReturns[0].date.slice(0, 4));
-  const lastYear  = parseInt(monthlyReturns[monthlyReturns.length - 1].date.slice(0, 4));
-
-  const startYears = [];
-  for (let y = firstYear; y <= lastYear; y++) startYears.push(y);
-
-  const maxPeriod = Math.min(30, lastYear - firstYear + 1);
-  const holdingPeriods = [];
-  for (let n = 1; n <= maxPeriod; n++) holdingPeriods.push(n);
-
-  const data = startYears.map((startYear) =>
-    holdingPeriods.map((n) => {
-      const endYear = startYear + n - 1;
-      if (endYear > lastYear) return null;
-      let compound = 1;
-      for (let y = startYear; y <= endYear; y++) {
-        for (let m = 1; m <= 12; m++) {
-          const key = `${y}-${String(m).padStart(2, '0')}`;
-          const ret = returnMap.get(key);
-          if (ret === undefined) return null;
-          compound *= (1 + ret / 100);
-        }
-      }
-      return Math.round((Math.pow(compound, 1 / n) - 1) * 10000) / 100;
-    })
-  );
-
-  return { startYears, holdingPeriods, data };
-}
-
 // Compute start-date sensitivity: two lines at each reference year —
 // "prev 10yr CAGR" and "next 10yr CAGR" — to show how much timing mattered.
 // Requires ≥20 years of data for at least one "next" point to exist.
@@ -284,19 +224,6 @@ function buildStartDateSensitivityData(monthlyReturns) {
   return { points, cutoffYear, luckiest, unluckiest };
 }
 
-// Compute growth of $10,000 from monthly returns, downsampled to one point per year
-function buildGrowthData(monthlyReturns) {
-  if (!monthlyReturns?.length) return [];
-  let value = 10000;
-  const byYear = {};
-  for (const row of monthlyReturns) {
-    value = value * (1 + row.monthly_return / 100);
-    const year = row.date.slice(0, 4);
-    byYear[year] = { label: year, value: Math.round(value * 100) / 100 };
-  }
-  return Object.values(byYear);
-}
-
 function StatRow({ icon, label, value, valueClass = 'text-primary', definition, benchmarkValue }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-outline-variant last:border-b-0">
@@ -336,12 +263,7 @@ export default async function PortfolioDetailPage({ params }) {
 
   const growthData = buildGrowthData(monthlyReturns);
   const drawdownData = buildDrawdownData(monthlyReturns);
-  const rollingDatasets = {
-    '1Y': buildRollingReturnData(monthlyReturns, 12),
-    '3Y': buildRollingReturnData(monthlyReturns, 36),
-    '5Y': buildRollingReturnData(monthlyReturns, 60),
-    '10Y': buildRollingReturnData(monthlyReturns, 120),
-  };
+  const rollingDatasets = buildRollingDatasets(monthlyReturns);
 
   const heatmapData = buildHeatmapData(monthlyReturns);
   const startDateSensitivityData = buildStartDateSensitivityData(monthlyReturns);
@@ -359,12 +281,7 @@ export default async function PortfolioDetailPage({ params }) {
       growthData: buildGrowthData(raw),
       growthData10yr: raw.length > 120 ? buildGrowthData(raw.slice(-120)) : [],
       drawdownData: buildDrawdownData(raw),
-      rollingDatasets: {
-        '1Y': buildRollingReturnData(raw, 12),
-        '3Y': buildRollingReturnData(raw, 36),
-        '5Y': buildRollingReturnData(raw, 60),
-        '10Y': buildRollingReturnData(raw, 120),
-      },
+      rollingDatasets: buildRollingDatasets(raw),
     };
   });
 
@@ -424,7 +341,7 @@ export default async function PortfolioDetailPage({ params }) {
             {/* Hero stat tiles */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
               <div className="px-4 py-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1">
-                <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Real CAGR</span>
+                <span className="font-inter text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CAGR</span>
                 <span className="font-manrope text-[26px] font-bold text-primary leading-none">
                   {portfolio.cagr != null ? `${portfolio.cagr.toFixed(1)}%` : '—'}
                 </span>
@@ -578,7 +495,7 @@ export default async function PortfolioDetailPage({ params }) {
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-                <StatRow icon="trending_up" label="Real CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} definition={STAT_DEFINITIONS['Real CAGR']}
+                <StatRow icon="trending_up" label="CAGR" value={portfolio.cagr != null ? `${portfolio.cagr.toFixed(2)}%` : '—'} definition={STAT_DEFINITIONS['CAGR']}
                   benchmarkValue={benchmark6040?.cagr != null ? `${benchmark6040.cagr.toFixed(1)}%` : null} />
                 <StatRow icon="balance" label="Sharpe Ratio" value={portfolio.sharpe_ratio != null ? portfolio.sharpe_ratio.toFixed(2) : '—'} definition={STAT_DEFINITIONS['Sharpe Ratio']}
                   benchmarkValue={benchmark6040?.sharpe_ratio != null ? benchmark6040.sharpe_ratio.toFixed(2) : null} />

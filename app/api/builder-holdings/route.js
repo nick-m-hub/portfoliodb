@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { supabase, createServerSupabaseClient } from '@/lib/supabase';
 import { getAdminClient } from '@/lib/supabaseAdmin';
 import { isSignalsEntitled } from '@/lib/entitlements';
+import { groupTacticalHoldings } from '@/lib/db';
 
 // Returns allocations + current tactical signals for a specific set of portfolio slugs.
 // Called client-side by BuilderClient when the user has 2+ portfolios selected.
@@ -97,22 +98,7 @@ export async function GET(request) {
         .eq('date', latestRow.date)
         .order('weight', { ascending: false });
 
-      const bySlug = {};
-      for (const row of holdings ?? []) {
-        if (!bySlug[row.portfolio_slug]) {
-          bySlug[row.portfolio_slug] = {
-            slug: row.portfolio_slug,
-            name: nameBySlug[row.portfolio_slug] ?? row.portfolio_slug,
-            date: row.date,
-            holdings: [],
-          };
-        }
-        bySlug[row.portfolio_slug].holdings.push({
-          ticker: row.ticker,
-          weight: Number(row.weight) * 100,
-        });
-      }
-      signals = Object.values(bySlug);
+      signals = groupTacticalHoldings(holdings, nameBySlug);
     }
   }
 

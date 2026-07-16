@@ -145,8 +145,11 @@ def main():
     print(f"  Rows promoted to monthly_returns : {len(live_rows)}")
     print(f"  Staging rows marked approved     : {len(live_rows)}")
     print()
-    print("  portfolio_stats recalculates automatically — all site stats")
-    print("  are already updated. No Vercel redeploy needed.")
+    print("  NEXT STEPS (both required — the new stats are NOT live yet):")
+    print("   1. Refresh the matview: REFRESH MATERIALIZED VIEW portfolio_stats;")
+    print("      (run in the Supabase SQL Editor — portfolio_stats is a")
+    print("       MATERIALIZED view and does not auto-update on insert)")
+    print("   2. Redeploy Vercel so the SSG pages rebuild from the new stats.")
     print(f"{'='*60}\n")
 
 

@@ -22,7 +22,8 @@ const RollingReturnChart = dynamic(() => import('@/components/RollingReturnChart
   loading: () => <ChartSkeleton height={280} />,
 });
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
-import { buildBlendedReturns, computeStats, RF_MONTHLY as _RF_MONTHLY } from '@/lib/portfolioStats';
+import { buildBlendedReturns, computeStats, blendHoldings, RF_MONTHLY as _RF_MONTHLY } from '@/lib/portfolioStats';
+import { buildDrawdownData, buildRollingDatasets, buildHeatmapData } from '@/lib/chartData';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
 const BENCHMARKS = [
@@ -33,74 +34,8 @@ const BENCHMARKS = [
 const RF_MONTHLY = _RF_MONTHLY; // re-exported from lib/portfolioStats for local use
 const MAX_PORTFOLIOS = 6;
 
-// buildBlendedReturns + computeStats are imported from @/lib/portfolioStats above.
-
-function buildDrawdownData(blended) {
-  let value = 10000;
-  let peak = 10000;
-  return blended.map((r) => {
-    value *= 1 + r.monthly_return / 100;
-    if (value > peak) peak = value;
-    const dd = ((value - peak) / peak) * 100;
-    return { label: r.date.slice(0, 7), value: Math.round(dd * 100) / 100 };
-  });
-}
-
-function buildRollingDatasets(blended) {
-  const windows = [
-    { label: '1Y', months: 12 },
-    { label: '3Y', months: 36 },
-    { label: '5Y', months: 60 },
-    { label: '10Y', months: 120 },
-  ];
-  const datasets = {};
-  for (const { label, months } of windows) {
-    if (blended.length < months) continue;
-    const data = [];
-    for (let i = months - 1; i < blended.length; i++) {
-      let compound = 1;
-      for (let j = i - months + 1; j <= i; j++) {
-        compound *= 1 + blended[j].monthly_return / 100;
-      }
-      const annualized = (Math.pow(compound, 12 / months) - 1) * 100;
-      data.push({ label: blended[i].date.slice(0, 7), value: Math.round(annualized * 100) / 100 });
-    }
-    if (data.length > 0) datasets[label] = data;
-  }
-  return datasets;
-}
-
-function buildHeatmapData(monthlyReturns) {
-  if (!monthlyReturns?.length) return null;
-  const returnMap = new Map();
-  for (const row of monthlyReturns) {
-    returnMap.set(row.date.slice(0, 7), Number(row.monthly_return));
-  }
-  const firstYear = parseInt(monthlyReturns[0].date.slice(0, 4));
-  const lastYear = parseInt(monthlyReturns[monthlyReturns.length - 1].date.slice(0, 4));
-  const startYears = [];
-  for (let y = firstYear; y <= lastYear; y++) startYears.push(y);
-  const maxPeriod = Math.min(30, lastYear - firstYear + 1);
-  const holdingPeriods = [];
-  for (let n = 1; n <= maxPeriod; n++) holdingPeriods.push(n);
-  const data = startYears.map((startYear) =>
-    holdingPeriods.map((n) => {
-      const endYear = startYear + n - 1;
-      if (endYear > lastYear) return null;
-      let compound = 1;
-      for (let y = startYear; y <= endYear; y++) {
-        for (let m = 1; m <= 12; m++) {
-          const key = `${y}-${String(m).padStart(2, '0')}`;
-          const ret = returnMap.get(key);
-          if (ret === undefined) return null;
-          compound *= 1 + ret / 100;
-        }
-      }
-      return Math.round((Math.pow(compound, 1 / n) - 1) * 10000) / 100;
-    })
-  );
-  return { startYears, holdingPeriods, data };
-}
+// buildBlendedReturns, computeStats, and blendHoldings come from @/lib/portfolioStats;
+// buildDrawdownData, buildRollingDatasets, and buildHeatmapData from @/lib/chartData (CR-12).
 
 // Equal weight distribution across n portfolios (last slot absorbs rounding)
 function equalWeights(n) {
@@ -522,36 +457,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
     }
     const signalBySlug = Object.fromEntries(holdingsData.signals.map((s) => [s.slug, s]));
 
-    let hasTactical = false;
-    const tickerTotals = {}; // ticker → blended weight (0–100 scale)
-
-    for (const sel of selections) {
-      const portFrac = parseFloat(sel.weight) / 100; // e.g. 0.6 for 60%
-      const isTactical = tacticalSlugs.has(sel.slug);
-      if (isTactical) hasTactical = true;
-
-      let holdings = [];
-      if (isTactical) {
-        const signal = signalBySlug[sel.slug];
-        if (signal) {
-          // signal.holdings[].weight is already in % (0–100) after fix in db.js
-          holdings = signal.holdings.map((h) => ({ ticker: h.ticker, frac: h.weight / 100 }));
-        }
-      } else {
-        // allocation.percentage is 0–100
-        const allocs = allocBySlug[sel.slug] ?? [];
-        holdings = allocs.map((a) => ({ ticker: a.ticker, frac: Number(a.percentage) / 100 }));
-      }
-
-      for (const { ticker, frac } of holdings) {
-        tickerTotals[ticker] = (tickerTotals[ticker] || 0) + portFrac * frac;
-      }
-    }
-
-    const holdings = Object.entries(tickerTotals)
-      .map(([ticker, frac]) => ({ ticker, weight: frac * 100 }))
-      .sort((a, b) => b.weight - a.weight);
-
+    const { hasTactical, holdings } = blendHoldings(selections, { allocBySlug, signalBySlug, tacticalSlugs });
     return holdings.length > 0 ? { hasTactical, holdings } : null;
   }, [selections, weightOk, holdingsData, tacticalSlugs]);
 

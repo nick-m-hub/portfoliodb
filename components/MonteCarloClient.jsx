@@ -12,24 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-// ── Blend helper ─────────────────────────────────────────────────────────────
-
-function buildBlendedReturns(returnsBySlug, selections) {
-  const slugs = selections.map((s) => s.slug);
-  const weights = Object.fromEntries(selections.map((s) => [s.slug, parseFloat(s.weight) / 100]));
-
-  // Find common dates across all portfolios
-  const dateSets = slugs.map((slug) => new Set((returnsBySlug[slug] ?? []).map((r) => r.date)));
-  const commonDates = [...dateSets[0]].filter((d) => dateSets.every((set) => set.has(d))).sort();
-
-  return commonDates.map((date) => {
-    const blended = slugs.reduce((acc, slug) => {
-      const row = (returnsBySlug[slug] ?? []).find((r) => r.date === date);
-      return acc + (row ? row.monthly_return * (weights[slug] ?? 0) : 0);
-    }, 0);
-    return { date, monthly_return: Math.round(blended * 10000) / 10000 };
-  });
-}
+import { buildBlendedReturns } from '@/lib/portfolioStats';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

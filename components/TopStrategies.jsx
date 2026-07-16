@@ -18,7 +18,7 @@ const METRICS = {
   cagr: {
     label: 'CAGR',
     bigStat: (p) => `${(p.cagr ?? 0).toFixed(1)}%`,
-    bigLabel: 'Real CAGR',
+    bigLabel: 'CAGR',
     bigIcon: 'trending_up',
     secondary: [
       { label: 'Sharpe Ratio', value: (p) => (p.sharpe_ratio ?? 0).toFixed(2) },

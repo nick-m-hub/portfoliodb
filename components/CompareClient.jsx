@@ -16,7 +16,7 @@ const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22'];
 
 const STATS = [
-  { key: 'cagr',                    label: 'Real CAGR',     fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
+  { key: 'cagr',                    label: 'CAGR',          fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: (v) => v >= 0 ? 'text-primary' : 'text-error'  },
   { key: 'max_drawdown',            label: 'Max Drawdown',  fmt: (v) => `${v.toFixed(2)}%`,                      higherBetter: true,  colorFn: ()  => 'text-error'                             },
   { key: 'sharpe_ratio',            label: 'Sharpe Ratio',  fmt: (v) => v.toFixed(3),                            higherBetter: true,  colorFn: ()  => 'text-on-surface'                        },
   { key: 'sortino_ratio',           label: 'Sortino Ratio', fmt: (v) => v.toFixed(3),                            higherBetter: true,  colorFn: ()  => 'text-on-surface'                        },

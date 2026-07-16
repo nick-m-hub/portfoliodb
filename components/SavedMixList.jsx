@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { blendHoldings } from '@/lib/portfolioStats';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
 
@@ -16,38 +17,8 @@ function buildLoadUrl(selections) {
   return `/builder?mix=${encodeURIComponent(param)}`;
 }
 
-// Blend each portfolio's holdings/allocations by the user's mix weights.
-// Returns [{ ticker, weight }] sorted by weight desc, or [] if no data.
-function computeBlended(selections, allocBySlug, signalBySlug, tacticalSlugs) {
-  const tickerTotals = {};
-
-  for (const sel of selections) {
-    const portFrac = parseFloat(sel.weight) / 100;
-    if (!portFrac || isNaN(portFrac)) continue;
-
-    const isTactical = tacticalSlugs.has(sel.slug);
-    let holdings = [];
-
-    if (isTactical) {
-      const signal = signalBySlug[sel.slug];
-      if (signal) {
-        // signal.holdings[].weight is already in % (0–100)
-        holdings = signal.holdings.map((h) => ({ ticker: h.ticker, frac: h.weight / 100 }));
-      }
-    } else {
-      const allocs = allocBySlug[sel.slug] ?? [];
-      holdings = allocs.map((a) => ({ ticker: a.ticker, frac: Number(a.percentage) / 100 }));
-    }
-
-    for (const { ticker, frac } of holdings) {
-      tickerTotals[ticker] = (tickerTotals[ticker] || 0) + portFrac * frac;
-    }
-  }
-
-  return Object.entries(tickerTotals)
-    .map(([ticker, frac]) => ({ ticker, weight: frac * 100 }))
-    .sort((a, b) => b.weight - a.weight);
-}
+// Blended-holdings computation is shared with BuilderClient via
+// blendHoldings() in @/lib/portfolioStats (CR-12).
 
 function fmtW(w) {
   const n = Number(w);
@@ -57,9 +28,8 @@ function fmtW(w) {
 // ── Blended holdings display inside a mix card ────────────────────────────────
 
 function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs, tier }) {
-  const hasTactical = selections.some((s) => tacticalSlugs.has(s.slug));
+  const { hasTactical, holdings } = blendHoldings(selections, { allocBySlug, signalBySlug, tacticalSlugs });
   const isSignalsMember = tier === 'signals';
-  const holdings = computeBlended(selections, allocBySlug, signalBySlug, tacticalSlugs);
 
   // CR-1 (July 2026): non-Signals members never receive tactical signal data, so
   // `holdings` only contains the buy-and-hold portion of the mix for them. That
