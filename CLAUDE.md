@@ -1199,6 +1199,7 @@ python3 stage0_signals.py --month 2026-06 --force
 - `tactical/muscular_portfolios.py` — Mama Bear (top-3 of 9 by 5M momentum), Papa Bear (top-3 of 14 by avg 3/6/12M momentum)
 - `tactical/alpha_architect.py` — RAA Aggressive, RAA Balanced; dual-signal (TMOM + 10M MA) graduated allocation (100%/50%/0%) per asset
 - `tactical/keller.py` — PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA; shared helpers for 13612W momentum, SMA momentum, Easy Trading formula, min-variance optimization (scipy). requires numpy + scipy in requirements.txt.
+- `tactical/adaptive_momentum.py` — Adaptive Momentum family. `volatility_weighted_global_momentum()` (Volatility-Weighted Global Momentum Portfolio): 8-asset global universe (SPY, QQQ, EFA, EEM, XLE, GLD, TLT, IEF); selects the top 3 by **weighted average of rank orders** (each of the 1/3/6/12-month windows ranks the universe by return, ranks combined 20/40/30/10%, lowest wins) — matches Portfolio Visualizer's Adaptive Allocation Model. No cash/SMA filter (always holds top 3; defensive assets enter on their own momentum). Weights the 3 by inverse volatility over the trailing 4 calendar months of daily returns. Shared helpers `_weighted_rank_selection()` (selection) and `_inverse_vol_weights()` (weighting) are split so planned siblings that differ only in weighting (equal-weight, min-variance, ...) can reuse the selection. Validated against the PV report to within 0.1pp on the 3 most recent months. Added July 2026.
 
 **Keller et al. momentum formulas:**
 - **13612W** (VAA/DAA/KDA/GPM canary): `12*R1 + 4*R3 + 2*R6 + R12` — fast, front-weighted
@@ -1229,6 +1230,7 @@ python3 stage0_signals.py --month 2026-06 --force
 | Muscular Portfolios (Livingston) | Mama Bear, Papa Bear | Complete |
 | Alpha Architect RAA (Gray & Vogel) | Robust AA Aggressive, Robust AA Balanced | Complete |
 | Keller et al. | PAA, VAA G4, VAA G12, DAA, GPM, KDA, AAA | Complete (May 2026) |
+| Adaptive Momentum (rank-based top-3) | Volatility-Weighted Global Momentum | Complete (July 2026) |
 | Other | The Trend is Our Friend - Global | Complete (May 2026) |
 
 **GSG → DBC (May 2026):**
