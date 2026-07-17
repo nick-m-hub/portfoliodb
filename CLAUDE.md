@@ -471,7 +471,7 @@ portfoliodb/
 | `getMonthlyReturns(slug)` | Monthly return rows for one portfolio, ordered by date asc      |
 | `getAllPortfolioStrategies()` | All rows from portfolio_strategies (portfolio_slug + strategy_slug) |
 | `getAllSlugs()`         | Slug column only from portfolios table (for generateStaticParams)  |
-| `getPortfolioNames()`  | name + slug + kofi_link from portfolios table, alphabetical — kofi_link used by BuilderClient to identify tactical/signal portfolios. Wrapped in `unstable_cache(fn, ['portfolio-names'])` (June 2026) since `app/layout.tsx` calls it on every request. No `revalidate` option — caches indefinitely until next deploy (new portfolios always require a redeploy anyway); passing `revalidate` here would silently turn every page rendering the root layout into ISR. |
+| `getPortfolioNames()`  | name + slug + kofi_link from portfolios table, alphabetical — kofi_link used by BuilderClient to identify tactical/signal portfolios. Wrapped in `unstable_cache(fn, ['portfolio-names-v2'], { tags: ['portfolio-names'] })` (June 2026, key/tags added July 2026) since `app/layout.tsx` calls it on every request. **Corrected July 2026: a Vercel redeploy does NOT clear this** — Vercel's Data Cache persists across deployments regardless of code changes (unlike a self-hosted Next.js in-memory cache). A new portfolio was live on `/database` (uncached `getPortfolios()`) but missing from Navbar search/Builder/FI Calculator for multiple redeploys until the cache key was bumped. No on-demand `revalidateTag()` route exists yet, so a stale list today requires another key bump (e.g. `-v3`) — see New Portfolio Checklist. No `revalidate` option — passing one would silently turn every page rendering the root layout into ISR. |
 | `getCurrentSignals()`  | Current month's holdings for all signal-set portfolios (kofi_link IS NOT NULL) from tactical_monthly_holdings. Fetches the signal portfolio list and the single latest stored date (avoids Supabase's 1,000-row cap as history accumulates) **in parallel** (June 2026 — Stage 0 writes all tactical portfolios for a month together, so an unfiltered latest-date query is equivalent to filtering by signal slugs), then fetches all holdings for that date only. Weights stored as decimal fractions (0–1) in DB, multiplied by 100 before returning. Returns: [{ slug, name, date, holdings: [{ ticker, weight }] }]. **CR-1 (July 2026): reads holdings via the service-role client (`lib/supabaseAdmin.js`) — RLS on tactical_monthly_holdings denies anon reads. Does NO entitlement check itself — callers MUST verify an active Signals subscription first.** CR-12: the group-by-slug + weight×100 step is the exported `groupTacticalHoldings(rows, nameBySlug)` helper, shared with `/api/builder-holdings`. |
 | `getRelatedPortfolios(slug)` | Top 3 same-category portfolios ranked by strategy tag overlap then Sharpe ratio — used by portfolio detail page |
 | `getSignalPortfolios()` | name + slug for all portfolios where kofi_link IS NOT NULL, alphabetical — used by membership page |
@@ -1026,13 +1026,14 @@ Work through these phases in order whenever a new portfolio is added.
 - [ ] Trigger a Vercel redeploy (portfolio detail page is SSG — won't exist until rebuild)
 - [ ] Verify `/portfolios/[slug]` loads correctly
 - [ ] Verify slug appears in `/sitemap.xml`
+- [ ] **Bump the `getPortfolioNames()` cache key in `lib/db.js`** (e.g. `'portfolio-names-v2'` → `'-v3'`) — a redeploy alone does NOT refresh this list (see `lib/db.js` comment above `getPortfolioNames`). Skipping this means the new portfolio stays invisible in Navbar search, Builder, Financial Independence Calculator, Lump Sum vs. DCA, and the Compare/Monte Carlo pickers even though it's live everywhere else.
 
 ### Phase 5 — Optional
 
 - [ ] **Signal set** — set kofi_link if portfolio should have trade signals (requires redeploy)
 - [ ] **Blog** — add to content-calendar.md if it warrants a comparison post
 
-**Easy things to miss:** forgetting REFRESH MATERIALIZED VIEW · inserting allocations before portfolios exists · forgetting Vercel redeploy · for tactical: forgetting new tickers in ALL_TICKERS before Stage 0 runs
+**Easy things to miss:** forgetting REFRESH MATERIALIZED VIEW · inserting allocations before portfolios exists · forgetting Vercel redeploy · forgetting the `getPortfolioNames()` cache key bump (new portfolio silently missing from Builder/FI Calculator/Navbar search) · for tactical: forgetting new tickers in ALL_TICKERS before Stage 0 runs
 
 ---
 
