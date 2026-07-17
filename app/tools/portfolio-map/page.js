@@ -5,13 +5,13 @@ const PortfolioMapClient = dynamic(() => import('./PortfolioMapClient'));
 
 export const metadata = {
   title: 'Portfolio Risk vs. Return Map | PortfolioDB',
-  description: 'See every portfolio strategy plotted by annualized volatility and CAGR. Instantly spot which strategies offer the best return for their level of risk.',
+  description: 'See every portfolio strategy plotted by annualized volatility and CAGR. An efficient frontier overlay instantly shows which strategies offer the best return for their level of risk.',
   alternates: {
     canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/tools/portfolio-map`,
   },
   openGraph: {
     title: 'Portfolio Risk vs. Return Map | PortfolioDB',
-    description: 'See every portfolio strategy plotted by annualized volatility and CAGR. Instantly spot which strategies offer the best return for their level of risk.',
+    description: 'See every portfolio strategy plotted by annualized volatility and CAGR. An efficient frontier overlay instantly shows which strategies offer the best return for their level of risk.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/tools/portfolio-map`,
     siteName: 'PortfolioDB',
     type: 'website',
@@ -19,7 +19,7 @@ export const metadata = {
   twitter: {
     card: 'summary',
     title: 'Portfolio Risk vs. Return Map | PortfolioDB',
-    description: 'See every portfolio strategy plotted by annualized volatility and CAGR. Instantly spot which strategies offer the best return for their level of risk.',
+    description: 'See every portfolio strategy plotted by annualized volatility and CAGR. An efficient frontier overlay instantly shows which strategies offer the best return for their level of risk.',
   },
 };
 
@@ -49,7 +49,7 @@ export default async function PortfolioMapPage() {
             Portfolio Map
           </h1>
           <p className="text-on-surface-variant text-sm max-w-2xl">
-            Every portfolio mapped by risk and return. Toggle the X-axis between annualized volatility and max drawdown for two views of risk — portfolios in the upper-left of the chart are the most efficient. Filter by category, search by name, or narrow to a 10- or 20-year window to compare portfolios over the same period. Hover any dot for stats, click to open the portfolio.
+            Every portfolio mapped by risk and return. Toggle the X-axis between annualized volatility and max drawdown for two views of risk — the green efficient frontier line connects the portfolios that delivered the highest return for their level of risk, so anything on the line is a best-in-class tradeoff. Filter by category, search by name, or narrow to a 10- or 20-year window to compare portfolios over the same period. Hover any dot for stats, click to open the portfolio.
           </p>
         </div>
         <PortfolioMapClient portfolios={portfolios} />

@@ -168,6 +168,7 @@ export default function PortfolioMapClient({ portfolios }) {
   const router = useRouter();
   const [activeCategories, setActiveCategories] = useState(new Set(ALL_CATEGORIES));
   const [search, setSearch] = useState('');
+  const [showFrontier, setShowFrontier] = useState(true);
 
   // X-axis metric state
   const [xAxis, setXAxis] = useState('vol'); // 'vol' | 'maxdd'
@@ -322,6 +323,23 @@ export default function PortfolioMapClient({ portfolios }) {
       });
   }, [activePortfolios, activeCategories, isSearching, searchTerm, xAxis]);
 
+  // Efficient frontier — the Pareto-dominant set of the currently visible dots:
+  // portfolios where no other visible portfolio has both lower risk (x) and
+  // higher CAGR (y). Sorted by x so the connecting line sweeps left → right.
+  const frontierPoints = useMemo(() => {
+    if (chartData.length < 2) return [];
+    const sorted = [...chartData].sort((a, b) => a.x - b.x || b.y - a.y);
+    const pts = [];
+    let maxY = -Infinity;
+    for (const p of sorted) {
+      if (p.y > maxY) {
+        pts.push(p);
+        maxY = p.y;
+      }
+    }
+    return pts;
+  }, [chartData]);
+
   function toggleCategory(cat) {
     setActiveCategories((prev) => {
       const next = new Set(prev);
@@ -365,6 +383,28 @@ export default function PortfolioMapClient({ portfolios }) {
               </button>
             );
           })}
+
+          {/* Efficient frontier toggle */}
+          <button
+            onClick={() => setShowFrontier((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-inter text-sm font-medium border transition-all"
+            style={
+              showFrontier
+                ? { backgroundColor: '#27624a', borderColor: '#27624a', color: 'white' }
+                : { backgroundColor: 'transparent', borderColor: '#bfc9c2', color: '#404943' }
+            }
+          >
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden="true">
+              <path
+                d="M1 9 Q 4.5 7.5 7 4.5 T 13 1"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            Efficient Frontier
+          </button>
 
           {/* Mix legend chip — only shown when mixes are plotted */}
           {visibleMixPoints.length > 0 && (
@@ -488,6 +528,18 @@ export default function PortfolioMapClient({ portfolios }) {
                 {/* Break-even line */}
                 <ReferenceLine y={0} stroke="#ba1a1a" strokeDasharray="4 4" strokeOpacity={0.35} />
 
+                {/* Efficient frontier line — under the dots so they stay clickable */}
+                {showFrontier && frontierPoints.length >= 2 && (
+                  <Scatter
+                    data={frontierPoints}
+                    line={{ stroke: '#27624a', strokeWidth: 2, strokeOpacity: 0.55, pointerEvents: 'none' }}
+                    lineJointType="monotoneX"
+                    shape={() => null}
+                    tooltipType="none"
+                    isAnimationActive={false}
+                  />
+                )}
+
                 {/* All portfolio dots */}
                 <Scatter
                   data={chartData}
@@ -522,6 +574,11 @@ export default function PortfolioMapClient({ portfolios }) {
             <span className="ml-1">
               · {PERIODS.find((p) => p.key === period)?.label} window
               {' '}(portfolios with insufficient history are hidden)
+            </span>
+          )}
+          {showFrontier && frontierPoints.length >= 2 && (
+            <span className="ml-1">
+              · {frontierPoints.length} on the efficient frontier (green line — no other portfolio has both lower risk and higher return)
             </span>
           )}
           {' '}· Click any dot to open it
