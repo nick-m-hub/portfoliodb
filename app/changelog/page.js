@@ -20,8 +20,65 @@ export const metadata = {
 
 const CHANGELOG = [
   {
+    month: 'July 2026',
+    entries: [
+      {
+        type: 'new',
+        text: 'Efficient Frontier chart added to the Portfolio Builder (paid) — see where your custom mix sits relative to the best possible risk/return combinations of your selected portfolios.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio Builder — added Max Sortino as a 4th Auto-allocate option, optimizing weights for the best return relative to downside risk only (ignores upside volatility).',
+      },
+      {
+        type: 'new',
+        text: 'Efficient frontier line added to the Portfolio Map — see the best risk/return combinations across every portfolio in the database, plotted directly on the risk vs. return chart.',
+      },
+      {
+        type: 'new',
+        text: 'Volatility-Weighted Global Momentum Portfolio added — a tactical strategy holding the top 3 of 8 global asset classes by momentum, weighted by inverse volatility. Included in the monthly Signals trade alerts.',
+      },
+    ],
+  },
+  {
     month: 'June 2026',
     entries: [
+      {
+        type: 'new',
+        text: 'Portfolio Map added — a risk vs. return scatter chart plotting every portfolio by volatility (or max drawdown) against CAGR, with category filters and a search box to highlight any portfolio.',
+      },
+      {
+        type: 'new',
+        text: 'Correlation Matrix added — a full pairwise correlation heatmap across every portfolio in the database. Filter by category or strategy, or click any pair to open both in the Portfolio Builder at equal weights.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio Builder — added an Auto-allocate menu with Equal Weight, Risk Parity, and Max Sharpe options to instantly reweight your mix.',
+      },
+      {
+        type: 'new',
+        text: 'Seasonality chart added to every portfolio detail page — average return by calendar month, so you can see which months have historically been strongest and weakest.',
+      },
+      {
+        type: 'new',
+        text: 'Drawdown History table added to every portfolio detail page — every historical decline of 3% or more, with depth, length, and recovery time.',
+      },
+      {
+        type: 'improvement',
+        text: 'Portfolio detail pages — added an "Analyze ▾" menu with quick links to Compare, Monte Carlo, Lump Sum vs. DCA, and the FI Calculator for that portfolio.',
+      },
+      {
+        type: 'new',
+        text: 'Ben Felix Model Portfolio - Timing added — a tactical version of the Ben Felix Model Portfolio with a 10-month moving average trend overlay.',
+      },
+      {
+        type: 'improvement',
+        text: 'Homepage redesigned — now leads with a live stat strip and a Tools Strip linking directly to the Builder, Monte Carlo, Correlation Matrix, and FI Calculator.',
+      },
+      {
+        type: 'improvement',
+        text: 'AI Portfolio Finder moved to the Database page — describe your goal and its picks now appear right above your filtered results.',
+      },
       {
         type: 'new',
         text: 'Start Date Sensitivity chart added to every portfolio page — see how a 10-year holding period would have played out depending on when you started investing, with "Luckiest" and "Unluckiest" start annotations. The spread between best and worst is also shown as a Timing Sensitivity stat in the Performance Snapshot and as a column in the Portfolio Screener.',

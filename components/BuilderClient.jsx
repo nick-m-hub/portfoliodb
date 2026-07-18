@@ -21,6 +21,10 @@ const RollingReturnChart = dynamic(() => import('@/components/RollingReturnChart
   ssr: false,
   loading: () => <ChartSkeleton height={280} />,
 });
+const EfficientFrontierChart = dynamic(() => import('@/components/EfficientFrontierChart'), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={320} />,
+});
 import { buildWithdrawalRates } from '@/lib/withdrawalRates';
 import { buildBlendedReturns, computeStats, blendHoldings, RF_MONTHLY as _RF_MONTHLY } from '@/lib/portfolioStats';
 import { buildDrawdownData, buildRollingDatasets, buildHeatmapData } from '@/lib/chartData';
@@ -170,17 +174,23 @@ function maxSharpeWeights(selections, portfolioReturns) {
   }
 
   if (!bestW) return null;
+  return applyWeightFloor(bestW);
+}
 
-  // Apply 5% minimum weight floor: clamp any allocation below 5% up to 5%,
-  // then remove the excess proportionally from above-floor weights.
-  const MIN_W = 5;
-  let w = bestW;
+// Clamp any allocation below minPct up to minPct, redistributing the excess
+// proportionally from above-floor weights (falls back to equal weight if no
+// weights remain above the floor to redistribute from). Rounds to 1 decimal
+// with the last slot absorbing the rounding remainder. Shared by maxSharpeWeights
+// and maxSortinoWeights below.
+function applyWeightFloor(weights, minPct = 5) {
+  const n = weights.length;
+  let w = [...weights];
   for (let pass = 0; pass < n; pass++) {
-    const below = w.map((wi, i) => wi < MIN_W - 1e-9 ? i : -1).filter((i) => i >= 0);
+    const below = w.map((wi, i) => wi < minPct - 1e-9 ? i : -1).filter((i) => i >= 0);
     if (below.length === 0) break;
-    below.forEach((i) => { w[i] = MIN_W; });
+    below.forEach((i) => { w[i] = minPct; });
     const excess = w.reduce((s, wi) => s + wi, 0) - 100;
-    const above = w.map((wi, i) => wi > MIN_W + 1e-9 ? i : -1).filter((i) => i >= 0);
+    const above = w.map((wi, i) => wi > minPct + 1e-9 ? i : -1).filter((i) => i >= 0);
     if (above.length === 0) { w = Array(n).fill(100 / n); break; }
     const aboveSum = above.reduce((s, i) => s + w[i], 0);
     above.forEach((i) => { w[i] -= excess * (w[i] / aboveSum); });
@@ -192,6 +202,124 @@ function maxSharpeWeights(selections, portfolioReturns) {
   rounded[rounded.length - 1] = Math.round((rounded[rounded.length - 1] + diff) * 10) / 10;
 
   return rounded.map((wi) => String(wi));
+}
+
+// Efficient frontier + advanced auto-allocate objectives (Max Sortino) need a
+// broader search than maxSharpeWeights' closed-form solver above: Sortino and
+// drawdown-shape metrics aren't quadratic forms of the weights (they depend on
+// which specific months are negative/underwater, not just overall variance), so
+// no analytical long-only solution exists. Instead this samples the weight
+// simplex directly and computes REAL compounded stats (not a mean-variance
+// approximation) for each candidate — n ≤ 6 and typical history lengths keep a
+// few thousand evaluations comfortably under a render-blocking budget.
+// Returns an array of { weights (0-100 scale), cagr, annualizedVolatility, sortino }.
+// Pass `refineFor(point) => number` to also run a few rounds of localized
+// re-sampling around the best-scoring candidate (used by maxSortinoWeights;
+// left null for the frontier, which wants the raw cloud).
+function sampleEfficientPortfolios(selections, portfolioReturns, { samples = 3000, refineFor = null } = {}) {
+  const maps = {};
+  for (const { slug } of selections) {
+    maps[slug] = {};
+    for (const r of (portfolioReturns[slug] || [])) {
+      maps[slug][r.date] = Number(r.monthly_return);
+    }
+  }
+
+  const dateSets = selections.map(({ slug }) => new Set(Object.keys(maps[slug])));
+  if (dateSets.some((s) => s.size === 0)) return [];
+  const commonDates = [...dateSets[0]].filter((d) => dateSets.every((s) => s.has(d))).sort();
+  if (commonDates.length < 12) return [];
+
+  const n = selections.length;
+  const T = commonDates.length;
+  const R = selections.map(({ slug }) => commonDates.map((d) => maps[slug][d]));
+
+  function evaluate(w) {
+    let value = 10000, peak = 10000, sumDDSq = 0, sumDownsideSq = 0;
+    const rets = new Array(T);
+    for (let t = 0; t < T; t++) {
+      let r = 0;
+      for (let i = 0; i < n; i++) r += w[i] * R[i][t];
+      rets[t] = r;
+      value *= 1 + r / 100;
+      if (value > peak) peak = value;
+      const dd = ((value - peak) / peak) * 100;
+      sumDDSq += dd * dd;
+      sumDownsideSq += Math.pow(Math.min(0, r - RF_MONTHLY), 2);
+    }
+    const cagr = (Math.pow(value / 10000, 12 / T) - 1) * 100;
+    const mean = rets.reduce((s, r) => s + r, 0) / T;
+    const variance = rets.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / Math.max(T - 1, 1);
+    const annualizedVolatility = Math.sqrt(variance) * Math.sqrt(12);
+    const downsideStdDev = Math.sqrt(sumDownsideSq / T);
+    const sortino = downsideStdDev === 0 ? 0 : ((mean - RF_MONTHLY) / downsideStdDev) * Math.sqrt(12);
+    return { weights: w.map((wi) => wi * 100), cagr, annualizedVolatility, sortino };
+  }
+
+  // Structured seed points (equal weight + each pure single-asset vertex) plus
+  // Dirichlet(1) random sampling over the simplex.
+  const candidates = [evaluate(Array(n).fill(1 / n))];
+  for (let i = 0; i < n; i++) {
+    const w = Array(n).fill(0);
+    w[i] = 1;
+    candidates.push(evaluate(w));
+  }
+  for (let s = 0; s < samples; s++) {
+    const raw = Array.from({ length: n }, () => -Math.log(1 - Math.random()));
+    const total = raw.reduce((a, b) => a + b, 0);
+    candidates.push(evaluate(raw.map((v) => v / total)));
+  }
+
+  if (refineFor) {
+    let best = candidates.reduce((a, b) => (refineFor(b) > refineFor(a) ? b : a));
+    for (let round = 0; round < 3; round++) {
+      const spread = 0.3 / (round + 1); // shrink the search radius each round
+      const localBatch = [];
+      for (let s = 0; s < 500; s++) {
+        const perturbed = best.weights.map((wi) => Math.max(0, wi / 100 + (Math.random() - 0.5) * spread));
+        const total = perturbed.reduce((a, b) => a + b, 0) || 1;
+        localBatch.push(evaluate(perturbed.map((v) => v / total)));
+      }
+      candidates.push(...localBatch);
+      const localBest = localBatch.reduce((a, b) => (refineFor(b) > refineFor(a) ? b : a), best);
+      if (refineFor(localBest) > refineFor(best)) best = localBest;
+    }
+  }
+
+  return candidates;
+}
+
+// Pareto-dominant set on (annualizedVolatility, cagr) — same greedy sweep as
+// PortfolioMapClient.jsx's frontierPoints, applied to a sampled cloud of
+// hypothetical blends instead of a fixed set of real portfolios.
+function computeFrontier(cloud) {
+  if (cloud.length < 2) return [];
+  const sorted = [...cloud].sort(
+    (a, b) => a.annualizedVolatility - b.annualizedVolatility || b.cagr - a.cagr
+  );
+  const pts = [];
+  let maxCagr = -Infinity;
+  for (const p of sorted) {
+    if (p.cagr > maxCagr) {
+      pts.push(p);
+      maxCagr = p.cagr;
+    }
+  }
+  return pts;
+}
+
+// Max Sortino weights — samples the simplex and refines around the best
+// downside-risk-adjusted candidate (no closed-form long-only solution exists,
+// unlike Max Sharpe). Same 5% floor + rounding contract as maxSharpeWeights.
+// Returns null if data is insufficient (caller falls back silently).
+function maxSortinoWeights(selections, portfolioReturns) {
+  const cloud = sampleEfficientPortfolios(selections, portfolioReturns, {
+    samples: 3000,
+    refineFor: (p) => p.sortino,
+  });
+  if (!cloud.length) return null;
+  const best = cloud.reduce((a, b) => (b.sortino > a.sortino ? b : a));
+  return applyWeightFloor(best.weights);
 }
 
 // Format "YYYY-MM-DD" → "Jan 2010"
@@ -441,6 +569,28 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
     if (!blendedReturns.length || !tier) return null;
     return buildHeatmapData(blendedReturns);
   }, [blendedReturns, tier]);
+
+  // Stable proxy for "which portfolios are selected" that doesn't change when a
+  // weight slider is dragged (selections' object identity changes on every weight
+  // edit, but the Monte Carlo frontier search below only depends on the slug set).
+  const selectedSlugsKey = useMemo(
+    () => selections.map((s) => s.slug).join(','),
+    [selections]
+  );
+
+  // Efficient frontier — gated behind tier like the Heatmap above (no point running
+  // the sampling search for free users). Recomputes only when the selected
+  // portfolios or their return data change, not on every weight-slider drag.
+  const frontierData = useMemo(() => {
+    if (!tier || selections.length < 2 || !allDataLoaded || isLoading) return null;
+    try {
+      const cloud = sampleEfficientPortfolios(selections, portfolioReturns);
+      if (!cloud.length) return null;
+      return computeFrontier(cloud);
+    } catch {
+      return null;
+    }
+  }, [tier, selectedSlugsKey, portfolioReturns, allDataLoaded, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute blended holdings for the Current Holdings card.
   // Weights each portfolio's holdings (allocations or tactical signals) by the
@@ -906,6 +1056,9 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                     } else if (mode === 'max-sharpe') {
                       const weights = maxSharpeWeights(selections, portfolioReturns);
                       if (weights) setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
+                    } else if (mode === 'max-sortino') {
+                      const weights = maxSortinoWeights(selections, portfolioReturns);
+                      if (weights) setSelections((prev) => prev.map((s, i) => ({ ...s, weight: weights[i] })));
                     }
                   }}
                   className="font-inter text-[11px] appearance-none pl-2.5 pr-6 py-1 rounded-full border border-outline-variant bg-white text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
@@ -914,6 +1067,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
                   <option value="equal">Equal Weight</option>
                   <option value="risk-parity">Risk Parity</option>
                   <option value="max-sharpe">Max Sharpe</option>
+                  <option value="max-sortino">Max Sortino</option>
                 </select>
                 <span
                   className="material-symbols-outlined pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-on-surface-variant"
@@ -922,7 +1076,7 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
               </div>
               <StatTooltip
                 label=""
-                definition={<>Equal Weight: splits allocation evenly.<br/>Risk Parity: weights by inverse volatility so each portfolio contributes equal risk.<br/>Max Sharpe: optimises weights for the best historical risk-adjusted return.</>}
+                definition={<>Equal Weight: splits allocation evenly.<br/>Risk Parity: weights by inverse volatility so each portfolio contributes equal risk.<br/>Max Sharpe: optimises weights for the best historical risk-adjusted return.<br/>Max Sortino: optimises weights for the best return relative to downside risk only (ignores upside volatility).</>}
               />
             </div>
           )}
@@ -1375,6 +1529,49 @@ export default function BuilderClient({ allPortfolios, mixParam = null, userId =
               {!tier && <LockOverlay title="Rolling Returns" />}
             </div>
           </div>
+
+          {/* Efficient Frontier — gated, computed async for tier members */}
+          {(!tier || frontierData) && (
+            <div className="relative">
+              <div
+                className={`transition-[filter] ${
+                  !tier ? 'blur-sm select-none pointer-events-none' : ''
+                }`}
+              >
+                {tier ? (
+                  frontierData && (
+                    <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <h3 className="font-manrope font-bold text-[16px] text-on-surface">
+                          Efficient Frontier
+                        </h3>
+                        <StatTooltip
+                          label=""
+                          definition="Each point is the best possible CAGR for its level of risk, using hypothetical combinations of your selected portfolios. The orange dot is your current mix — the more room below/right of the line, the more a different weighting could improve risk-adjusted return."
+                        />
+                      </div>
+                      <p className="font-inter text-[13px] text-on-surface-variant mb-3">
+                        Where your mix sits relative to the best possible blends of these portfolios.
+                      </p>
+                      <EfficientFrontierChart
+                        frontier={frontierData}
+                        current={stats ? { x: stats.annualizedVolatility, y: stats.cagr } : null}
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-8 min-h-[200px]">
+                    <h2 className="font-manrope text-[22px] font-bold text-primary mb-2">Efficient Frontier</h2>
+                    <p className="font-inter text-[13px] text-on-surface-variant">
+                      See where your mix sits relative to the best possible risk/return combinations
+                      of your selected portfolios, and how much room there is to improve.
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!tier && <LockOverlay title="Efficient Frontier" />}
+            </div>
+          )}
 
           {/* Withdrawal Rates — gated, computed async for tier members */}
           <div className="relative">
