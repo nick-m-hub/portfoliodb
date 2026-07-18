@@ -30,7 +30,9 @@ export async function proxy(request) {
 
   // IMPORTANT: do not add any logic between createServerClient and getUser.
   // getUser refreshes the session cookie — skipping it breaks auth.
+  console.time('proxy:auth.getUser');
   const { data: { user } } = await supabase.auth.getUser();
+  console.timeEnd('proxy:auth.getUser');
 
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_ROUTES.some(

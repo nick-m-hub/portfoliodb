@@ -37,7 +37,9 @@ export default async function AccountPage() {
   // proxy.js middleware already validated the session and refreshed cookies
   // via auth.getUser() for this request — getSession() decodes that
   // already-verified cookie locally without a second Auth server round trip.
+  console.time('account:auth.getSession');
   const { data: { session } } = await supabase.auth.getSession();
+  console.timeEnd('account:auth.getSession');
   const user = session?.user;
   if (!user) redirect('/login?next=/account');
 
@@ -46,15 +48,22 @@ export default async function AccountPage() {
   // CR-2: getEntitledSubscription applies the shared paid-through rule
   // (status IN active/cancelled AND current_period_end > now) — an expired
   // subscription row no longer grants tier or shows as the current plan.
+  const timed = (label, promise) => {
+    console.time(label);
+    // Promise.resolve() normalizes Supabase query builders (thenables that
+    // may lack .finally()) into a real Promise before we chain onto it.
+    return Promise.resolve(promise).finally(() => console.timeEnd(label));
+  };
+
   const [subscription, { data: savedMixes }, allAllocationsData, portfolioNames] = await Promise.all([
-    getEntitledSubscription(supabase, user.id),
-    supabase
+    timed('account:getEntitledSubscription', getEntitledSubscription(supabase, user.id)),
+    timed('account:user_portfolios', supabase
       .from('user_portfolios')
       .select('id, name, selections, created_at')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false }),
-    getAllAllocations(),
-    getPortfolioNames(),
+      .order('created_at', { ascending: false })),
+    timed('account:getAllAllocations', getAllAllocations()),
+    timed('account:getPortfolioNames', getPortfolioNames()),
   ]);
 
   const allAllocations = allAllocationsData ?? [];
@@ -67,7 +76,9 @@ export default async function AccountPage() {
   // CR-1 (July 2026): signals are the paid product — only fetch them for Signals
   // members. Non-members get an empty array and see a placeholder + lock overlay
   // (rendered from no real data) instead of blurred real data.
+  console.time('account:getCurrentSignals');
   const signals = tier === 'signals' ? await getCurrentSignals() : [];
+  console.timeEnd('account:getCurrentSignals');
 
   // Which portfolios are tactical (signal-covered) — public info from kofi_link.
   // SavedMixList needs this to show the "tactical holdings hidden" note even
