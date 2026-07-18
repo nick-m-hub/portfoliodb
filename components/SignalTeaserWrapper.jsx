@@ -16,15 +16,21 @@ export default function SignalTeaserWrapper({ slug }) {
   const [date, setDate] = useState(null);
 
   useEffect(() => {
-    // Instant reveal from this tab's cache (CR-22)
+    // Instant reveal from this tab's cache (CR-22). Only ever serves a cached
+    // result that has real holdings — an empty result is never cached, since
+    // it usually means "not populated yet" (e.g. a newly-added portfolio
+    // checked before Stage 0 ran that month) rather than a stable fact, and
+    // caching it would wrongly stick for the rest of the calendar month.
     try {
       const cached = sessionStorage.getItem(cacheKey(slug));
       if (cached) {
         const json = JSON.parse(cached);
-        setHoldings(json.holdings ?? []);
-        setDate(json.date ?? null);
-        setState('unlocked');
-        return;
+        if (json.holdings?.length) {
+          setHoldings(json.holdings);
+          setDate(json.date ?? null);
+          setState('unlocked');
+          return;
+        }
       }
     } catch {
       // sessionStorage unavailable (private browsing) — fall through to fetch
@@ -38,10 +44,12 @@ export default function SignalTeaserWrapper({ slug }) {
       setHoldings(json.holdings ?? []);
       setDate(json.date ?? null);
       setState('unlocked');
-      try {
-        sessionStorage.setItem(cacheKey(slug), JSON.stringify(json));
-      } catch {
-        // best-effort cache — ignore quota/private-browsing errors
+      if (json.holdings?.length) {
+        try {
+          sessionStorage.setItem(cacheKey(slug), JSON.stringify(json));
+        } catch {
+          // best-effort cache — ignore quota/private-browsing errors
+        }
       }
     }
     check().catch(() => setState('locked'));
