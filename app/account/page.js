@@ -55,16 +55,33 @@ export default async function AccountPage() {
     return Promise.resolve(promise).finally(() => console.timeEnd(label));
   };
 
-  const [subscription, { data: savedMixes }, allAllocationsData, portfolioNames] = await Promise.all([
-    timed('account:getEntitledSubscription', getEntitledSubscription(supabase, user.id)),
-    timed('account:user_portfolios', supabase
-      .from('user_portfolios')
-      .select('id, name, selections, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })),
-    timed('account:getAllAllocations', getAllAllocations()),
-    timed('account:getPortfolioNames', getPortfolioNames()),
-  ]);
+  // Signals are the paid product (CR-1) and only fetched for Signals members —
+  // which we know as soon as the subscription check resolves. Chain the signals
+  // fetch off that promise so it overlaps the rest of the batch instead of
+  // running sequentially after it (removes one round-trip layer from the warm
+  // critical path). Non-members resolve to [] and never fetch real signal data.
+  const subscriptionPromise = timed(
+    'account:getEntitledSubscription',
+    getEntitledSubscription(supabase, user.id)
+  );
+  const signalsPromise = subscriptionPromise.then((sub) =>
+    tierFromSubscription(sub) === 'signals'
+      ? timed('account:getCurrentSignals', getCurrentSignals())
+      : []
+  );
+
+  const [subscription, { data: savedMixes }, allAllocationsData, portfolioNames, signals] =
+    await Promise.all([
+      subscriptionPromise,
+      timed('account:user_portfolios', supabase
+        .from('user_portfolios')
+        .select('id, name, selections, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })),
+      timed('account:getAllAllocations', getAllAllocations()),
+      timed('account:getPortfolioNames', getPortfolioNames()),
+      signalsPromise,
+    ]);
 
   const allAllocations = allAllocationsData ?? [];
 
@@ -72,13 +89,6 @@ export default async function AccountPage() {
   // Signals subscription elevates someone past the Builder tier.
   const tier = tierFromSubscription(subscription);
   const mixes = savedMixes ?? [];
-
-  // CR-1 (July 2026): signals are the paid product — only fetch them for Signals
-  // members. Non-members get an empty array and see a placeholder + lock overlay
-  // (rendered from no real data) instead of blurred real data.
-  console.time('account:getCurrentSignals');
-  const signals = tier === 'signals' ? await getCurrentSignals() : [];
-  console.timeEnd('account:getCurrentSignals');
 
   // Which portfolios are tactical (signal-covered) — public info from kofi_link.
   // SavedMixList needs this to show the "tactical holdings hidden" note even
