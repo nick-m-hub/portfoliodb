@@ -1053,6 +1053,22 @@ Work through these phases in order whenever a new portfolio is added.
 
 > **Known gap (CR-7, open):** these two steps are currently manual and undocumented in the GitHub Actions flow. A future improvement is to automate them as the final steps of the Stage 2 workflow (matview refresh via a Supabase RPC + a Vercel Deploy Hook). Until then, do both by hand after every Stage 2 promotion.
 
+### Caching cheat-sheet: what needs a manual step after a data change (July 2026)
+
+Different data changes hit different cache layers. Quick reference for "will this show up on its own, or do I need to do something?":
+
+| You update… | Shows up automatically? | Manual step needed |
+|---|---|---|
+| **Signals** (Stage 0 → `tactical_monthly_holdings`), normal month-end | ✅ Yes | **None** |
+| **Signals**, mid-month correction (`stage0_signals.py --force`) | ⚠️ Mostly — stale only in tabs already loaded this month | None practical (self-clears next month / new browser session) |
+| **Monthly returns** (Stage 2 promotion) | ❌ No | **`REFRESH MATERIALIZED VIEW portfolio_stats;` + Vercel redeploy** (the two steps above) |
+| **Static allocation weights** (`allocations` table donut %) | ❌ On SSG pages | **Vercel redeploy** (force-dynamic pages like `/account`, `/builder` update immediately) |
+| **New portfolio** / `kofi_link` change | ❌ No | **Bump `getPortfolioNames` cache key in `lib/db.js` + redeploy** (see New Portfolio Checklist) |
+
+**Why signals need no cache babysitting:** `/account` and `/builder` are `force-dynamic` (fresh every load); portfolio detail pages fetch signals **client-side** via `SignalTeaserWrapper` (never baked into the SSG HTML); `getCurrentSignals()` and the signal API routes are uncached; and Cloudflare's cache rule **excludes** the auth'd signal routes (`/api/current-holdings`, `/api/builder-holdings`). `SignalTeaserWrapper`'s `sessionStorage` cache is keyed by **slug + current calendar month**, so it auto-refetches exactly at the month boundary — the only staleness window is a *mid-month* signal correction, which lingers in an already-loaded tab until the month rolls or the browser session ends.
+
+**Cloudflare backstop:** the SSG public pages are edge-cached. A Vercel redeploy normally propagates fine; if you ever confirm a redeploy succeeded but still see an old page, a **Cloudflare cache purge** is the lever (that's the only layer where "I did everything right and it's still stale" points at Cloudflare rather than Vercel/Supabase).
+
 ---
 
 ## Monthly Returns Automation Pipeline (May 2026)
