@@ -37,9 +37,7 @@ export default async function AccountPage() {
   // proxy.js middleware already validated the session and refreshed cookies
   // via auth.getUser() for this request — getSession() decodes that
   // already-verified cookie locally without a second Auth server round trip.
-  console.time('account:auth.getSession');
   const { data: { session } } = await supabase.auth.getSession();
-  console.timeEnd('account:auth.getSession');
   const user = session?.user;
   if (!user) redirect('/login?next=/account');
 
@@ -48,38 +46,27 @@ export default async function AccountPage() {
   // CR-2: getEntitledSubscription applies the shared paid-through rule
   // (status IN active/cancelled AND current_period_end > now) — an expired
   // subscription row no longer grants tier or shows as the current plan.
-  const timed = (label, promise) => {
-    console.time(label);
-    // Promise.resolve() normalizes Supabase query builders (thenables that
-    // may lack .finally()) into a real Promise before we chain onto it.
-    return Promise.resolve(promise).finally(() => console.timeEnd(label));
-  };
-
+  //
   // Signals are the paid product (CR-1) and only fetched for Signals members —
   // which we know as soon as the subscription check resolves. Chain the signals
   // fetch off that promise so it overlaps the rest of the batch instead of
   // running sequentially after it (removes one round-trip layer from the warm
   // critical path). Non-members resolve to [] and never fetch real signal data.
-  const subscriptionPromise = timed(
-    'account:getEntitledSubscription',
-    getEntitledSubscription(supabase, user.id)
-  );
+  const subscriptionPromise = getEntitledSubscription(supabase, user.id);
   const signalsPromise = subscriptionPromise.then((sub) =>
-    tierFromSubscription(sub) === 'signals'
-      ? timed('account:getCurrentSignals', getCurrentSignals())
-      : []
+    tierFromSubscription(sub) === 'signals' ? getCurrentSignals() : []
   );
 
   const [subscription, { data: savedMixes }, allAllocationsData, portfolioNames, signals] =
     await Promise.all([
       subscriptionPromise,
-      timed('account:user_portfolios', supabase
+      supabase
         .from('user_portfolios')
         .select('id, name, selections, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })),
-      timed('account:getAllAllocations', getAllAllocations()),
-      timed('account:getPortfolioNames', getPortfolioNames()),
+        .order('created_at', { ascending: false }),
+      getAllAllocations(),
+      getPortfolioNames(),
       signalsPromise,
     ]);
 
