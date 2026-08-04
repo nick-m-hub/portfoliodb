@@ -42,3 +42,16 @@ next-env.d.ts
 
 # Claude Code worktrees (temp build artifacts)
 .claude/worktrees/
+
+# Claude Code local skills (personal, not versioned with the app)
+.claude/skills/
+
+# Local blog drafts — source of truth is the blog_posts table in Supabase;
+# local copies drift out of sync once edited/published there (see CLAUDE.md
+# blog workflow). The 2 historically-tracked drafts stay tracked.
+blog-drafts/
+
+# Local research / reference material (not part of the app)
+*Competitive Analysis.md
+PV Backtest Reports/
+VERCEL DNS/
