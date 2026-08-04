@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { getCurrentSignals, getAllAllocations, getPortfolioNames } from '@/lib/db';
 import { getEntitledSubscription, tierFromSubscription } from '@/lib/entitlements';
+import { blendHoldings } from '@/lib/portfolioStats';
 import SignOutButton from '@/components/SignOutButton';
 import SavedMixList from '@/components/SavedMixList';
 import CurrentSignals from '@/components/CurrentSignals';
@@ -78,9 +79,44 @@ export default async function AccountPage() {
   const mixes = savedMixes ?? [];
 
   // Which portfolios are tactical (signal-covered) — public info from kofi_link.
-  // SavedMixList needs this to show the "tactical holdings hidden" note even
-  // when no signal data is present.
-  const tacticalSlugs = (portfolioNames ?? []).filter((p) => p.kofi_link).map((p) => p.slug);
+  // Used to flag mixes that include tactical holdings ("hidden" note) even when
+  // no signal data is present.
+  const tacticalSet = new Set(
+    (portfolioNames ?? []).filter((p) => p.kofi_link).map((p) => p.slug)
+  );
+
+  // Precompute each saved mix's display pills + blended holdings SERVER-SIDE.
+  // Previously SavedMixList received the full allAllocations list (~566 rows /
+  // ~100KB) plus allSignals + portfolioNames and ran blendHoldings() on the
+  // client — that payload + map-building + blend math was pure main-thread
+  // hydration work (INP cost) just to render pills for ≤3 mixes. Now the client
+  // gets only the small precomputed result. allAllocations is still fetched in
+  // the parallel batch above (perf-audit 2.2) but no longer shipped to the browser.
+  // CR-1: blendHoldings only reads tactical tickers from `signals`, which is []
+  // for non-Signals members — they get the buy-and-hold portion + hasTactical
+  // flag (lock note), never real signal data.
+  const allocBySlug = {};
+  for (const a of allAllocations) {
+    (allocBySlug[a.portfolio_slug] ??= []).push(a);
+  }
+  const signalBySlug = Object.fromEntries((signals ?? []).map((s) => [s.slug, s]));
+  const nameBySlug = Object.fromEntries((portfolioNames ?? []).map((p) => [p.slug, p.name]));
+
+  const mixCards = mixes.map((mix) => {
+    const selections = mix.selections ?? [];
+    return {
+      id: mix.id,
+      name: mix.name,
+      created_at: mix.created_at,
+      selections, // {slug, weight} — drives the "Load in Builder" link
+      pills: selections.map((s) => ({
+        slug: s.slug,
+        weight: s.weight,
+        name: nameBySlug[s.slug] ?? s.name ?? s.slug,
+      })),
+      blended: blendHoldings(selections, { allocBySlug, signalBySlug, tacticalSlugs: tacticalSet }),
+    };
+  });
 
   return (
     <main className="w-full max-w-3xl mx-auto px-4 sm:px-8 py-12 font-inter text-on-surface">
@@ -182,14 +218,7 @@ export default async function AccountPage() {
           </Link>
         </div>
 
-        <SavedMixList
-          initialMixes={mixes}
-          tier={tier}
-          allAllocations={allAllocations}
-          allSignals={signals ?? []}
-          tacticalSlugs={tacticalSlugs}
-          portfolioNames={portfolioNames ?? []}
-        />
+        <SavedMixList initialMixes={mixCards} tier={tier} />
       </section>
 
       {/* ── Current Signals ── */}

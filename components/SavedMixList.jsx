@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { blendHoldings } from '@/lib/portfolioStats';
 
 const PORTFOLIO_COLORS = ['#074a34', '#1565c0', '#b71c1c', '#e67e22', '#7b1fa2', '#00796b'];
 
@@ -17,8 +16,9 @@ function buildLoadUrl(selections) {
   return `/builder?mix=${encodeURIComponent(param)}`;
 }
 
-// Blended-holdings computation is shared with BuilderClient via
-// blendHoldings() in @/lib/portfolioStats (CR-12).
+// Blended-holdings are precomputed server-side (app/account/page.js) via
+// blendHoldings() in @/lib/portfolioStats and passed in as mix.blended, so the
+// allocations payload + blend math never ship to / run on the client (INP).
 
 function fmtW(w) {
   const n = Number(w);
@@ -27,8 +27,8 @@ function fmtW(w) {
 
 // ── Blended holdings display inside a mix card ────────────────────────────────
 
-function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs, tier }) {
-  const { hasTactical, holdings } = blendHoldings(selections, { allocBySlug, signalBySlug, tacticalSlugs });
+function BlendedHoldings({ blended, tier }) {
+  const { hasTactical, holdings } = blended;
   const isSignalsMember = tier === 'signals';
 
   // CR-1 (July 2026): non-Signals members never receive tactical signal data, so
@@ -77,31 +77,16 @@ function BlendedHoldings({ selections, allocBySlug, signalBySlug, tacticalSlugs,
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function SavedMixList({ initialMixes, tier, allAllocations = [], allSignals = [], tacticalSlugs: tacticalSlugsProp = [], portfolioNames = [] }) {
+// initialMixes items are precomputed server-side (app/account/page.js) and carry
+// everything the UI needs: { id, name, created_at, selections, pills, blended }.
+// pills = [{ slug, weight, name }] (CR-10: names resolved server-side at render
+// time from getPortfolioNames, so they self-heal on renames); blended =
+// { hasTactical, holdings } from blendHoldings().
+export default function SavedMixList({ initialMixes, tier }) {
   const [mixes, setMixes]           = useState(initialMixes);
   const [confirmId, setConfirmId]   = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError]           = useState(null);
-
-  // Pre-compute lookup maps once for all cards.
-  // tacticalSlugs comes from the server (kofi_link, public info) rather than
-  // from allSignals — non-Signals members receive allSignals=[] (CR-1), but the
-  // "tactical holdings hidden" note still needs to know which slugs are tactical.
-  const { allocBySlug, signalBySlug, tacticalSlugs, nameBySlug } = useMemo(() => {
-    const allocBySlug = {};
-    for (const a of allAllocations) {
-      if (!allocBySlug[a.portfolio_slug]) allocBySlug[a.portfolio_slug] = [];
-      allocBySlug[a.portfolio_slug].push(a);
-    }
-    const signalBySlug = Object.fromEntries(allSignals.map((s) => [s.slug, s]));
-    const tacticalSlugs = new Set(
-      tacticalSlugsProp.length ? tacticalSlugsProp : allSignals.map((s) => s.slug)
-    );
-    // CR-10: saved selections only store { slug, weight } — names are looked up
-    // at render time so mix pills always show current portfolio names.
-    const nameBySlug = Object.fromEntries(portfolioNames.map((p) => [p.slug, p.name]));
-    return { allocBySlug, signalBySlug, tacticalSlugs, nameBySlug };
-  }, [allAllocations, allSignals, tacticalSlugsProp, portfolioNames]);
 
   async function handleDelete(id) {
     setDeletingId(id);
@@ -199,25 +184,20 @@ export default function SavedMixList({ initialMixes, tier, allAllocations = [], 
 
           {/* Portfolio weight pills */}
           <div className="flex flex-wrap gap-1.5">
-            {mix.selections.map((s, i) => (
+            {mix.pills.map((p, i) => (
               <span
-                key={s.slug}
+                key={p.slug}
                 className="inline-flex items-center font-inter text-[11px] font-medium px-2 py-0.5 rounded-full text-white"
                 style={{ backgroundColor: PORTFOLIO_COLORS[i % PORTFOLIO_COLORS.length] }}
               >
-                {s.weight}% {nameBySlug[s.slug] ?? s.name ?? s.slug}
+                {p.weight}% {p.name}
               </span>
             ))}
           </div>
 
-          {/* Blended holdings — Signals tier sees real data; Builder tier sees blurred */}
-          <BlendedHoldings
-            selections={mix.selections}
-            allocBySlug={allocBySlug}
-            signalBySlug={signalBySlug}
-            tacticalSlugs={tacticalSlugs}
-            tier={tier}
-          />
+          {/* Blended holdings — Signals tier sees real data; Builder tier sees the
+              buy-and-hold portion + a "tactical hidden" note (CR-1). */}
+          <BlendedHoldings blended={mix.blended} tier={tier} />
         </div>
       ))}
 
