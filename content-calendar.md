@@ -202,7 +202,7 @@ A second, parallel track alongside the 25-post calendar above — a "Month in Re
 
 ---
 
-### Post 5
+### Post 5 — ✅ Published 2026-06-30 (slug: `what-is-the-sharpe-ratio`)
 **Title:** What Is the Sharpe Ratio? How to Compare Portfolio Risk-Adjusted Returns
 
 **Primary keyword:** `sharpe ratio portfolio comparison` — Informational / educational

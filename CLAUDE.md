@@ -169,9 +169,9 @@ RLS: users can read/insert/delete only their own rows. Builder tier enforces a m
 
 ### Blog post writing workflow
 
-1. Pick the next post from `content-calendar.md` (recommended order: Posts 1–3 first, then 11–12)
+1. Pick the next post from `content-calendar.md` (working the Easy tier 1–10 in order; see TASKS.md "Blog content" line for the current progress pointer)
 2. Pull fresh stats for the portfolios referenced in that post — never hardcode numbers (see options below)
-3. Write the post in Claude (target ~1,200 words; follow style rules below)
+3. Write the post in Claude (target ~1,200 words; follow style rules below). **Treat the calendar outline as a starting point, not gospel** — the outlines were written before the live data existed, so verify the framing still holds once you pull the numbers. If the outline's premise conflicts with the data or with the post's own title, reframe rather than execute it literally. (Post 6, July 2026: the outline's "ranked simplest to least simple" was reframed to "fewest funds to most diversified" because two of the five picks hold 9–10 funds, which contradicted a "requires almost no work" title; keeping the title for SEO but fixing the body framing was the fix.)
 4. Insert into `blog_posts` with `status = 'draft'`. **Note (confirmed June 2026): drafts do NOT render at `/blog/[slug]`** — `getBlogPost()` in `lib/db.js` filters `.eq('status', 'published')` and RLS only allows public reads of published rows, so the page 404s on a draft. Review the draft instead via the saved markdown file (e.g. `blog-drafts/[slug].md`) in any markdown viewer, or query Supabase directly. The only way to "preview live" is to temporarily flip `status` to `'published'`.
 5. Nick edits the two `[ADD YOUR TAKE HERE]` slots, then flips to `status = 'published'` and sets `published_at` — goes live immediately
 6. Mark the post as published in `content-calendar.md`
