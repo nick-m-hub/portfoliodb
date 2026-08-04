@@ -73,4 +73,17 @@
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
   user-select: none;
+  /* Reserve a fixed 1em square box so the icon never reflows adjacent content
+     while the Material Symbols webfont is still loading (a CLS source, worst on
+     cold-start pages like /account). Without this, the ligature source text
+     (e.g. "manage_accounts") lays out at full multi-character width in the
+     fallback font, then collapses to a single glyph when the font arrives.
+     inline-block + width:1em + overflow clip the fallback text; line-height:1
+     fixes the box height. Pairs with &display=block on the stylesheet URL
+     (layout.tsx), which keeps the fallback text invisible during load. */
+  display: inline-block;
+  width: 1em;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
 }
