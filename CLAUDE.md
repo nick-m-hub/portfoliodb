@@ -303,7 +303,7 @@ portfoliodb/
     layout.tsx                       # Root layout — fonts, preconnect hints, GA4, Navbar, Vercel Analytics
     globals.css                      # Tailwind v4 @theme design tokens
     database/
-      page.js                        # Database page (server, wraps DatabaseClient in Suspense)
+      page.js                        # Database page (server, SSG) — renders DatabaseClient directly (no Suspense wrapper; DatabaseClient reads URL filter params via a mount effect, not useSearchParams — Aug 2026 CLS fix)
     portfolios/
       [slug]/
         page.js                      # Portfolio detail page (server, SSG)
@@ -598,9 +598,19 @@ All must also be set in Vercel project settings for production (except SUPABASE_
 - On submit: navigates to `/database?risk=N&max_drawdown=N&cat=Name`
 
 ### DatabaseClient.jsx
-- Reads `risk`, `max_drawdown`, and `cat` URL params on first render to
-  pre-fill filters (from the home page FilterBar)
-- Wrapped in `<Suspense>` in database/page.js (required by useSearchParams)
+- Reads `risk`, `max_drawdown`, and `cat` URL params to pre-fill filters (from
+  the home page FilterBar) in a **mount `useEffect` via `window.location.search`** —
+  NOT `useSearchParams()` (Aug 2026, CLS fix). `useSearchParams()` forced the whole
+  component behind a Suspense boundary, so the static HTML shipped only a spinner
+  fallback and the real grid rendered client-side after hydration — a large layout
+  shift (CLS ~0.42 field) + delayed LCP on every `/database` visit. Reading the URL
+  in an effect lets the page prerender the full grid into the static HTML (still SSG)
+  with no fallback swap. Trade-off: a FilterBar arrival (`?risk=3`) renders all
+  portfolios first, then filters after hydration (small, one-path shift); direct
+  visits render identically server/client. **Do NOT reintroduce `useSearchParams()`
+  here** — it brings back the Suspense-fallback CLS.
+- database/page.js renders `<DatabaseClient>` directly (no `<Suspense>` wrapper — no
+  longer needed once useSearchParams was removed)
 - Risk levels 1–2 = Conservative, 3 = Moderate, 4–5 = Aggressive
 - **AI input bar (June 2026):** Full-width bar sits between the page header and the sidebar+grid layout. Submits to `POST /api/screener` (same endpoint as the old homepage AIRecommend). State: `aiQuery`, `aiLoading`, `aiError`, `aiPicks`. Replaces previous picks on re-submit; "Clear AI picks" link appears inline in the bar when picks are showing and resets all AI state.
 - **AI Picks section (June 2026):** When `aiPicks` is non-null, a distinct "AI Recommendations" section (header + `auto_awesome` icon + "Matched to your goal" badge) pins 3 `PortfolioCard` components above the regular grid, separated by a divider. AI Picks are looked up from the full `portfolios` prop by slug — they ignore active filters. Any pick whose slug is absent from `filteredSlugs` (the active filtered set) shows an "Outside your filters" tag in its card header. See ADR `docs/adr/0001-ai-picks-ignore-active-filters.md` for the rationale.

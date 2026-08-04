@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 
 const FALLBACK_COLORS = ['#074a34', '#27624a', '#4a8a68', '#97d3b5', '#b2f0d1', '#d1e4d8'];
 
@@ -211,8 +210,6 @@ function strategyLabel(slug) {
 }
 
 export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
-  const searchParams = useSearchParams();
-
   // AI Recommend state
   const [aiQuery, setAiQuery] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -250,26 +247,35 @@ export default function DatabaseClient({ portfolios, strategyOptions = [] }) {
     setAiError(null);
   }
 
-  // Initialise filters from URL params (set by the home page FilterBar)
   const [view, setView] = useState('grid'); // 'grid' | 'list'
-  const [riskFilters, setRiskFilters] = useState(() => {
-    const risk = searchParams.get('risk');
-    if (!risk) return [];
-    const label = riskLabel(parseInt(risk, 10));
-    return label ? [label] : [];
-  });
-  const [categoryFilters, setCategoryFilters] = useState(() => {
-    const cat = searchParams.get('cat');
-    return cat ? [cat] : [];
-  });
+  const [riskFilters, setRiskFilters] = useState([]);
+  const [categoryFilters, setCategoryFilters] = useState([]);
   const [bucketFilters, setBucketFilters] = useState([]);
   const [strategyFilters, setStrategyFilters] = useState([]);
-  const [maxDrawdownFilter, setMaxDrawdownFilter] = useState(() => {
-    const md = searchParams.get('max_drawdown');
-    return md ? parseFloat(md) : null;
-  });
+  const [maxDrawdownFilter, setMaxDrawdownFilter] = useState(null);
   const [sortBy, setSortBy] = useState('sharpe_ratio'); // default sort
   const [showFilters, setShowFilters] = useState(false);
+
+  // Seed filters from URL params (set by the home page FilterBar) after mount.
+  // Read from window.location instead of useSearchParams() so this page can be
+  // server-prerendered (SSG) with the full grid already in the HTML.
+  // useSearchParams() forces the whole component behind a Suspense boundary,
+  // which shipped only a spinner in the static HTML and caused a large layout
+  // shift (CLS) + delayed LCP when the real grid swapped in after hydration.
+  // Direct visits (no params) render identically on server and client; only
+  // FilterBar arrivals (?risk/?cat/?max_drawdown) apply filters post-hydration.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const risk = params.get('risk');
+    if (risk) {
+      const label = riskLabel(parseInt(risk, 10));
+      if (label) setRiskFilters([label]);
+    }
+    const cat = params.get('cat');
+    if (cat) setCategoryFilters([cat]);
+    const md = params.get('max_drawdown');
+    if (md) setMaxDrawdownFilter(parseFloat(md));
+  }, []);
 
   function toggleRisk(label) {
     setRiskFilters((prev) =>

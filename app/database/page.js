@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { getPortfolios, getAllAllocations, getAllPortfolioStrategies } from '@/lib/db';
 import DatabaseClient from '@/components/DatabaseClient';
 
@@ -58,18 +57,13 @@ export default async function DatabasePage() {
       : null,
   }));
 
+  // No Suspense boundary needed: DatabaseClient no longer calls
+  // useSearchParams() (it reads window.location in a mount effect instead), so
+  // the grid prerenders into the static HTML — no spinner fallback, no swap.
   return (
-    <Suspense fallback={
-      <main className="flex-grow w-full">
-        <div className="max-w-[1280px] mx-auto px-8 md:px-12 py-12 flex items-center justify-center min-h-64">
-          <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
-        </div>
-      </main>
-    }>
-      <DatabaseClient
-        portfolios={portfoliosWithData}
-        strategyOptions={allStrategyOptions}
-      />
-    </Suspense>
+    <DatabaseClient
+      portfolios={portfoliosWithData}
+      strategyOptions={allStrategyOptions}
+    />
   );
 }
