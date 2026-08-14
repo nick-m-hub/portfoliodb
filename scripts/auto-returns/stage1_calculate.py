@@ -23,6 +23,7 @@ from utils import (
     get_supabase_client, get_target_month, month_display, DOTENV_PATH,
     fetch_ticker_prices, get_last_trading_day_price,
 )
+from monthly_recap import generate_monthly_recap
 
 # ---------------------------------------------------------------------------
 # Config
@@ -70,7 +71,7 @@ def calculate_ticker_return(price_data: list, target_month: date) -> Optional[fl
 # Email notification
 # ---------------------------------------------------------------------------
 
-def send_summary_email(target_month: date, results: list, missing_tickers: list) -> None:
+def send_summary_email(target_month: date, results: list, missing_tickers: list, recap: dict) -> None:
     """
     Send a plain-text summary email after staging is written.
     Reads NOTIFY_EMAIL, SMTP_USER, and SMTP_PASSWORD from environment.
@@ -113,6 +114,59 @@ def send_summary_email(target_month: date, results: list, missing_tickers: list)
     for r in sorted_by_return:
         flag = " *" if r["flagged"] else ""
         lines.append(f"  {r['name'][:45]:<45} {r['monthly_return']:>+7.2f}%{flag}")
+
+    lines.append("")
+    lines.append("=" * 60)
+    lines.append("MONTHLY RECAP BLOG POST")
+    lines.append("=" * 60)
+    if recap["status"] == "generated":
+        lines.append(f"Draft ready for review: {recap['title']}")
+        lines.append(f"Slug: {recap['slug']}")
+        lines.append(f"Excerpt: {recap['excerpt']}")
+        if recap["excluded"]:
+            lines.append("")
+            lines.append(
+                f"NOTE: {len(recap['excluded'])} flagged portfolio(s) were excluded from the "
+                f"post's stats — double check them before publishing:"
+            )
+            for x in recap["excluded"]:
+                lines.append(f"  {x['name']}: {x['flag_reason']}")
+
+        lines.append("")
+        lines.append(f"CONFIDENCE: {recap['confidence']}")
+        lines.append(
+            "(Mechanically computed from the API response and the draft text against the real "
+            "portfolio numbers — never a self-reported model guess. Confirms links resolve, cited "
+            "returns match, and search actually ran. Does NOT confirm the market-context narrative "
+            "correctly interprets what it found — read that part yourself regardless of the label.)"
+        )
+        c = recap["checks"]
+        lines.append(f"  Web searches performed : {c['search_count']} ({c['search_errors']} error(s))")
+        lines.append(
+            f"  Portfolio links        : {c['link_total'] - len(c['invalid_links'])}/{c['link_total']} "
+            f"point to real slugs from this month's data"
+        )
+        lines.append(f"  Return figures matched : {c['verified_count']}/{c['link_total']} confirmed near their link")
+        lines.append(f"  Response truncated     : {'Yes' if c['truncated'] else 'No'}")
+        lines.append(f"  Word count             : {c['word_count']} (target ~1,200)")
+        if recap["confidence_issues"]:
+            lines.append("  Issues:")
+            for issue in recap["confidence_issues"]:
+                lines.append(f"    - {issue}")
+
+        lines.append("")
+        lines.append("Full draft:")
+        lines.append("-" * 60)
+        lines.append(recap["content"])
+        lines.append("-" * 60)
+        lines.append("")
+        lines.append("If the returns above AND this draft both look good, run Stage 2 to promote.")
+        lines.append("Stage 2 automatically flips this post to 'published' once the returns are promoted.")
+    elif recap["status"] in ("skipped_existing_draft", "skipped_existing_published"):
+        lines.append(f"{recap['slug']} already has a {recap['status'].split('_')[-1]} row — no new draft generated.")
+    else:
+        lines.append(f"Draft generation failed: {recap.get('error')}")
+        lines.append("The monthly returns above are unaffected — write this post manually if needed.")
 
     lines.append("")
     lines.append("TO PROMOTE TO LIVE:")
@@ -423,6 +477,18 @@ def main():
     print("  Done.\n")
 
     # -----------------------------------------------------------------------
+    # STEP 6b: Generate the monthly recap blog post draft
+    # -----------------------------------------------------------------------
+    print("Generating monthly recap blog post draft (Claude + web search)...")
+    recap = generate_monthly_recap(supabase, target_month, results)
+    if recap["status"] == "generated":
+        print(f"  Draft saved: {recap['slug']}\n")
+    elif recap["status"] in ("skipped_existing_draft", "skipped_existing_published"):
+        print(f"  {recap['slug']} already has a {recap['status'].split('_')[-1]} row — skipped.\n")
+    else:
+        print(f"  [WARN] Recap generation failed: {recap.get('error')}\n")
+
+    # -----------------------------------------------------------------------
     # STEP 7: Print summary
     # -----------------------------------------------------------------------
     flagged_results = [r for r in results if r["flagged"]]
@@ -458,7 +524,7 @@ def main():
 
     # Send email summary
     print("Sending summary email...")
-    send_summary_email(target_month, results, missing_tickers)
+    send_summary_email(target_month, results, missing_tickers, recap)
 
 
 if __name__ == "__main__":

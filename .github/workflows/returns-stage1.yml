@@ -3,6 +3,10 @@ name: Monthly Returns — Stage 1 Calculate
 # Runs automatically on the 3rd of every month at 10am UTC.
 # The 3rd gives markets time to fully settle and EODHD time to finalize prices.
 # Can also be triggered manually with an optional month override.
+#
+# Also drafts that month's "in Review" recap blog post (Claude + web search)
+# and includes it in the summary email — see monthly_recap.py. Stage 2
+# auto-publishes the draft when the returns are promoted.
 
 on:
   schedule:
@@ -45,3 +49,4 @@ jobs:
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

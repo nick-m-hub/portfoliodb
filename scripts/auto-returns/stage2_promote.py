@@ -9,7 +9,9 @@ Usage:
 import argparse
 import os
 import sys
+from datetime import datetime, timezone
 
+from monthly_recap import build_recap_slug
 from utils import get_supabase_client, get_target_month, month_display
 
 
@@ -137,6 +139,29 @@ def main():
     print("  Done.\n")
 
     # -----------------------------------------------------------------------
+    # STEP 5b: Auto-publish the matching monthly recap blog post, if present
+    # -----------------------------------------------------------------------
+    print("Checking for a matching monthly recap blog post...")
+
+    recap_slug = build_recap_slug(target_month)
+    recap_resp = (
+        supabase.table("blog_posts").select("id, status").eq("slug", recap_slug).execute()
+    )
+    recap_status = "not_found"
+
+    if recap_resp.data and recap_resp.data[0]["status"] == "draft":
+        supabase.table("blog_posts").update(
+            {"status": "published", "published_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("slug", recap_slug).execute()
+        recap_status = "published"
+        print(f"  Published: {recap_slug}\n")
+    elif recap_resp.data and recap_resp.data[0]["status"] == "published":
+        recap_status = "already_published"
+        print(f"  {recap_slug} was already published.\n")
+    else:
+        print(f"  No draft found at slug {recap_slug} — nothing to publish.\n")
+
+    # -----------------------------------------------------------------------
     # STEP 6: Final summary
     # -----------------------------------------------------------------------
     print(f"{'='*60}")
@@ -144,6 +169,7 @@ def main():
     print(f"{'='*60}")
     print(f"  Rows promoted to monthly_returns : {len(live_rows)}")
     print(f"  Staging rows marked approved     : {len(live_rows)}")
+    print(f"  Monthly recap blog post          : {recap_status} ({recap_slug})")
     print()
     print("  NEXT STEPS (both required — the new stats are NOT live yet):")
     print("   1. Refresh the matview: REFRESH MATERIALIZED VIEW portfolio_stats;")

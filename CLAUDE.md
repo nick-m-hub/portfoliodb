@@ -169,6 +169,8 @@ RLS: users can read/insert/delete only their own rows. Builder tier enforces a m
 
 ### Blog post writing workflow
 
+**This section covers the evergreen 25-post calendar only.** The recurring "Monthly Recap" post is fully automated — see "Monthly Recap Blog Post Automation" under the Monthly Returns Automation Pipeline section below. It does not follow these steps: it's auto-drafted by Stage 1, reviewed via email, and auto-published by Stage 2.
+
 1. Pick the next post from `content-calendar.md` (working the Easy tier 1–10 in order; see TASKS.md "Blog content" line for the current progress pointer)
 2. Pull fresh stats for the portfolios referenced in that post — never hardcode numbers (see options below)
 3. Write the post in Claude (target ~1,200 words; follow style rules below). **Treat the calendar outline as a starting point, not gospel** — the outlines were written before the live data existed, so verify the framing still holds once you pull the numbers. If the outline's premise conflicts with the data or with the post's own title, reframe rather than execute it literally. (Post 6, July 2026: the outline's "ranked simplest to least simple" was reframed to "fewest funds to most diversified" because two of the five picks hold 9–10 funds, which contradicted a "requires almost no work" title; keeping the title for SEO but fixing the body framing was the fix.)
@@ -500,7 +502,7 @@ allocation.color → asset_classes.default_color → null (components use FALLBA
 | NEXT_PUBLIC_SUPABASE_URL      | lib/supabase.js              |
 | NEXT_PUBLIC_SUPABASE_ANON_KEY | lib/supabase.js              |
 | SUPABASE_SERVICE_ROLE_KEY     | app/api/memberful/route.js + scripts — bypasses RLS for webhook upserts and bulk scripts; never expose client-side; mark as Sensitive in Vercel |
-| ANTHROPIC_API_KEY             | app/api/screener/route.js    |
+| ANTHROPIC_API_KEY             | app/api/screener/route.js; scripts/auto-returns/stage0_email.py (signal email market context); scripts/auto-returns/monthly_recap.py (Stage 1's auto-drafted recap post, incl. web search) |
 | NEXT_PUBLIC_SITE_URL          | generateMetadata() canonical URLs |
 | NEXT_PUBLIC_GA_MEASUREMENT_ID | components/GoogleAnalytics.jsx — GA4 measurement ID (e.g. G-XXXXXXX) |
 | MAILERLITE_API_KEY            | app/api/subscribe/route.js — MailerLite API token (server-side only, never expose client-side) |
@@ -1095,18 +1097,19 @@ Automates monthly return calculations for all Buy and Hold and Tactical portfoli
 |------|---------|
 | `requirements.txt` | Python deps: requests, supabase, python-dotenv |
 | `utils.py` | Shared helpers: `get_supabase_client()`, `get_target_month()`, `month_display()`, `DOTENV_PATH` |
-| `stage1_calculate.py` | Fetches prices → calculates blended returns → writes to staging → emails summary |
-| `stage2_promote.py` | Promotes approved staging rows to live monthly_returns |
+| `stage1_calculate.py` | Fetches prices → calculates blended returns → writes to staging → generates the monthly recap blog draft (see `monthly_recap.py`) → emails summary (returns table + full recap draft) |
+| `stage2_promote.py` | Promotes approved staging rows to live monthly_returns → auto-publishes the matching recap blog post if one is in `draft` status |
+| `monthly_recap.py` | Auto-drafts the "[Month] [Year] in Review" blog post (Aug 2026) — see "Monthly Recap Blog Post Automation" below |
 
 **Supabase tables added:**
 - `monthly_returns_staging` — mirrors monthly_returns with extra columns: `status` (pending/approved/rejected), `flagged` (bool), `flag_reason` (text)
 - `staging_review` view — shows pending rows sorted flagged-first, joined with portfolio names
 
 **Monthly workflow:**
-1. Stage 1 runs automatically on the 3rd of each month (via GitHub Actions — Phase 4, not yet set up as of May 2026)
-2. You receive a summary email with all 41 portfolio returns and any flags
-3. Review flagged rows in Supabase: `SELECT * FROM staging_review;`
-4. Run Stage 2 manually to promote: `python3 stage2_promote.py --month YYYY-MM`
+1. Stage 1 runs automatically on the 3rd of each month (via GitHub Actions)
+2. You receive a summary email with all portfolio returns, any flags, **and that month's auto-drafted recap blog post in full** (see "Monthly Recap Blog Post Automation" below)
+3. Review flagged rows in Supabase: `SELECT * FROM staging_review;`, and read the recap draft in the email
+4. Run Stage 2 manually to promote: `python3 stage2_promote.py --month YYYY-MM` — this **also flips the recap post from `draft` to `published`** if the returns promote cleanly, so approving the numbers and approving the post are the same action
 5. Refresh the materialized view: `REFRESH MATERIALIZED VIEW portfolio_stats;` in the Supabase SQL Editor (the matview does NOT auto-update on insert)
 6. Redeploy Vercel so the SSG pages rebuild from the refreshed stats (see the two-manual-steps note under Monthly Data Update Workflow above)
 
@@ -1121,6 +1124,38 @@ python3 stage2_promote.py --month 2026-04
 **Flag thresholds:** portfolio return < -25% or > +25%, missing ticker price data, or weights not summing to ~1.0 (±0.01 tolerance).
 
 **Stage 2 safety checks:** requires typed CONFIRM before promoting any flagged rows; aborts if rows already exist in monthly_returns for that month (prevents duplicate inserts).
+
+### Monthly Recap Blog Post Automation (Aug 2026)
+
+Stage 1 now also drafts that month's "[Month] [Year] in Review" post (the recurring format defined in `content-calendar.md` → "Monthly Recap Posts (Recurring)") automatically, using the same `results` it just computed — no extra Supabase round trip. This is a **different workflow from the evergreen 25-post calendar**: the evergreen posts are still written manually and always leave two `[ADD YOUR TAKE HERE]` slots for Nick (see "Blog post writing workflow" above); the monthly recap is fully auto-drafted end to end, with no manual fill-in slots, because Nick's review now happens by reading the whole draft in the Stage 1 email rather than editing it in Supabase.
+
+**How it works (`scripts/auto-returns/monthly_recap.py`):**
+1. Excludes any flagged staging rows from every number (their return may be a data error and hasn't been reviewed yet) — flagged portfolios are reported separately in the email, never baked into the post.
+2. Computes headline stats (average return, breadth, the three benchmark returns, category averages, top/bottom 8) in Python from the clean data.
+3. Sends those stats to Claude (`claude-sonnet-5` — chosen over the project's usual `claude-haiku-4-5` for this one call specifically, since it's longer-form, research-grounded, published content rather than a short data-only summary) with the `web_search` tool enabled (`web_search_20250305`, no beta header needed), instructed to research real market news for that exact month for the "What Moved Markets" section and to use ONLY the given numbers for anything data-related — it must never invent a return, date, or event.
+4. Parses Claude's response for the final JSON `{excerpt, content}` — response parsing takes only the text blocks that appear **after** the last `web_search_tool_result` block (discarding any "I'll search for..." narration that precedes tool use), then extracts the outermost `{...}` from that text rather than requiring the whole string to parse, since Claude sometimes prefixes a short lead-in phrase after search results even when told to respond with only JSON.
+5. Title (`"[Month] [Year] in Review: How N Portfolio Strategies Performed"`) and slug (`[month]-[year]-portfolio-performance-review`, matching every prior recap's URL) are computed deterministically in Python, not by Claude — keeps the two things that must be exactly consistent (title↔slug↔count) outside the model's control.
+6. Upserts a `status='draft'` row into `blog_posts` and returns everything needed for the email.
+
+**Confidence label (Aug 2026) — mechanically computed, never an LLM self-report.** Asking Claude to rate its own confidence would just be a second guess layered on the first one, so the email instead shows a label derived by `evaluate_confidence()` from fixed rules applied to `_check_draft_quality()`'s output:
+- Whether `web_search` actually ran (`search_count`) and whether any search call errored (`search_errors`), read from the raw API response's `server_tool_use` / `web_search_tool_result` blocks.
+- Whether every `[Name](/portfolios/slug)` link in the draft resolves to a slug Claude was actually given data for (the `top`/`bottom`/`benchmarks` slugs in `stats`) — a link to anything else means Claude referenced portfolio performance it was never handed, caught via regex + set lookup, not a guess.
+- Whether the return figure quoted near each valid link (checked in a ±180-character window, both signed and unsigned 2-decimal formats) matches that portfolio's real `monthly_return` — a best-effort spot check, not a full accuracy audit.
+- Response truncation (`stop_reason == 'max_tokens'`) and word count sanity (900–1,600 words).
+
+Any invalid link, zero searches, or truncation forces `LOW confidence`. Search errors, a meaningful fraction of unverified return figures, or an out-of-range word count force at least `MODERATE`. Everything passing gives `HIGH`. **This only verifies data provenance** (links resolve, cited numbers match, search happened) — **it cannot verify that the market-context narrative correctly interprets what it found**, so that section always needs a human read regardless of the label. The email states this limitation explicitly rather than letting a "HIGH confidence" label imply more than it checks.
+
+**Idempotent by design:** if a `blog_posts` row already exists at that month's slug (draft or published), generation is skipped rather than re-spending on a fresh Claude + web search call every time Stage 1 happens to be re-run for the same month. A `published` post is never overwritten under any circumstance. To deliberately regenerate a draft, run the script standalone:
+```bash
+python3 monthly_recap.py --month 2026-07            # skips if a row already exists
+python3 monthly_recap.py --month 2026-07 --force     # regenerates a draft (never touches a published row)
+```
+
+**Stage 2's auto-publish step:** after promoting returns for month `--month YYYY-MM`, Stage 2 recomputes that same deterministic slug via `build_recap_slug()` (imported from `monthly_recap.py`) and flips it `draft → published` with `published_at` set to the promotion time, if and only if it finds a `draft` row there. No draft found, or already published, is logged and skipped — never an error that blocks the returns promotion itself.
+
+**Known limitation:** if Nick corrects a flagged portfolio's data manually during Stage 2 review (rather than fixing it upstream and re-running Stage 1), the already-drafted post's numbers won't reflect that correction. Re-run `monthly_recap.py --month YYYY-MM --force` before running Stage 2 if a correction changes any number the post discusses.
+
+**Required secret:** `ANTHROPIC_API_KEY` in the Stage 1 GitHub Actions env (same secret already used by Stage 0's signal email — see below).
 
 **New portfolios added May 2026:**
 - `us-stock-market` — VTI (100%). Backfilled with VFINX (EODHD) for Jan 1980 – May 2001, then VTI for Jun 2001 – Apr 2026. Stage 1 handles VTI going forward.
@@ -1539,9 +1574,9 @@ Descriptions are stored as a single text value. Use the two-character sequence `
 
 ### Valid internal portfolio links
 When writing or editing descriptions, only link to slugs that exist in the DB. Confirmed valid slugs for internal links:
-`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`, `jl-collins-wealth-preservation-portfolio`, `paul-merriman-4-fund-portfolio-united-states`, `ben-felix-model-portfolio-timing`, `volatility-weighted-global-momentum-portfolio`
+`permanent-portfolio`, `golden-butterfly-portfolio`, `ray-dalios-all-weather-portfolio`, `united-states-60-40-portfolio`, `coffeehouse-portfolio`, `andrew-tobias-portfolio`, `gone-fishin-portfolio`, `bogleheads-three-fund-portfolio`, `bogleheads-four-fund-portfolio`, `ivy-portfolio-faber`, `global-tactical-asset-allocation-13-gtaa-13-meb-faber`, `global-tactical-asset-allocation-5-gtaa-5-meb-faber`, `global-tactical-asset-allocation-agg-3-meb-faber`, `global-tactical-asset-allocation-agg-6-meb-faber`, `generalized-protective-momentum`, `desert-portfolio`, `vigilant-asset-allocation-g12`, `vigilant-asset-allocation-g4-aggressive`, `mama-bear-portfolio`, `papa-bear-portfolio`, `the-larry-portfolio-swedroe`, `lazy-portfolio-by-david-swensen`, `cowards-portfolio-bill-bernstein`, `no-brainer-portfolio-bill-bernstein`, `core-four-portfolio-by-rick-ferri`, `pinwheel-portfolio`, `sandwich-portfolio`, `rob-arnott-portfolio`, `tactical-permanent-portfolio`, `7twelve-portfolio`, `ultimate-buy-and-hold-portfolio-7-paul-merriman`, `ultimate-buy-and-hold-portfolio-8-paul-merriman`, `conservative-income-portfolio-schwab`, `conservative-income-tax-aware-portfolio-schwab`, `kipnis-defensive-adaptive-asset-allocation-kda`, `diversified-gem-dual-momentum`, `gem-dual-momentum`, `gem-emerging-markets-dual-momentum`, `composite-dual-momentum`, `accelerating-dual-momentum`, `adaptive-asset-allocation`, `protective-asset-allocation`, `defensive-asset-allocation`, `quint-switching-filtered`, `stokens-active-combined-asset`, `three-way-model-by-ned-davis`, `paired-switching-lewis-glenn`, `robust-asset-allocation-aggressive`, `robust-asset-allocation-balanced`, `robust-portfolio-alpha-architect`, `ben-felix-model-portfolio`, `jl-collins-wealth-preservation-portfolio`, `paul-merriman-4-fund-portfolio-united-states`, `ben-felix-model-portfolio-timing`, `volatility-weighted-global-momentum-portfolio`, `ivy-portfolio-timing`, `ivy-portfolio-rotation`
 
-Do NOT link to: `ivy-portfolio-timing`, `ivy-portfolio-rotation` — these slugs do not exist in the DB.
+(**Corrected Aug 2026:** this list previously said `ivy-portfolio-timing` and `ivy-portfolio-rotation` did NOT exist in the DB — confirmed via direct query that both are live now, likely added after that note was originally written. `ivy-portfolio-rotation` was already safely linked from the published June 2026 Monthly Recap post before this correction, so the stale note wasn't catching real mistakes; it was just wrong. If you hit a slug that seems questionable, verify with a live query rather than trusting this list blindly — portfolios get added over time and this list isn't automatically kept in sync.)
 
 ### Workflow for adding new descriptions to Supabase
 **Bulk (preferred):** Edit or add files in `description-drafts/`, then run:
