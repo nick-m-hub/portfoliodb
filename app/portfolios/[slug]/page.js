@@ -579,9 +579,113 @@ export default async function PortfolioDetailPage({ params }) {
                 { label: '5 Year',  low: portfolio.rolling_5yr_low,  avg: portfolio.rolling_5yr_avg,  high: portfolio.rolling_5yr_high },
                 { label: '10 Year', low: portfolio.rolling_10yr_low, avg: portfolio.rolling_10yr_avg, high: portfolio.rolling_10yr_high },
               ].filter((r) => r.avg != null);
+
+              // Performance vs. Own History gauge — current trailing CAGR plotted against
+              // the full historical rolling-return range for the same window. Only 1yr/3yr/10yr
+              // have a matching trailing "current" column (cagr_1yr/cagr_3yr/cagr_10yr); 5yr has
+              // no trailing equivalent in the view, so it's gauge-only excluded (still in the table above).
+              const clampPct = (v, low, high) => (high === low ? 50 : Math.min(100, Math.max(0, ((v - low) / (high - low)) * 100)));
+              const gaugeRows = [
+                { key: '1yr', label: '1-Year' },
+                { key: '3yr', label: '3-Year' },
+                { key: '10yr', label: '10-Year' },
+              ].map(({ key, label }) => {
+                const current = portfolio[`cagr_${key}`];
+                const low = portfolio[`rolling_${key}_low`];
+                const avg = portfolio[`rolling_${key}_avg`];
+                const high = portfolio[`rolling_${key}_high`];
+                if (current == null || low == null || avg == null || high == null) return null;
+                return { label, current, low, avg, high };
+              }).filter(Boolean);
+
+              // Trend label — derived purely by comparing the deltas (current − avg) already
+              // computed for the gauge rows above, no new data. deltas[] is ordered shortest-window
+              // first (1yr, 3yr, 10yr, whichever exist). If each step toward a longer window drops
+              // by more than TREND_EPS, recent performance is pulling ahead of its own longer-run
+              // standing ("Trending Up"); if each step rises, recent performance is falling behind
+              // ("Trending Down"); anything non-monotonic is "Mixed Signal". Needs ≥2 windows.
+              const TREND_EPS = 1.5; // pp — tolerance band so noise doesn't flip the label
+              let trend = null;
+              if (gaugeRows.length >= 2) {
+                const deltas = gaugeRows.map((r) => r.current - r.avg);
+                let up = true;
+                let down = true;
+                for (let i = 1; i < deltas.length; i++) {
+                  if (deltas[i] > deltas[i - 1] - TREND_EPS) up = false;
+                  if (deltas[i] < deltas[i - 1] + TREND_EPS) down = false;
+                }
+                if (up) trend = { label: 'Trending Up', icon: 'trending_up', pillClass: 'bg-[#D1E4D8] text-primary' };
+                else if (down) trend = { label: 'Trending Down', icon: 'trending_down', pillClass: 'bg-[#fbe4e4] text-error' };
+                else trend = { label: 'Mixed Signal', icon: 'trending_flat', pillClass: 'bg-surface-container text-on-surface-variant' };
+              }
+
               return (
                 <section id="rolling-returns" className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant shadow-sm">
-                  <h2 className="font-manrope text-[22px] font-bold text-primary mb-6">Rolling Returns</h2>
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mb-1">
+                    <h2 className="font-manrope text-[22px] font-bold text-primary">Rolling Returns</h2>
+                    {trend && (
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-inter text-[12px] font-bold ${trend.pillClass}`}>
+                        <span className="material-symbols-outlined text-[15px]">{trend.icon}</span>
+                        {trend.label}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-inter text-[13px] text-on-surface-variant mb-6 max-w-2xl">
+                    How the portfolio's current trailing return compares to its own historical rolling-return range. Reading top to bottom shows whether recent performance is keeping pace with, pulling ahead of, or falling behind its long-term track record.
+                  </p>
+
+                  {gaugeRows.length > 0 && (
+                    <div className="space-y-7 mb-8 pb-8 border-b border-outline-variant">
+                      {gaugeRows.map((r) => {
+                        const currentPct = clampPct(r.current, r.low, r.high);
+                        const avgPct = clampPct(r.avg, r.low, r.high);
+                        const aboveAvg = r.current >= r.avg;
+                        const delta = r.current - r.avg;
+                        return (
+                          <div key={r.label}>
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2">
+                              <span className="font-inter text-[14px] font-semibold text-on-surface">{r.label}</span>
+                              <span className={`font-inter text-[13px] font-semibold ${aboveAvg ? 'text-primary' : 'text-error'}`}>
+                                {r.current >= 0 ? '+' : ''}{r.current.toFixed(1)}%
+                                <span className="font-normal text-on-surface-variant ml-1.5">
+                                  ({aboveAvg ? '+' : ''}{delta.toFixed(1)}pp vs. its {r.avg.toFixed(1)}% avg)
+                                </span>
+                              </span>
+                            </div>
+                            <div className="relative h-2 rounded-full bg-surface-container">
+                              <div
+                                className="absolute top-1/2 w-0.5 h-4 bg-outline -translate-y-1/2 -translate-x-1/2"
+                                style={{ left: `${avgPct}%` }}
+                              />
+                              <div
+                                className={`absolute top-1/2 w-3.5 h-3.5 rounded-full border-2 border-surface-container-lowest -translate-y-1/2 -translate-x-1/2 ${aboveAvg ? 'bg-primary' : 'bg-error'}`}
+                                style={{ left: `${currentPct}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between mt-1.5">
+                              <span className="font-inter text-[11px] text-on-surface-variant">{r.low >= 0 ? '+' : ''}{r.low.toFixed(1)}% low</span>
+                              <span className="font-inter text-[11px] text-on-surface-variant">{r.high >= 0 ? '+' : ''}{r.high.toFixed(1)}% high</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="flex flex-wrap items-center gap-4 pt-1 text-[11px] font-inter text-on-surface-variant">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />
+                          Current above historical average
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-error inline-block" />
+                          Current below historical average
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-0.5 h-3 bg-outline inline-block" />
+                          Historical average
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>

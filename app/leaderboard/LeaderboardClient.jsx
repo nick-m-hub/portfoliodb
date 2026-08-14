@@ -8,6 +8,30 @@ const TABS = [
   { key: 'cagr_3yr',  label: '3-Year',  suffix: '%', description: 'Annualized return over the trailing 3 years' },
   { key: 'cagr_10yr', label: '10-Year', suffix: '%', description: 'Annualized return over the trailing 10 years' },
   { key: 'sharpe_ratio', label: 'Sharpe', suffix: '', description: 'Risk-adjusted return (higher is better)' },
+  {
+    key: 'vs_avg_1yr',
+    label: '1Y vs. Avg',
+    suffix: 'pp',
+    sortAsc: true,
+    compute: (p) => (p.cagr_1yr != null && p.rolling_1yr_avg != null) ? p.cagr_1yr - p.rolling_1yr_avg : null,
+    description: "Trailing 1-year return minus its own historical 1-year rolling average. Sorted worst-first — the portfolios furthest below their own track record.",
+  },
+  {
+    key: 'vs_avg_3yr',
+    label: '3Y vs. Avg',
+    suffix: 'pp',
+    sortAsc: true,
+    compute: (p) => (p.cagr_3yr != null && p.rolling_3yr_avg != null) ? p.cagr_3yr - p.rolling_3yr_avg : null,
+    description: "Trailing 3-year annualized return minus its own historical 3-year rolling average. Sorted worst-first.",
+  },
+  {
+    key: 'vs_avg_10yr',
+    label: '10Y vs. Avg',
+    suffix: 'pp',
+    sortAsc: true,
+    compute: (p) => (p.cagr_10yr != null && p.rolling_10yr_avg != null) ? p.cagr_10yr - p.rolling_10yr_avg : null,
+    description: "Trailing 10-year annualized return minus its own historical 10-year rolling average. Sorted worst-first.",
+  },
 ];
 
 const CATEGORY_COLORS = {
@@ -18,9 +42,9 @@ const CATEGORY_COLORS = {
 function fmt(value, suffix) {
   if (value == null) return <span className="text-outline">—</span>;
   const num = Number(value);
-  if (suffix === '%') {
+  if (suffix === '%' || suffix === 'pp') {
     const color = num >= 0 ? 'text-primary' : 'text-error';
-    return <span className={color}>{num >= 0 ? '+' : ''}{num.toFixed(1)}%</span>;
+    return <span className={color}>{num >= 0 ? '+' : ''}{num.toFixed(1)}{suffix}</span>;
   }
   return <span>{num.toFixed(2)}</span>;
 }
@@ -29,12 +53,13 @@ export default function LeaderboardClient({ portfolios }) {
   const [activeTab, setActiveTab] = useState('cagr_1yr');
 
   const tab = TABS.find((t) => t.key === activeTab);
+  const getValue = (p) => (tab.compute ? tab.compute(p) : p[tab.key]);
 
   const sorted = [...portfolios]
-    .filter((p) => p[activeTab] != null)
-    .sort((a, b) => Number(b[activeTab]) - Number(a[activeTab]));
+    .filter((p) => getValue(p) != null)
+    .sort((a, b) => tab.sortAsc ? getValue(a) - getValue(b) : getValue(b) - getValue(a));
 
-  const nulls = portfolios.filter((p) => p[activeTab] == null);
+  const nulls = portfolios.filter((p) => getValue(p) == null);
 
   return (
     <div>
@@ -72,14 +97,19 @@ export default function LeaderboardClient({ portfolios }) {
             {sorted.map((p, i) => {
               const catClass = CATEGORY_COLORS[p.category] ?? 'bg-surface-container text-on-surface-variant';
               const isTop3 = i < 3;
-              const medal = ['🥇', '🥈', '🥉'][i] ?? null;
+              const medal = !tab.sortAsc ? (['🥇', '🥈', '🥉'][i] ?? null) : null;
+              const rowHighlight = isTop3 ? (tab.sortAsc ? 'bg-[#fdf2f2]' : 'bg-[#f0f7f3]') : 'bg-surface-container-lowest';
               return (
                 <tr
                   key={p.slug}
-                  className={`border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors ${isTop3 ? 'bg-[#f0f7f3]' : 'bg-surface-container-lowest'}`}
+                  className={`border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors ${rowHighlight}`}
                 >
                   <td className="px-4 py-3 font-inter text-sm text-on-surface-variant text-center">
-                    {medal ?? <span className="text-xs">{i + 1}</span>}
+                    {medal
+                      ?? (tab.sortAsc && isTop3
+                        ? <span className="material-symbols-outlined text-error text-[16px]">warning</span>
+                        : <span className="text-xs">{i + 1}</span>)
+                    }
                   </td>
                   <td className="px-4 py-3">
                     <Link
@@ -93,7 +123,7 @@ export default function LeaderboardClient({ portfolios }) {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-manrope text-sm font-bold text-right">
-                    {fmt(p[activeTab], tab.suffix)}
+                    {fmt(getValue(p), tab.suffix)}
                   </td>
                 </tr>
               );

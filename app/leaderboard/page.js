@@ -4,13 +4,13 @@ import LeaderboardClient from './LeaderboardClient';
 
 export const metadata = {
   title: 'Portfolio Strategy Leaderboard | PortfolioDB',
-  description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — updated monthly.',
+  description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — plus which are lagging their own historical average. Updated monthly.',
   alternates: {
     canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/leaderboard`,
   },
   openGraph: {
     title: 'Portfolio Strategy Leaderboard | PortfolioDB',
-    description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — updated monthly.',
+    description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — plus which are lagging their own historical average. Updated monthly.',
     url: `${process.env.NEXT_PUBLIC_SITE_URL}/leaderboard`,
     siteName: 'PortfolioDB',
     type: 'website',
@@ -18,14 +18,14 @@ export const metadata = {
   twitter: {
     card: 'summary',
     title: 'Portfolio Strategy Leaderboard | PortfolioDB',
-    description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — updated monthly.',
+    description: 'See which portfolio strategies are leading by YTD return, 1-year, 3-year, 10-year average return, and Sharpe ratio — plus which are lagging their own historical average. Updated monthly.',
   },
 };
 
 async function getLeaderboardData() {
   const { data, error } = await supabase
     .from('portfolio_stats')
-    .select('slug, name, category, ytd_return, cagr_1yr, cagr_3yr, cagr_10yr, sharpe_ratio, last_updated')
+    .select('slug, name, category, ytd_return, cagr_1yr, cagr_3yr, cagr_10yr, sharpe_ratio, last_updated, rolling_1yr_avg, rolling_3yr_avg, rolling_10yr_avg')
     .order('sharpe_ratio', { ascending: false });
 
   if (error) {
